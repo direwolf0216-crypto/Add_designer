@@ -1,86 +1,50 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { conflict, notFound, parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requirePermission, requireUser } from "@/lib/auth/session";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const updateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  phone: z.string().trim().min(1).max(30).optional(),
+  email: z
+    .union([z.email().max(200), z.literal("")])
+    .nullish()
+    .transform((v) => (v === undefined ? undefined : v || null)),
+});
 
-  try {
-    const id = (await params).id;
-    const client = await prisma.client.findUnique({
-      where: { id },
-      include: { jobs: true },
-    });
+export const GET = route<{ id: string }>(async (_req, { params }) => {
+  await requireUser();
+  const { id } = await params;
 
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 404 });
-    }
+  const client = await prisma.client.findUnique({
+    where: { id },
+    include: { jobs: { where: { deletedAt: null }, orderBy: { date: "desc" }, take: 500 } },
+  });
+  if (!client) throw notFound("Client not found");
 
-    return NextResponse.json(client, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch client" }, { status: 500 });
-  }
-}
+  return NextResponse.json(client, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PUT = route<{ id: string }>(async (req, { params }) => {
+  await requirePermission("manage_jobs");
+  const { id } = await params;
+  const data = await parseJson(req, updateSchema);
 
-  try {
-    const id = (await params).id;
-    const body = await request.json();
-    const { name, phone, email } = body;
+  const updated = await prisma.client.update({ where: { id }, data });
 
-    const updated = await prisma.client.update({
-      where: { id },
-      data: {
-        name: name?.trim(),
-        phone: phone?.trim(),
-        email: email?.trim(),
-      },
-    });
+  return NextResponse.json(updated, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-    return NextResponse.json(updated, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update client" }, { status: 500 });
-  }
-}
+export const DELETE = route<{ id: string }>(async (_req, { params }) => {
+  await requireAdmin();
+  const { id } = await params;
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Trashed jobs still reference the client until they are purged.
+  const jobs = await prisma.job.count({ where: { clientId: id, deletedAt: undefined } });
+  if (jobs > 0) throw conflict("This client still has jobs (including ones in the recycle bin)");
 
-  try {
-    const id = (await params).id;
-    await prisma.client.delete({
-      where: { id },
-    });
+  await prisma.client.delete({ where: { id } });
 
-    return NextResponse.json({ success: true }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete client" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
+});

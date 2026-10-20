@@ -1,48 +1,48 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
+import { businessTodayUtc } from "@/lib/dates";
+import { round2 } from "@/lib/money";
+import { SHOOT_DONE_STATUSES } from "@/lib/services/jobs";
 
-let uiPreferencesCache: { value: any; timestamp: number } | null = null;
-const CACHE_TTL = 60000; // 1 minute
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_PREFS = { currencySymbol: "₹", hotDateBenchmark: 50000 };
+const ALBUM_WORK_STATUSES = ["designing", "printing", "album work in progress"];
 
-async function getUiPreferences() {
-  if (uiPreferencesCache && Date.now() - uiPreferencesCache.timestamp < CACHE_TTL) {
-    return uiPreferencesCache.value;
+const NOT_CANCELLED: Prisma.JobWhereInput = {
+  NOT: [
+    { status: { equals: "Cancelled", mode: "insensitive" } },
+    { status: { equals: "Canceled", mode: "insensitive" } },
+  ],
+};
+
+function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
   }
-  const setting = await prisma.systemSetting.findUnique({ where: { key: "UI_PREFERENCES" } });
-  const value = (setting?.value as any) || { currencySymbol: "₹", hotDateBenchmark: 50000 };
-  uiPreferencesCache = { value, timestamp: Date.now() };
-  return value;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const lower = (value: unknown) => (typeof value === "string" ? value.trim().toLowerCase() : "");
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+export const GET = route(async () => {
+  await requireUser();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const dayAfterTomorrow = new Date(today);
-    dayAfterTomorrow.setDate(today.getDate() + 2);
-    const next8Days = new Date(today);
-    next8Days.setDate(today.getDate() + 8);
-    const next14Days = new Date(today);
-    next14Days.setDate(today.getDate() + 14);
+  // Job.date is a calendar date stored as UTC midnight; day boundaries are IST calendar days.
+  const today = businessTodayUtc();
+  const day = (offset: number) => new Date(today.getTime() + offset * DAY_MS);
 
-    // Cached system setting
-    const prefs = await getUiPreferences();
-
-    // Fetch only needed fields for the 30-day window
-    const dbJobs = await prisma.job.findMany({
-      where: { deletedAt: null, date: { gte: thirtyDaysAgo } },
+  const [setting, dbJobs, immediateShoots, thisWeekShoots, unconfirmedShoots, pendingDueAgg, albumJobs] = await Promise.all([
+    prisma.systemSetting.findUnique({ where: { key: "UI_PREFERENCES" } }),
+    prisma.job.findMany({
+      where: { deletedAt: null, date: { gte: day(-30) } },
       select: {
         id: true,
         jobNumber: true,
@@ -50,103 +50,93 @@ export async function GET() {
         date: true,
         time: true,
         status: true,
-        albumStatus: true,
         customData: true,
-        client: { select: { name: true, phone: true, email: true } },
-        order: { select: { package: true, advance: true, due: true } },
+        client: { select: { name: true } },
+        order: { select: { package: true } },
       },
-      orderBy: { date: 'desc' }
-    });
+      orderBy: { date: "desc" },
+      take: 2000,
+    }),
+    // Today or tomorrow
+    prisma.job.count({ where: { deletedAt: null, date: { gte: today, lt: day(2) } } }),
+    // Next 7 days, excluding today
+    prisma.job.count({ where: { deletedAt: null, date: { gte: day(1), lt: day(8) } } }),
+    prisma.job.count({
+      where: { deletedAt: null, status: { equals: "Pending", mode: "insensitive" }, date: { gte: today, lt: day(14) } },
+    }),
+    // Order.due is kept in sync with the job's payments (refreshOrderTotals).
+    prisma.order.aggregate({
+      _sum: { due: true },
+      where: { job: { deletedAt: null, date: { gte: today, lt: day(14) }, ...NOT_CANCELLED } },
+    }),
+    // Albums start once the shoot is done and stay open until delivered.
+    prisma.job.findMany({
+      where: {
+        deletedAt: null,
+        galleryDelivered: false,
+        OR: [...SHOOT_DONE_STATUSES, ...ALBUM_WORK_STATUSES].map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),
+      },
+      select: { status: true, albumStatus: true, customData: true },
+      take: 5000,
+    }),
+  ]);
 
-    const jobs = dbJobs.map(b => ({
-      id: b.id,
-      jobNumber: b.jobNumber,
-      title: b.client.name,
-      category: b.category,
-      date: b.date.toISOString().split('T')[0],
-      time: (b as any).time,
-      status: b.status as any,
-      customData: (b as any).customData || {}
-    }));
+  const prefs =
+    setting?.value && typeof setting.value === "object" && !Array.isArray(setting.value)
+      ? { ...DEFAULT_PREFS, ...(setting.value as Record<string, unknown>) }
+      : DEFAULT_PREFS;
 
-    // Use SQL aggregates instead of JS computation
-    const [immediateShoots, thisWeekShoots, unconfirmedShoots, pendingDueAgg] = await Promise.all([
-      // Jobs today or tomorrow
-      prisma.job.count({
-        where: { deletedAt: null, date: { gte: today, lt: dayAfterTomorrow } }
-      }),
-      // Jobs in next 7 days (excluding today)
-      prisma.job.count({
-        where: { deletedAt: null, date: { gte: tomorrow, lt: next8Days } }
-      }),
-      // Pending jobs in next 14 days
-      prisma.job.count({
-        where: { deletedAt: null, status: 'PENDING', date: { gte: today, lt: next14Days } }
-      }),
-      // Sum of due amounts in next 14 days (via orders)
-      prisma.order.aggregate({
-        _sum: { due: true },
-        where: { job: { date: { gte: today, lt: next14Days }, deletedAt: null } }
-      }),
-    ]);
+  const jobs = dbJobs.map((b) => ({
+    id: b.id,
+    jobNumber: b.jobNumber,
+    title: b.client.name,
+    category: b.category,
+    date: b.date.toISOString().slice(0, 10),
+    time: b.time,
+    status: b.status,
+    customData: readCustomData(b.customData),
+  }));
 
-    // Hot date: most valuable upcoming date — computed from loaded data
-    // (need customData for album metrics which is already fetched)
-    const dateStats = new Map<string, { count: number; totalPackage: number }>();
-    for (const b of dbJobs) {
-      if (b.date >= today) {
-        const dStr = b.date.toISOString().split('T')[0];
-        const existing = dateStats.get(dStr) || { count: 0, totalPackage: 0 };
-        existing.count++;
-        existing.totalPackage += b.order?.package || 0;
-        dateStats.set(dStr, existing);
-      }
-    }
-    // Find all hot dates
-    const hotDates: { date: string; totalAmount: number; count: number }[] = [];
-    const benchmark = prefs.hotDateBenchmark || 50000;
-    for (const [dStr, stats] of dateStats) {
-      if (stats.totalPackage >= benchmark) {
-        hotDates.push({ date: dStr, totalAmount: stats.totalPackage, count: stats.count });
-      }
-    }
-    hotDates.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const dateStats = new Map<string, { count: number; totalPackage: number }>();
+  for (const b of dbJobs) {
+    if (b.date < today) continue;
+    const key = b.date.toISOString().slice(0, 10);
+    const stats = dateStats.get(key) ?? { count: 0, totalPackage: 0 };
+    stats.count++;
+    stats.totalPackage = round2(stats.totalPackage + (b.order?.package ?? 0));
+    dateStats.set(key, stats);
+  }
+  const benchmark = Number(prefs.hotDateBenchmark) || DEFAULT_PREFS.hotDateBenchmark;
+  const hotDates = [...dateStats]
+    .filter(([, s]) => s.totalPackage >= benchmark)
+    .map(([date, s]) => ({ date, totalAmount: s.totalPackage, count: s.count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Album metrics: computed from loaded data (needs customData which is JSON)
-    let albumInProgressCount = 0;
-    let pendingAlbumWorksCount = 0;
-    for (const b of dbJobs) {
-      const isAlbum = b.category === 'Album' ||
-        (b.customData as any)?.fld_b_inclusions?.includes('Album') ||
-        (b.customData as any)?.album_status ||
-        (b as any).albumStatus;
-      const bStatus = (b.status || '').trim().toLowerCase();
-      const aStatus = ((b as any).albumStatus || '').trim().toLowerCase();
-      
-      if (bStatus === 'shoot completed' || (isAlbum && bStatus === 'pending') || aStatus === 'pending') {
-        pendingAlbumWorksCount++;
-      } else if (bStatus === 'designing' || bStatus === 'printing' || bStatus === 'album work in progress' || aStatus === 'in_progress') {
-        albumInProgressCount++;
-      } else if (isAlbum && bStatus !== 'delivered' && bStatus !== 'shoot completed' && bStatus !== 'pending' && aStatus !== 'delivered') {
-        albumInProgressCount++;
-      }
-    }
+  let albumInProgressCount = 0;
+  let pendingAlbumWorksCount = 0;
+  for (const b of albumJobs) {
+    const album = lower(readCustomData(b.customData).fld_b_album_status);
+    if (album === "delivered") continue;
+    const inProgress =
+      ALBUM_WORK_STATUSES.includes(lower(b.status)) || b.albumStatus === "IN_PROGRESS" || (album !== "" && album !== "pending");
+    if (inProgress) albumInProgressCount++;
+    else pendingAlbumWorksCount++;
+  }
 
-    return NextResponse.json({
+  return NextResponse.json(
+    {
       jobs,
       prefs,
       metrics: {
         immediateShoots,
         thisWeekShoots,
-        pendingDueAmount: pendingDueAgg._sum.due || 0,
+        pendingDueAmount: round2(pendingDueAgg._sum.due ?? 0),
         unconfirmedShoots,
         hotDates,
         albumInProgressCount,
-        pendingAlbumWorksCount
-      }
-    });
-
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch jobs overview" }, { status: 500 });
-  }
-}
+        pendingAlbumWorksCount,
+      },
+    },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
+});

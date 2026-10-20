@@ -1,218 +1,213 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
+import type { NotificationType, Prisma } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { HttpError, route } from "@/lib/api/http";
+import { businessTodayUtc, toBusinessISODate } from "@/lib/dates";
+import { formatINR } from "@/lib/money";
+import { claimReminder, createNotification } from "@/lib/notifications";
+import { SHOOT_DONE_STATUSES } from "@/lib/services/jobs";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  try {
-    // Basic auth check for cron jobs (Vercel uses a header)
-    const authHeader = request.headers.get('authorization');
-    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new NextResponse('Forbidden', { status: 403 });
-    }
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** How far past a threshold a job is still reminded about; older jobs are assumed handled. */
+const LOOKBACK_DAYS = 60;
+const MAX_JOBS_PER_CHECK = 500;
+const BATCH_SIZE = 10;
 
-    // 1. Fetch thresholds
-    const settings = await prisma.systemSetting.findMany({
-      where: {
-        key: {
-          in: [
-            'reminder_threshold_order_stale',
-            'reminder_threshold_order_ready',
-            'reminder_threshold_advance',
-            'reminder_threshold_gallery',
-            'reminder_threshold_album',
-            'reminder_threshold_payment_due',
-          ]
-        }
-      }
-    });
+const REMINDER_TYPES: NotificationType[] = [
+  "PAYMENT_DUE_REMINDER",
+  "ADVANCE_NOT_COLLECTED",
+  "GALLERY_NOT_DELIVERED",
+  "ALBUM_PENDING_REMINDER",
+];
 
-    const getThreshold = (key: string, defaultValue: number) => {
-      const setting = settings.find(s => s.key === key);
-      if (setting && typeof setting.value === 'object' && setting.value !== null && 'days' in setting.value) {
-        return Number((setting.value as any).days);
-      }
-      return defaultValue;
-    };
-
-    const thresholds = {
-      orderStale: getThreshold('reminder_threshold_order_stale', 3),
-      orderReady: getThreshold('reminder_threshold_order_ready', 2),
-      advance: getThreshold('reminder_threshold_advance', 7),
-      gallery: getThreshold('reminder_threshold_gallery', 14),
-      album: getThreshold('reminder_threshold_album', 30),
-      paymentDue: getThreshold('reminder_threshold_payment_due', 3),
-    };
-
-    const now = new Date();
-    let notificationsCreated = 0;
-
-    // Duplicate reminder check: skip if same entityId + type notification exists with createdAt > now() - 24h OR snoozedUntil > now()
-    const cutoffDate = new Date();
-    cutoffDate.setHours(cutoffDate.getHours() - 24);
-
-    const existingReminders = await prisma.notification.findMany({
-      where: {
-        type: {
-          in: [
-            'ORDER_STATUS_STALE',
-            'JOB_STATUS_STALE',
-            'PAYMENT_DUE_REMINDER',
-            'ADVANCE_NOT_COLLECTED',
-            'GALLERY_NOT_DELIVERED',
-            'ALBUM_PENDING_REMINDER'
-          ]
-        },
-        OR: [
-          { createdAt: { gt: cutoffDate } },
-          { snoozedUntil: { gt: now } }
-        ]
-      },
-      select: { entityId: true, type: true }
-    });
-
-    const activeReminderSet = new Set();
-    for (const r of existingReminders) {
-      activeReminderSet.add(`${r.type}_${r.entityId}`);
-    }
-
-    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } });
-    const adminIds = admins.map(a => a.id);
-
-    const createReminders = async (type: any, entityId: string, title: string, message: string, actionUrl: string) => {
-      if (activeReminderSet.has(`${type}_${entityId}`)) return; // Already have an active/snoozed reminder
-      
-      const newNotifs = adminIds.map(userId => ({
-        userId,
-        type,
-        title,
-        message,
-        actionUrl,
-        entityId,
-        entityType: type.startsWith('ORDER') ? 'order' : 'job',
-        priority: 'HIGH',
-      }));
-
-      if (newNotifs.length > 0) {
-        await prisma.notification.createMany({ data: newNotifs });
-        notificationsCreated += newNotifs.length;
-      }
-    };
-
-
-    // 4. Jobs missing advance payments (event < 7 days)
-    const upcomingEventDate = new Date();
-    upcomingEventDate.setDate(upcomingEventDate.getDate() + thresholds.advance);
-
-    const advanceMissingJobs = await prisma.job.findMany({
-      where: {
-        date: { gte: now, lte: upcomingEventDate },
-        deletedAt: null,
-        status: 'Confirmed',
-        order: {
-          advance: 0
-        }
-      },
-      include: { client: true }
-    });
-
-    for (const job of advanceMissingJobs) {
-      await createReminders(
-        'ADVANCE_NOT_COLLECTED',
-        job.id,
-        `Advance Missing`,
-        `No advance collected for ${job.client?.name} shoot on ${job.date.toISOString().split('T')[0]}.`,
-        `/jobs/details/${job.id}`
-      );
-    }
-
-    // 5. Jobs COMPLETED with galleryDelivered = false > 14 days
-    const galleryDate = new Date();
-    galleryDate.setDate(galleryDate.getDate() - thresholds.gallery);
-
-    const galleryPendingJobsRaw = await prisma.job.findMany({
-      where: {
-        date: { lt: galleryDate },
-        deletedAt: null,
-      },
-      include: { client: true }
-    });
-
-    const galleryPendingJobs = galleryPendingJobsRaw.filter(b => {
-      let cd: any = {};
-      try { cd = typeof b.customData === 'string' ? JSON.parse(b.customData) : (b.customData || {}); } catch(e) {}
-      return cd.fld_b_album_status !== 'Delivered';
-    });
-
-    for (const job of galleryPendingJobs) {
-      await createReminders(
-        'GALLERY_NOT_DELIVERED',
-        job.id,
-        `Gallery Pending`,
-        `Gallery not delivered for ${job.client?.name} (event was ${thresholds.gallery}+ days ago).`,
-        `/jobs/details/${job.id}`
-      );
-    }
-
-    // 6. Jobs with album status PENDING > 30 days
-    const albumDate = new Date();
-    albumDate.setDate(albumDate.getDate() - thresholds.album);
-
-    const albumPendingJobsRaw = await prisma.job.findMany({
-      where: {
-        date: { lt: albumDate },
-        deletedAt: null,
-      },
-      include: { client: true }
-    });
-
-    const albumPendingJobs = albumPendingJobsRaw.filter(b => {
-      let cd: any = {};
-      try { cd = typeof b.customData === 'string' ? JSON.parse(b.customData) : (b.customData || {}); } catch(e) {}
-      return cd.fld_b_album_status === 'Pending';
-    });
-
-    for (const job of albumPendingJobs) {
-      await createReminders(
-        'ALBUM_PENDING_REMINDER',
-        job.id,
-        `Album Pending`,
-        `Album status still PENDING for ${job.client?.name} (event was ${thresholds.album}+ days ago).`,
-        `/jobs/details/${job.id}`
-      );
-    }
-
-    // 7. Payment dues approaching (Due < 3 days with dueAmount > 0)
-    // For Jobs
-    const paymentDueDate = new Date();
-    paymentDueDate.setDate(paymentDueDate.getDate() + thresholds.paymentDue);
-
-    const dueJobs = await prisma.job.findMany({
-      where: {
-        date: { gte: now, lte: paymentDueDate },
-        deletedAt: null,
-        order: {
-          due: { gt: 0 }
-        }
-      },
-      include: { client: true, order: true }
-    });
-
-    for (const job of dueJobs) {
-      await createReminders(
-        'PAYMENT_DUE_REMINDER',
-        job.id,
-        `Payment Due Soon`,
-        `₹${job.order?.due} due for ${job.client?.name}'s shoot on ${job.date.toISOString().split('T')[0]}.`,
-        `/jobs/details/${job.id}`
-      );
-    }
-
-
-
-    return NextResponse.json({ success: true, notificationsCreated });
-  } catch (error: any) {
-    console.error('Reminder Cron Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+/** Fails closed: without CRON_SECRET configured nothing is authorized. */
+function assertCron(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) console.error("[cron] CRON_SECRET is not set; refusing to run");
+  const given = Buffer.from(req.headers.get("authorization") ?? "");
+  const expected = Buffer.from(`Bearer ${secret}`);
+  if (!secret || given.length !== expected.length || !timingSafeEqual(given, expected)) {
+    throw new HttpError(401, "Unauthorized");
   }
 }
+
+const NOT_CANCELLED: Prisma.JobWhereInput = {
+  NOT: [
+    { status: { equals: "Cancelled", mode: "insensitive" } },
+    { status: { equals: "Canceled", mode: "insensitive" } },
+  ],
+};
+
+function albumStatusOf(customData: Prisma.JsonValue | null): string {
+  let cd: unknown = customData;
+  if (typeof cd === "string") {
+    try {
+      cd = JSON.parse(cd);
+    } catch {
+      cd = null;
+    }
+  }
+  const value = cd && typeof cd === "object" ? (cd as Record<string, unknown>).fld_b_album_status : undefined;
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+type ReminderJob = { id: string; date: Date; client: { name: string } | null };
+
+export const GET = route(async (req) => {
+  assertCron(req);
+
+  const settings = await prisma.systemSetting.findMany({
+    where: {
+      key: {
+        in: [
+          "reminder_threshold_advance",
+          "reminder_threshold_gallery",
+          "reminder_threshold_album",
+          "reminder_threshold_payment_due",
+        ],
+      },
+    },
+  });
+  const threshold = (key: string, fallback: number) => {
+    const value = settings.find((s) => s.key === key)?.value;
+    const days = value && typeof value === "object" && "days" in value ? Number((value as { days: unknown }).days) : NaN;
+    return Number.isInteger(days) && days >= 0 && days <= 365 ? days : fallback;
+  };
+  const thresholds = {
+    advance: threshold("reminder_threshold_advance", 7),
+    gallery: threshold("reminder_threshold_gallery", 14),
+    album: threshold("reminder_threshold_album", 30),
+    paymentDue: threshold("reminder_threshold_payment_due", 3),
+  };
+
+  // Job.date is a calendar date stored as UTC midnight, so compare against IST "today" as UTC midnight.
+  const today = businessTodayUtc();
+  const todayISO = toBusinessISODate();
+  const day = (offset: number) => new Date(today.getTime() + offset * DAY_MS);
+  const calendarDate = (d: Date) => d.toISOString().slice(0, 10);
+  const now = new Date();
+
+  const admins = await prisma.user.findMany({ where: { role: "ADMIN", status: "ACTIVE" }, select: { id: true } });
+  if (admins.length === 0) return NextResponse.json({ success: true, notificationsCreated: 0 });
+
+  const [advanceMissing, galleryCandidates, albumCandidates, dueJobs] = await Promise.all([
+    // Jobs without an Order have collected nothing either.
+    prisma.job.findMany({
+      where: {
+        deletedAt: null,
+        date: { gte: today, lte: day(thresholds.advance) },
+        status: { equals: "Confirmed", mode: "insensitive" },
+        OR: [{ order: { is: null } }, { order: { advance: { lte: 0 } } }],
+      },
+      select: { id: true, date: true, client: { select: { name: true } } },
+      orderBy: { date: "asc" },
+      take: MAX_JOBS_PER_CHECK,
+    }),
+    prisma.job.findMany({
+      where: {
+        deletedAt: null,
+        ...NOT_CANCELLED,
+        galleryDelivered: false,
+        date: { gte: day(-(thresholds.gallery + LOOKBACK_DAYS)), lt: day(-thresholds.gallery) },
+      },
+      select: { id: true, date: true, customData: true, client: { select: { name: true } } },
+      orderBy: { date: "asc" },
+      take: MAX_JOBS_PER_CHECK,
+    }),
+    prisma.job.findMany({
+      where: {
+        deletedAt: null,
+        galleryDelivered: false,
+        OR: SHOOT_DONE_STATUSES.map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),
+        date: { gte: day(-(thresholds.album + LOOKBACK_DAYS)), lt: day(-thresholds.album) },
+      },
+      select: { id: true, date: true, customData: true, client: { select: { name: true } } },
+      orderBy: { date: "asc" },
+      take: MAX_JOBS_PER_CHECK,
+    }),
+    prisma.job.findMany({
+      where: {
+        deletedAt: null,
+        ...NOT_CANCELLED,
+        date: { gte: today, lte: day(thresholds.paymentDue) },
+        order: { due: { gt: 0 } },
+      },
+      select: { id: true, date: true, client: { select: { name: true } }, order: { select: { due: true } } },
+      orderBy: { date: "asc" },
+      take: MAX_JOBS_PER_CHECK,
+    }),
+  ]);
+
+  type Reminder = { type: NotificationType; job: ReminderJob; title: string; message: string };
+  const reminders: Reminder[] = [
+    ...advanceMissing.map((job) => ({
+      type: "ADVANCE_NOT_COLLECTED" as const,
+      job,
+      title: "Advance Missing",
+      message: `No advance collected for ${job.client?.name} shoot on ${calendarDate(job.date)}.`,
+    })),
+    // The album being marked Delivered also counts as the gallery being handed over.
+    ...galleryCandidates
+      .filter((job) => albumStatusOf(job.customData) !== "delivered")
+      .map((job) => ({
+        type: "GALLERY_NOT_DELIVERED" as const,
+        job,
+        title: "Gallery Pending",
+        message: `Gallery not delivered for ${job.client?.name} (event was ${thresholds.gallery}+ days ago).`,
+      })),
+    ...albumCandidates
+      .filter((job) => ["", "pending"].includes(albumStatusOf(job.customData)))
+      .map((job) => ({
+        type: "ALBUM_PENDING_REMINDER" as const,
+        job,
+        title: "Album Pending",
+        message: `Album status still PENDING for ${job.client?.name} (event was ${thresholds.album}+ days ago).`,
+      })),
+    ...dueJobs.map((job) => ({
+      type: "PAYMENT_DUE_REMINDER" as const,
+      job,
+      title: "Payment Due Soon",
+      message: `${formatINR(job.order?.due ?? 0)} due for ${job.client?.name}'s shoot on ${calendarDate(job.date)}.`,
+    })),
+  ];
+
+  // A user who snoozed a reminder is not reminded again until the snooze ends.
+  const snoozed = await prisma.notification.findMany({
+    where: {
+      type: { in: REMINDER_TYPES },
+      snoozedUntil: { gt: now },
+      entityId: { in: [...new Set(reminders.map((r) => r.job.id))] },
+    },
+    select: { type: true, entityId: true, userId: true },
+  });
+  const snoozedKeys = new Set(snoozed.map((n) => `${n.type}:${n.entityId}:${n.userId}`));
+
+  const sends = reminders.flatMap((r) =>
+    admins.map((a) => ({ ...r, userId: a.id })).filter((s) => !snoozedKeys.has(`${s.type}:${s.job.id}:${s.userId}`))
+  );
+
+  let notificationsCreated = 0;
+  for (let i = 0; i < sends.length; i += BATCH_SIZE) {
+    const results = await Promise.all(
+      sends.slice(i, i + BATCH_SIZE).map(async (s) => {
+        if (!(await claimReminder(`${s.type}:${s.job.id}:${s.userId}:${todayISO}`))) return null;
+        return createNotification({
+          userId: s.userId,
+          type: s.type,
+          title: s.title,
+          message: s.message,
+          actionUrl: `/jobs/details/${s.job.id}`,
+          entityId: s.job.id,
+          entityType: "job",
+          priority: "HIGH",
+        });
+      })
+    );
+    notificationsCreated += results.filter(Boolean).length;
+  }
+
+  return NextResponse.json({ success: true, notificationsCreated });
+});

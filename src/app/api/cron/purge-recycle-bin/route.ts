@@ -1,54 +1,66 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
+import { HttpError, route } from "@/lib/api/http";
+import { purgeRateLimits } from "@/lib/rateLimit";
+import { purgeItem } from "@/lib/services/recycleBin";
 
-export async function GET(request: Request) {
-  try {
-    // Optional: protect cron route with a secret key if needed
-    // const authHeader = request.headers.get('authorization');
-    // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    //   return new Response('Unauthorized', { status: 401 });
-    // }
+export const dynamic = "force-dynamic";
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RETENTION_DAYS = 30;
+const REMINDER_LOG_RETENTION_DAYS = 90;
+// Bounded per run so one invocation stays well inside the function timeout; the rest go next run.
+const MAX_PER_RUN = 200;
 
-    const entriesToPurge = await prisma.recycleBin.findMany({
-      where: {
-        trashedAt: {
-          lt: thirtyDaysAgo
-        }
-      }
-    });
-
-    let purgedCount = 0;
-
-    for (const entry of entriesToPurge) {
-      if (entry.itemType === "job") {
-        try {
-          await prisma.job.delete({ where: { id: entry.itemId } });
-        } catch (e) {}
-      } else if (entry.itemType === "product-order" || entry.itemType === "frame") {
-        try {
-          await prisma.productOrder.delete({ where: { id: entry.itemId } });
-        } catch (e) {}
-      }
-
-      await prisma.recycleBin.delete({ where: { id: entry.id } });
-      purgedCount++;
-    }
-
-    if (purgedCount > 0) {
-      await prisma.systemLog.create({
-        data: {
-          action: "CRON_PURGE_RECYCLE_BIN",
-          details: `Automatically purged ${purgedCount} items older than 30 days`,
-          userId: null,
-        }
-      });
-    }
-
-    return NextResponse.json({ success: true, purgedCount });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to purge recycle bin" }, { status: 500 });
+/** Fails closed: without CRON_SECRET configured nothing is authorized. */
+function assertCron(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) console.error("[cron] CRON_SECRET is not set; refusing to run");
+  const given = Buffer.from(req.headers.get("authorization") ?? "");
+  const expected = Buffer.from(`Bearer ${secret}`);
+  if (!secret || given.length !== expected.length || !timingSafeEqual(given, expected)) {
+    throw new HttpError(401, "Unauthorized");
   }
 }
+
+export const GET = route(async (req) => {
+  assertCron(req);
+
+  const cutoff = new Date(Date.now() - RETENTION_DAYS * DAY_MS);
+  const entries = await prisma.recycleBin.findMany({
+    where: { trashedAt: { lt: cutoff } },
+    orderBy: { trashedAt: "asc" },
+    take: MAX_PER_RUN,
+  });
+
+  let purgedCount = 0;
+  let failedCount = 0;
+  for (const entry of entries) {
+    try {
+      // Drive files are not removed here: that needs a user's Drive token.
+      await purgeItem(entry, null);
+      purgedCount++;
+    } catch (e) {
+      failedCount++;
+      console.error(`[cron] failed to purge recycle-bin entry ${entry.id} (${entry.itemType} ${entry.itemId})`, e);
+    }
+  }
+
+  await purgeRateLimits();
+  const { count: reminderLogsPurged } = await prisma.reminderLog.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - REMINDER_LOG_RETENTION_DAYS * DAY_MS) } },
+  });
+
+  if (purgedCount > 0 || failedCount > 0) {
+    await prisma.systemLog.create({
+      data: {
+        action: "CRON_PURGE_RECYCLE_BIN",
+        details: `Purged ${purgedCount} recycle-bin items older than ${RETENTION_DAYS} days (${failedCount} failed)`,
+        userId: null,
+      },
+    });
+  }
+
+  return NextResponse.json({ success: true, purgedCount, failedCount, reminderLogsPurged });
+});

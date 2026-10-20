@@ -1,5 +1,6 @@
 import "server-only";
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { forbidden, unauthorized } from "@/lib/api/http";
@@ -44,5 +45,12 @@ export async function requirePermission(permission: Permission): Promise<Session
   if (!(await roleHasPermission(user.role, permission))) {
     throw forbidden("You do not have permission to perform this action");
   }
+  return user;
+}
+
+/** For server pages: the signed-in user, or a redirect to the login page (e.g. revoked sessions). */
+export async function requirePageUser(): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
   return user;
 }

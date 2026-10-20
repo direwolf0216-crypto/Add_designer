@@ -5,7 +5,7 @@ import { invalidateJobs } from "@/lib/swr";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import useSWR, { mutate as globalMutate } from "swr";
+import useSWR from "swr";
 import { deleteJobAction, updateJobStatusAction, updateJobTrackingAction, generateInvoiceAction } from "@/app/actions";
 import { toast } from "sonner";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";

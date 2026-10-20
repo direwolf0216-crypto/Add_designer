@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { invalidateAll } from "@/lib/swr";
-import useSWR, { mutate as globalMutate } from "swr";
+import useSWR from "swr";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { FileX, Trash2, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,6 +13,8 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function RecycleBin() {
   const { data: session } = useSession();
+  // Permanent deletion is admin-only on the server; hide the controls for everyone else.
+  const isAdmin = session?.user?.role === "ADMIN";
 
 
   const [page, setPage] = useState(0);
@@ -39,6 +41,14 @@ export default function RecycleBin() {
     }
   };
 
+  /** Error text for a failed bin request, including per-item failures from bulk endpoints. */
+  const describeFailure = async (res: Response, fallback: string) => {
+    const data = await res.json().catch(() => ({}));
+    const failed = data?.details?.failed as { error?: string }[] | undefined;
+    if (failed?.length) return `${failed.length} item(s) failed: ${failed[0]?.error || fallback}`;
+    return data?.error || fallback;
+  };
+
   const handleSelect = (id: string) => {
     const newSet = new Set(selectedIds);
     if (newSet.has(id)) {
@@ -52,7 +62,7 @@ export default function RecycleBin() {
   const handleRestore = async (id: string) => {
     try {
       const res = await fetch(`/api/recycle-bin/${id}/restore`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to restore");
+      if (!res.ok) throw new Error(await describeFailure(res, "Error restoring item"));
       toast.success("Item restored");
       mutate();
       invalidateAll();
@@ -60,7 +70,7 @@ export default function RecycleBin() {
       newSet.delete(id);
       setSelectedIds(newSet);
     } catch (e) {
-      toast.error("Error restoring item");
+      toast.error(e instanceof Error ? e.message : "Error restoring item");
     }
   };
 
@@ -100,13 +110,18 @@ export default function RecycleBin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
-      if (!res.ok) throw new Error("Failed to bulk restore");
+      if (!res.ok) {
+        const message = await describeFailure(res, "Error restoring items");
+        mutate();
+        invalidateAll();
+        throw new Error(message);
+      }
       toast.success(`Restored ${selectedIds.size} items`);
-      setSelectedIds(newSet => { newSet.clear(); return new Set(); });
+      setSelectedIds(new Set());
       mutate();
       invalidateAll();
     } catch (e) {
-      toast.error("Error restoring items");
+      toast.error(e instanceof Error ? e.message : "Error restoring items");
     }
   };
 
@@ -120,12 +135,16 @@ export default function RecycleBin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
-      if (!res.ok) throw new Error("Failed to bulk delete");
+      if (!res.ok) {
+        const message = await describeFailure(res, "Error deleting items");
+        mutate();
+        throw new Error(message);
+      }
       toast.success(`Permanently deleted ${selectedIds.size} items`);
-      setSelectedIds(newSet => { newSet.clear(); return new Set(); });
+      setSelectedIds(new Set());
       mutate();
     } catch (e) {
-      setActionError("Error deleting items");
+      setActionError(e instanceof Error ? e.message : "Error deleting items");
     } finally {
       setIsDeletingBulk(false);
       setConfirmBulkDelete(false);
@@ -176,7 +195,7 @@ export default function RecycleBin() {
             ))}
           </div>
 
-          {confirmEmptyBin ? (
+          {!isAdmin ? null : confirmEmptyBin ? (
              <div className="flex items-center gap-2">
                <span className="text-xs font-bold text-red-600">Empty bin?</span>
                <button onClick={handleEmptyBinConfirm} disabled={isDeletingEmpty} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow-sm">{isDeletingEmpty ? '...' : 'Yes'}</button>
@@ -208,7 +227,7 @@ export default function RecycleBin() {
             <button onClick={handleBulkRestore} className="px-3 py-1.5 bg-white text-orange-600 rounded-lg text-xs font-bold border border-orange-200 hover:bg-orange-50 transition-colors">
               Restore Selected
             </button>
-            {confirmBulkDelete ? (
+            {!isAdmin ? null : confirmBulkDelete ? (
               <div className="flex items-center gap-2 border-l border-orange-200 pl-2 ml-1">
                 <span className="text-xs font-bold text-red-600">Delete {selectedIds.size}?</span>
                 <button onClick={handleBulkDeleteConfirm} disabled={isDeletingBulk} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow-sm">{isDeletingBulk ? '...' : 'Yes'}</button>
@@ -324,16 +343,20 @@ export default function RecycleBin() {
                             onClick={() => handleRestore(item.id)}
                             className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             title="Restore"
+                            aria-label="Restore"
                           >
                             <RotateCcw size={18} strokeWidth={2.5} />
                           </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(item.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Permanently"
-                          >
-                            <Trash2 size={18} strokeWidth={2.5} />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => setConfirmDeleteId(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Permanently"
+                              aria-label="Delete permanently"
+                            >
+                              <Trash2 size={18} strokeWidth={2.5} />
+                            </button>
+                          )}
                         </>
                       )}
                     </div>

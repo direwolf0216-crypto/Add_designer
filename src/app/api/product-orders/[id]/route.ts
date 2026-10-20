@@ -1,111 +1,67 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { notFound, parseJson, route } from "@/lib/api/http";
+import { requirePermission, requireUser } from "@/lib/auth/session";
+import { refreshOrderTotals } from "@/lib/services/jobs";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const updateSchema = z.object({
+  quantity: z.coerce.number().int().min(1).max(10_000).optional(),
+  status: z.string().trim().min(1).max(50).optional(),
+  clientName: z.string().trim().min(1).max(200).optional(),
+  clientPhone: z.string().trim().max(30).nullish(),
+});
 
-  try {
-    const id = (await params).id;
-    const productOrder = await prisma.productOrder.findUnique({
-      where: { id },
-      include: {
-        product: true,
-      },
-    });
+export const GET = route<{ id: string }>(async (_req, { params }) => {
+  await requireUser();
+  const { id } = await params;
 
-    if (!productOrder) {
-      return NextResponse.json({ error: "Product order not found" }, { status: 404 });
-    }
+  const productOrder = await prisma.productOrder.findUnique({ where: { id }, include: { product: true } });
+  if (!productOrder) throw notFound("Product order not found");
 
-    return NextResponse.json(productOrder, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch product order" }, { status: 500 });
-  }
-}
+  return NextResponse.json(productOrder, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PUT = route<{ id: string }>(async (req, { params }) => {
+  await requirePermission("manage_jobs");
+  const { id } = await params;
+  const data = await parseJson(req, updateSchema);
 
-  try {
-    const id = (await params).id;
-    const body = await request.json();
-    const { quantity, status, clientName, clientPhone } = body;
+  const updated = await prisma.productOrder.update({ where: { id }, data });
 
-    const updated = await prisma.productOrder.update({
-      where: { id },
-      data: {
-        quantity: quantity !== undefined ? parseInt(quantity, 10) : undefined,
-        status,
-        clientName: clientName?.trim(),
-        clientPhone: clientPhone?.trim(),
-      },
-    });
+  return NextResponse.json(updated, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-    return NextResponse.json(updated, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update product order" }, { status: 500 });
-  }
-}
+/** Moves the order to the recycle bin: snapshot it, hide its payments, then remove the row. */
+export const DELETE = route<{ id: string }>(async (_req, { params }) => {
+  const user = await requirePermission("manage_jobs");
+  const { id } = await params;
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.productOrder.findUnique({ where: { id }, include: { transactions: true } });
+    if (!existing) throw notFound("Product order not found");
 
-  try {
-    const id = (await params).id;
-    const existing = await prisma.productOrder.findUnique({ 
-      where: { id },
-      include: { transactions: true }
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
-    await prisma.recycleBin.create({
+    const live = existing.transactions.filter((t) => !t.deletedAt);
+    await tx.recycleBin.create({
       data: {
         itemType: "product-order",
         itemId: id,
-        originalData: existing as any,
-        trashedById: (session.user as any).id,
+        // Restore brings back exactly these payments, not ones that were already deleted.
+        originalData: JSON.parse(JSON.stringify({ ...existing, deletedTransactionIds: live.map((t) => t.id) })),
+        trashedById: user.id,
+      },
+    });
+    if (live.length > 0) {
+      await tx.transaction.updateMany({ where: { id: { in: live.map((t) => t.id) } }, data: { deletedAt: new Date() } });
+      for (const jobId of new Set(live.map((t) => t.jobId))) {
+        if (jobId) await refreshOrderTotals(tx, jobId);
       }
+    }
+    await tx.productOrder.delete({ where: { id } });
+    await tx.systemLog.create({
+      data: { userId: user.id, action: "PRODUCT_ORDER_DELETED", details: `Moved product order ${id} to recycle bin` },
     });
-    // Delete associated transactions first to prevent foreign key constraint failures
-    const txDeleteResult = await prisma.transaction.updateMany({
-      where: { productOrderId: id },
-      data: { deletedAt: new Date() }
-    });
+  });
 
-    await prisma.productOrder.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ success: true }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete product order" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
+});

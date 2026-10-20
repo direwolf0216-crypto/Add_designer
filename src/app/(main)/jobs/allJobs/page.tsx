@@ -1,32 +1,33 @@
 import JobTable from '@/components/dashboard/JobTable';
 import prisma from "@/lib/prisma";
+import { requirePageUser } from "@/lib/auth/session";
 import { Job } from "@/types";
+import { parseJobFilters } from "@/lib/jobs/filters";
+import { buildJobWhere } from "@/lib/jobs/where";
+import { addDays, businessTodayUtc } from "@/lib/dates";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AllJobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; filter?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requirePageUser();
   const params = await searchParams;
-  const page = Number(params?.page) || 1;
-  const filter = params?.filter;
+  const page = Math.max(1, Number(params?.page) || 1);
+  const filter = typeof params?.filter === 'string' ? params.filter : undefined;
   const limit = 10;
   const skip = (page - 1) * limit;
 
-  const whereClause: any = { deletedAt: null };
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const whereClause = buildJobWhere(parseJobFilters(params));
+  // Job dates are calendar dates stored as UTC midnight; "today" is the IST calendar day.
+  const today = businessTodayUtc();
 
   if (filter === 'today_tomorrow') {
-    const dayAfterTomorrow = new Date(today);
-    dayAfterTomorrow.setDate(today.getDate() + 2);
-    whereClause.date = { gte: today, lt: dayAfterTomorrow };
+    whereClause.date = { gte: today, lt: addDays(today, 2) };
   } else if (filter === 'next_7_days') {
-    const next7Days = new Date(today);
-    next7Days.setDate(today.getDate() + 7);
-    whereClause.date = { gte: today, lt: next7Days };
+    whereClause.date = { gte: today, lt: addDays(today, 7) };
   } else if (filter === 'hot_dates') {
     whereClause.date = { gte: today };
   }

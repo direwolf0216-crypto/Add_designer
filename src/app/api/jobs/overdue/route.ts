@@ -1,35 +1,23 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
+import { businessTodayUtc } from "@/lib/dates";
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+/** Confirmed jobs whose (IST) shoot date has passed without being marked done. */
+export const GET = route(async () => {
+  await requireUser();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const overdueJobs = await prisma.job.findMany({
+    where: {
+      deletedAt: null,
+      status: { equals: "Confirmed", mode: "insensitive" },
+      date: { lt: businessTodayUtc() },
+    },
+    include: { client: { select: { id: true, name: true, phone: true, email: true } } },
+    orderBy: { date: "asc" },
+    take: 200,
+  });
 
-    const overdueJobs = await prisma.job.findMany({
-      where: {
-        status: "Confirmed",
-        date: { lt: today },
-        deletedAt: null,
-      },
-      include: {
-        client: true,
-      },
-      orderBy: {
-        date: "asc",
-      },
-    });
-
-    return NextResponse.json(overdueJobs);
-  } catch (error) {
-    console.error("Error fetching overdue jobs:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  return NextResponse.json(overdueJobs, { headers: { "Cache-Control": "private, no-store" } });
+});

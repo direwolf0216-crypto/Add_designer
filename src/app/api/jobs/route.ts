@@ -1,140 +1,177 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { parseJobFilters } from "@/lib/jobs/filters";
+import { buildJobWhere } from "@/lib/jobs/where";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { broadcastNotification } from "@/lib/notifications";
+import { intParam, notFound, parseJson, route } from "@/lib/api/http";
+import { requirePermission, requireUser } from "@/lib/auth/session";
+import { calendarDateToUtc } from "@/lib/dates";
+import { parseAmount } from "@/lib/money";
+import { broadcastLater } from "@/lib/notifications";
+import { saveJob } from "@/lib/services/jobs";
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const DAY_MS = 24 * 60 * 60 * 1000;
+const fitsIn = (maxChars: number) => (value: unknown) => value === undefined || JSON.stringify(value).length <= maxChars;
+const dateString = z.string().max(40).refine((v) => !Number.isNaN(Date.parse(v)), "Invalid date");
+const amount = z.union([z.number().nonnegative(), z.string().max(30)]);
+const optionalText = (max: number) => z.string().trim().max(max).optional();
+const httpUrl = z.union([z.url({ protocol: /^https?$/ }).max(2000), z.literal("")]).nullish();
+
+const createSchema = z
+  .object({
+    clientId: z.string().max(50).optional(),
+    client: z
+      .object({
+        name: z.string().trim().min(1).max(200),
+        phone: optionalText(30),
+        email: z.union([z.email().max(200), z.literal("")]).nullish(),
+      })
+      .optional(),
+    category: optionalText(100),
+    date: dateString,
+    time: z.string().trim().min(1).max(50),
+    location: z.string().trim().min(1).max(500),
+    status: optionalText(100),
+    packageName: optionalText(200),
+    notes: optionalText(5000),
+    packageAmount: amount.optional(),
+    installments: z
+      .array(z.object({ amount, date: dateString.optional(), paymentMode: optionalText(50) }))
+      .max(50)
+      .optional(),
+    albumStatus: z
+      .string()
+      .transform((v) => v.toUpperCase())
+      .pipe(z.enum(["PENDING", "IN_PROGRESS", "DELIVERED"]))
+      .optional(),
+    galleryDelivered: z.boolean().optional(),
+    galleryUrl: httpUrl,
+    contractUrl: httpUrl,
+    inclusions: z.unknown().refine(fitsIn(20_000), "Inclusions are too large").optional(),
+    attachments: z.array(z.unknown()).max(100).refine(fitsIn(100_000), "Attachments are too large").optional(),
+    photographers: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Photographers list is too large").optional(),
+    customData: z
+      .record(z.string().max(100), z.unknown())
+      .refine((o) => Object.keys(o).length <= 200, "Too many custom fields")
+      .refine(fitsIn(100_000), "Custom data is too large")
+      .optional(),
+  })
+  .refine((b) => b.client || b.clientId, { message: "client or clientId is required", path: ["client"] });
+
+/** `yyyy-MM-dd` filters are calendar dates (jobs are stored at UTC midnight); anything else is an instant. */
+const parseDateParam = (value: string | null) => {
+  if (!value) return undefined;
+  const parsed = dateString.safeParse(value);
+  if (!parsed.success) return undefined;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? calendarDateToUtc(value) : new Date(value);
+};
+
+export const GET = route(async (req) => {
+  const user = await requireUser();
+  const url = new URL(req.url);
+  const { searchParams } = url;
+  const limit = intParam(url, "limit", 100, 1, 500);
+  const offset = intParam(url, "offset", 0, 0, 1_000_000);
+
+  // Trashed jobs are only listed for admins; `deletedAt: undefined` opts out of the soft-delete filter.
+  const includeDeleted = searchParams.get("includeDeleted") === "true" && user.role === "ADMIN";
+  // List filters (categories, statuses, client, location, from, to, min, max) — same as the All Jobs page.
+  const where: Prisma.JobWhereInput = { ...buildJobWhere(parseJobFilters(searchParams)), deletedAt: includeDeleted ? undefined : null };
+
+  const start = parseDateParam(searchParams.get("startDate"));
+  const endRaw = searchParams.get("endDate");
+  const end = parseDateParam(endRaw);
+  if (start || end) {
+    where.date = {
+      ...((where.date as Prisma.DateTimeFilter | undefined) ?? {}),
+      ...(start ? { gte: start } : {}),
+      // A calendar end date includes that whole day.
+      ...(end ? (/^\d{4}-\d{2}-\d{2}$/.test(endRaw ?? "") ? { lt: new Date(end.getTime() + DAY_MS) } : { lte: end }) : {}),
+    };
   }
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const includeDeleted = searchParams.get("includeDeleted") === "true";
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 500);
-    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-
-    const whereClause: any = includeDeleted ? {} : { deletedAt: null };
-    
-    if (startDate || endDate) {
-      whereClause.date = {};
-      if (startDate) whereClause.date.gte = new Date(startDate);
-      if (endDate) whereClause.date.lte = new Date(endDate);
-    }
-
-    const [jobs, total] = await Promise.all([
-      prisma.job.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          jobNumber: true,
-          clientId: true,
-          category: true,
-          date: true,
-          time: true,
-          location: true,
-          status: true,
-          packageName: true,
-          createdAt: true,
-          client: { select: { id: true, name: true, phone: true } },
-          order: { select: { id: true, package: true, advance: true, due: true } },
-        },
-        orderBy: { date: "desc" },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.job.count({ where: whereClause }),
-    ]);
-
-    return NextResponse.json({ items: jobs, total, limit, offset }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch jobs" }, { status: 500 });
-  }
-}
-
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await request.json();
-    const { clientId, category, date, time, location, status, galleryUrl, contractUrl, customData } = body;
-
-    if (!clientId || !date || !time || !location) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
-    }
-
-    let nextJobNumber = "";
-    let isUnique = false;
-    const crypto = require('crypto');
-    while (!isUnique) {
-      const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
-      nextJobNumber = `#MD-${suffix}`;
-      
-      const activeExists = await prisma.job.findFirst({
-        where: { jobNumber: nextJobNumber }
-      });
-      
-      if (!activeExists) {
-        isUnique = true;
-      }
-    }
-
-    const userId = (session?.user as any)?.id as string | undefined;
-
-    const newJob = await prisma.job.create({
-      data: {
-        jobNumber: nextJobNumber,
-        client: { connect: { id: clientId } },
-        category: category || "",
-        date: new Date(date),
-        time,
-        location,
-        status: status || "Confirmed",
-        galleryUrl,
-        contractUrl,
-        customData,
-        ...(userId ? { createdBy: { connect: { id: userId } } } : {}),
-        ...(userId ? { updatedBy: { connect: { id: userId } } } : {}),
+  const [jobs, total] = await Promise.all([
+    prisma.job.findMany({
+      where,
+      select: {
+        id: true,
+        jobNumber: true,
+        clientId: true,
+        category: true,
+        date: true,
+        time: true,
+        location: true,
+        status: true,
+        packageName: true,
+        customData: true,
+        createdAt: true,
+        client: { select: { id: true, name: true, phone: true } },
+        order: { select: { id: true, package: true, advance: true, due: true } },
       },
-      include: {
-        client: { select: { id: true, name: true } },
-      }
-    });
+      orderBy: { date: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.job.count({ where }),
+  ]);
 
-    await prisma.systemLog.create({
-      data: {
-        action: "JOB_CREATED",
-        details: `Created job ID: ${newJob.id} via API`,
-        userId: userId || "SYSTEM",
-      }
-    });
+  return NextResponse.json({ items: jobs, total, limit, offset }, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-    // Notify Admins about the new job
-    // Fire and forget
-    broadcastNotification({
-      title: "New Job Request",
-      message: `A new ${category || 'job'} for ${newJob.client?.name || 'a client'} has been created!`,
-      type: "JOB_CREATED",
-      actionUrl: `/jobs/details/${newJob.id}`,
-      entityId: newJob.id,
-      entityType: "job",
-      skipUserId: userId
-    }).catch(console.error);
+export const POST = route(async (req) => {
+  const user = await requirePermission("manage_jobs");
+  const body = await parseJson(req, createSchema);
 
-    return NextResponse.json(newJob, {
-      status: 201,
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create job" }, { status: 500 });
+  let client = body.client;
+  if (!client) {
+    const existing = await prisma.client.findUnique({ where: { id: body.clientId! } });
+    if (!existing) throw notFound("Client not found");
+    client = { name: existing.name, phone: existing.phone, email: existing.email };
   }
-}
+
+  const result = await saveJob(
+    {
+      client: { name: client.name, phone: client.phone, email: client.email || null },
+      category: body.category ?? "",
+      date: body.date,
+      time: body.time,
+      location: body.location,
+      status: body.status || "Confirmed",
+      packageAmount: parseAmount(body.packageAmount ?? 0),
+      installments: body.installments ?? [],
+      albumStatus: body.albumStatus,
+      galleryDelivered: body.galleryDelivered,
+      packageName: body.packageName,
+      notes: body.notes,
+      inclusions: body.inclusions,
+      attachments: body.attachments,
+      photographers: body.photographers,
+      customData: body.customData ?? {},
+    },
+    user.id
+  );
+
+  let job = result.job;
+  if (body.galleryUrl !== undefined || body.contractUrl !== undefined) {
+    job = await prisma.job.update({
+      where: { id: job.id },
+      data: { galleryUrl: body.galleryUrl, contractUrl: body.contractUrl },
+    });
+  }
+
+  broadcastLater({
+    title: "New Job Request",
+    message: `A new ${job.category || "job"} for ${result.client.name} has been created!`,
+    type: "JOB_CREATED",
+    actionUrl: `/jobs/details/${job.id}`,
+    entityId: job.id,
+    entityType: "job",
+    skipUserId: user.id,
+  });
+
+  return NextResponse.json(
+    { ...job, client: { id: result.client.id, name: result.client.name }, order: result.order },
+    { status: 201, headers: { "Cache-Control": "private, no-store" } }
+  );
+});

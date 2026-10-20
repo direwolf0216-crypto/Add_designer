@@ -15,22 +15,13 @@ interface JobTableProps {
 import { useEffect } from 'react';
 
 export default function JobTable({ jobs, currentPage = 1, totalPages = 1 }: JobTableProps) {
-  const { filters, setHasData } = useJobs();
+  const { setHasData } = useJobs();
   const { preferences } = useSystem();
   const { openJobDetails } = useGlobalForm();
   const router = useRouter();
 
-  // Sort and filter logic
-  const filteredJobs = jobs.filter(b => {
-    if (filters.categories.length > 0 && !filters.categories.includes(b.category)) return false;
-    if (filters.statuses.length > 0 && !filters.statuses.includes(b.status)) return false;
-    if (filters.clientName && !b.title.toLowerCase().includes(filters.clientName.toLowerCase())) return false;
-    if (filters.dateStart && b.date < filters.dateStart) return false;
-    if (filters.dateEnd && b.date > filters.dateEnd) return false;
-    return true;
-  });
-
-  const sorted = [...filteredJobs].sort((a, b) => a.date.localeCompare(b.date));
+  // Filtering and ordering happen on the server (see allJobs/page.tsx) so pagination stays correct.
+  const sorted = jobs;
 
   useEffect(() => {
     setHasData(sorted.length > 0);

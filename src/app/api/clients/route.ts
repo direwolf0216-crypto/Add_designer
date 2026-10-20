@@ -1,75 +1,55 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { intParam, parseJson, route } from "@/lib/api/http";
+import { requirePermission, requireUser } from "@/lib/auth/session";
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const createSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  phone: z.string().trim().min(1, "Phone is required").max(30),
+  email: z
+    .union([z.email().max(200), z.literal("")])
+    .nullish()
+    .transform((v) => v || null),
+});
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "200", 10), 500);
-    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+export const GET = route(async (req) => {
+  await requireUser();
+  const url = new URL(req.url);
+  const search = url.searchParams.get("search")?.trim().slice(0, 100);
+  const limit = intParam(url, "limit", 200, 1, 500);
+  const offset = intParam(url, "offset", 0, 0, 1_000_000);
 
-    const where: any = {};
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search } },
-        { email: { contains: search, mode: "insensitive" } },
-      ];
-    }
+  const where: Prisma.ClientWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { phone: { contains: search } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
+      }
+    : {};
 
-    const [clients, total] = await Promise.all([
-      prisma.client.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip: offset,
-        select: { id: true, name: true, phone: true, email: true, createdAt: true },
-      }),
-      prisma.client.count({ where }),
-    ]);
+  const [clients, total] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+      select: { id: true, name: true, phone: true, email: true, createdAt: true },
+    }),
+    prisma.client.count({ where }),
+  ]);
 
-    return NextResponse.json({ items: clients, total, limit, offset }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ items: clients, total, limit, offset }, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = route(async (req) => {
+  await requirePermission("manage_jobs");
+  const data = await parseJson(req, createSchema);
 
-  try {
-    const body = await request.json();
-    const { name, phone, email } = body;
+  const newClient = await prisma.client.create({ data });
 
-    if (!name || !phone) {
-      return NextResponse.json({ error: "Name and phone are required" }, { status: 422 });
-    }
-
-    const newClient = await prisma.client.create({
-      data: {
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email ? email.trim() : null,
-      },
-    });
-
-    return NextResponse.json(newClient, {
-      status: 201,
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
-  }
-}
+  return NextResponse.json(newClient, { status: 201, headers: { "Cache-Control": "private, no-store" } });
+});

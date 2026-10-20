@@ -1,92 +1,54 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { notFound, parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requirePermission, requireUser } from "@/lib/auth/session";
+import { parseAmount, round2 } from "@/lib/money";
+import { refreshOrderTotals } from "@/lib/services/jobs";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const amount = z.union([z.number().nonnegative(), z.string().max(30)]);
+// advance/due are accepted for backwards compatibility but derived from the job's payments.
+const updateSchema = z.object({
+  packageAmount: amount.optional(),
+  advanceAmount: amount.optional(),
+  dueAmount: amount.optional(),
+});
 
-  try {
-    const id = (await params).id;
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        job: {
-          include: {
-            client: true
-          }
-        }
-      },
-    });
+export const GET = route<{ id: string }>(async (_req, { params }) => {
+  await requireUser();
+  const { id } = await params;
 
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { job: { include: { client: true } } },
+  });
+  if (!order || order.job.deletedAt) throw notFound("Order not found");
+
+  return NextResponse.json(order, { headers: { "Cache-Control": "private, no-store" } });
+});
+
+export const PUT = route<{ id: string }>(async (req, { params }) => {
+  await requirePermission("manage_jobs");
+  const { id } = await params;
+  const body = await parseJson(req, updateSchema);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id }, include: { job: { select: { deletedAt: true } } } });
+    if (!order || order.job.deletedAt) throw notFound("Order not found");
+    if (body.packageAmount !== undefined) {
+      await tx.order.update({ where: { id }, data: { package: round2(parseAmount(body.packageAmount)) } });
     }
+    return refreshOrderTotals(tx, order.jobId);
+  });
 
-    return NextResponse.json(order, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
-  }
-}
+  return NextResponse.json(updated, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = route<{ id: string }>(async (_req, { params }) => {
+  await requireAdmin();
+  const { id } = await params;
 
-  try {
-    const id = (await params).id;
-    const body = await request.json();
-    const { packageAmount, advanceAmount, dueAmount } = body;
+  await prisma.order.delete({ where: { id } });
 
-    const updated = await prisma.order.update({
-      where: { id },
-      data: {
-        package: packageAmount !== undefined ? parseFloat(packageAmount) : undefined,
-        advance: advanceAmount !== undefined ? parseFloat(advanceAmount) : undefined,
-        due: dueAmount !== undefined ? parseFloat(dueAmount) : undefined,
-      },
-    });
-
-    return NextResponse.json(updated, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
-  }
-}
-
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const id = (await params).id;
-    await prisma.order.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ success: true }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete order" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
+});

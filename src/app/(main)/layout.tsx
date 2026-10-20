@@ -1,6 +1,5 @@
 import Sidebar from "@/components/layout/Sidebar";
 import TopNavigation from "@/components/layout/TopNavigation";
-import { JobProvider } from "@/components/providers/JobProvider";
 import { SystemProvider } from "@/components/providers/SystemProvider";
 import { MobileNavProvider } from "@/components/providers/MobileNavProvider";
 import { GlobalFormProvider } from "@/components/providers/GlobalFormProvider";
@@ -17,7 +16,6 @@ export default function MainLayout({
   return (
     <SystemProvider>
       <MobileNavProvider>
-        <JobProvider>
           <GlobalFormProvider>
             <Sidebar />
             <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-transparent relative">
@@ -46,7 +44,6 @@ export default function MainLayout({
             <UpcomingJobsBanner />
 
           </GlobalFormProvider>
-        </JobProvider>
       </MobileNavProvider>
     </SystemProvider>
   );

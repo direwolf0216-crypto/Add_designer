@@ -7,6 +7,8 @@ import { formatCurrency } from './currency';
 import { formatDate } from './date';
 import { colors } from '../theme/invoiceTheme';
 import { assets } from './assetRegistry';
+import { computeBalance, round2 } from '@/lib/money';
+import { businessTodayUtc } from '@/lib/dates';
 
 type FullJob = Job & { client: Client };
 type FullInvoice = Invoice & { lineItems: InvoiceLineItem[] };
@@ -28,17 +30,14 @@ export const buildInvoiceViewModel = (
     return Number(val) || 0;
   };
   
-  const subtotal = invoice.lineItems.reduce((acc, item) => acc + safeNumber(item.amount), 0);
-  const discount = safeNumber(invoice.discount);
-  const total = subtotal - discount;
-  
-  // Calculate Paid and Balance
-  const amountPaid = transactions
-    .filter(t => t.status === 'SETTLED' || t.status === 'COMPLETED')
-    .reduce((acc, t) => acc + safeNumber(t.amount), 0);
-    
-  let balanceDue = total - amountPaid;
-  if (balanceDue < 0) balanceDue = 0; // clamp display
+  const subtotal = round2(invoice.lineItems.reduce((acc, item) => acc + safeNumber(item.amount), 0));
+  const discount = round2(safeNumber(invoice.discount));
+
+  // Only money received counts against the invoice: non-deleted INCOME rows (never expenses).
+  const payments = transactions
+    .filter(t => t.type === 'INCOME' && !t.deletedAt)
+    .map(t => ({ ...t, amount: safeNumber(t.amount) }));
+  const { total, paid: amountPaid, due: balanceDue } = computeBalance({ packageAmount: subtotal, discount, payments });
 
   // Determine Status
   let status: InvoiceStatus = 'PENDING';
@@ -46,7 +45,7 @@ export const buildInvoiceViewModel = (
     status = 'PAID';
   } else if (amountPaid > 0 && balanceDue > 0) {
     status = 'PARTIALLY_PAID';
-  } else if (new Date() > new Date(job.date) && balanceDue > 0) {
+  } else if (businessTodayUtc() > new Date(job.date) && balanceDue > 0) {
     status = 'OVERDUE';
   }
 
@@ -92,14 +91,13 @@ export const buildInvoiceViewModel = (
   const paymentPercentage = total > 0 ? Math.min(100, Math.round((amountPaid / total) * 100)) : 100;
   const steps: PaymentStep[] = [];
   
-  const sortedTransactions = [...transactions]
-    .filter(t => t.status === 'SETTLED' || t.status === 'COMPLETED')
+  const sortedTransactions = [...payments]
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   sortedTransactions.forEach((t, i) => {
     steps.push({
       label: i === 0 ? 'Advance' : `Payment ${i + 1}`,
-      amount: formatCurrency(safeNumber(t.amount)),
+      amount: formatCurrency(t.amount),
       completed: true,
       date: formatDate(t.date),
     });

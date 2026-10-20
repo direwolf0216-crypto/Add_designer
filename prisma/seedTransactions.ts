@@ -1,17 +1,21 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-const connectionString = process.env.DATABASE_URL || '';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('DATABASE_URL is not set');
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  await prisma.transaction.deleteMany({}); // Optional: clear existing transactions
+  // Demo data only: refuses to run against a database that already has transactions.
+  if ((await prisma.transaction.count()) > 0) {
+    throw new Error('Transactions already exist; refusing to seed demo data.');
+  }
 
-  const transactions = [
+  const transactions: Prisma.TransactionCreateInput[] = [
     {
       amount: 15000.00,
       type: "INCOME",

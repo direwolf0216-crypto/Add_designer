@@ -1,62 +1,69 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
+import { requirePermission } from "@/lib/auth/session";
+import { isShootDone } from "@/lib/services/jobs";
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const MAX_CUSTOM_DATA_CHARS = 100_000;
+const fitsIn = (maxChars: number) => (value: unknown) => value === undefined || JSON.stringify(value).length <= maxChars;
+
+const statusSchema = z.object({
+  status: z.string().trim().min(1, "Status is required").max(100),
+  albumStatus: z
+    .string()
+    .transform((v) => v.toUpperCase())
+    .pipe(z.enum(["PENDING", "IN_PROGRESS", "DELIVERED"]))
+    .optional(),
+  customData: z
+    .record(z.string().max(100), z.unknown())
+    .refine((o) => Object.keys(o).length <= 200, "Too many custom fields")
+    .refine(fitsIn(MAX_CUSTOM_DATA_CHARS), "Custom data is too large")
+    .optional(),
+});
+
+function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
     }
-
-    const { id } = await params;
-    const body = await request.json();
-    const { status, albumStatus } = body;
-
-    if (!status) {
-      return NextResponse.json({ error: "Status is required" }, { status: 400 });
-    }
-
-    const existing = await prisma.job.findUnique({ where: { id } });
-    const dataToUpdate: any = { status, updatedById: (session.user as any)?.id };
-    
-    if (status === 'Shoot Completed' || status === 'Completed') {
-      let customData = existing?.customData as Record<string, any> || {};
-      if (typeof customData === 'string') {
-        try { customData = JSON.parse(customData); } catch(e) { customData = {}; }
-      }
-      
-      if (!customData.fld_b_album_status || customData.fld_b_album_status === 'Pending') {
-         dataToUpdate.customData = { ...customData, fld_b_album_status: 'Pending' };
-      }
-    } else if (albumStatus) {
-      dataToUpdate.albumStatus = albumStatus;
-    }
-
-    if (body.customData?.fld_b_album_status === 'Delivered') {
-      dataToUpdate.galleryDelivered = true;
-      let customData = existing?.customData as Record<string, any> || {};
-      if (typeof customData === 'string') {
-        try { customData = JSON.parse(customData); } catch(e) { customData = {}; }
-      }
-      dataToUpdate.customData = { ...customData, ...body.customData };
-    } else if (body.customData) {
-      let customData = existing?.customData as Record<string, any> || {};
-      if (typeof customData === 'string') {
-        try { customData = JSON.parse(customData); } catch(e) { customData = {}; }
-      }
-      dataToUpdate.customData = { ...customData, ...body.customData };
-    }
-
-    const updatedJob = await prisma.job.update({
-      where: { id },
-      data: dataToUpdate,
-    });
-
-    return NextResponse.json(updatedJob);
-  } catch (error) {
-    console.error("Error updating job status:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+  return value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : {};
 }
+
+export const PATCH = route<{ id: string }>(async (req, { params }) => {
+  const user = await requirePermission("manage_jobs");
+  const { id } = await params;
+  const { status, albumStatus, customData: patch } = await parseJson(req, statusSchema);
+
+  const existing = await prisma.job.findUnique({ where: { id } });
+  if (!existing || existing.deletedAt) throw notFound("Job not found");
+
+  const data: Prisma.JobUncheckedUpdateInput = { status, updatedById: user.id };
+  const customData = { ...readCustomData(existing.customData), ...patch };
+
+  if (isShootDone(status)) {
+    // Album work starts as Pending once the shoot is done.
+    if (!customData.fld_b_album_status) customData.fld_b_album_status = "Pending";
+  } else if (albumStatus) {
+    data.albumStatus = albumStatus;
+  }
+  if (patch?.fld_b_album_status === "Delivered") data.galleryDelivered = true;
+
+  if (patch || customData.fld_b_album_status !== readCustomData(existing.customData).fld_b_album_status) {
+    if (!fitsIn(MAX_CUSTOM_DATA_CHARS * 2)(customData)) throw badRequest("Custom data is too large");
+    data.customData = customData as Prisma.InputJsonValue;
+  }
+
+  const updatedJob = await prisma.job.update({ where: { id }, data });
+
+  await prisma.systemLog.create({
+    data: { userId: user.id, action: "JOB_STATUS_UPDATED", details: `Updated job ID: ${id} status to ${status}` },
+  });
+
+  return NextResponse.json(updatedJob);
+});

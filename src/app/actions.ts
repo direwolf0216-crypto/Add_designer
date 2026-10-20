@@ -12,6 +12,7 @@ import type { Permission } from "@/lib/permissions";
 import { isShootDone, saveJob, softDeleteJob, type InstallmentInput } from "@/lib/services/jobs";
 import { parseAmount } from "@/lib/money";
 import { nextCounter } from "@/lib/ids";
+import { HttpError } from "@/lib/api/http";
 
 type ActionError = { success: false; error: string };
 
@@ -130,7 +131,7 @@ export async function saveJobAction(formData: FormData) {
       return { success: false as const, errors: z.flattenError(error).fieldErrors as Record<string, string[]> };
     }
     console.error("[saveJobAction]", error);
-    const message = error instanceof Error && error.message === "Job not found" ? error.message : "An unexpected error occurred while saving the job.";
+    const message = error instanceof HttpError ? error.message : "An unexpected error occurred while saving the job.";
     return { success: false as const, errors: { _form: [message] } };
   }
 }

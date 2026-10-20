@@ -1,47 +1,43 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { FilterState } from '@/types';
+import { jobFiltersToParams, parseJobFilters } from '@/lib/jobs/filters';
 
 interface JobContextType {
   filters: FilterState;
-  setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
-  
+  setFilters: (next: FilterState | ((prev: FilterState) => FilterState)) => void;
+
   isFilterModalOpen: boolean;
   setIsFilterModalOpen: (open: boolean) => void;
-  
+
   hasData: boolean;
   setHasData: (has: boolean) => void;
 }
 
-const defaultFilters: FilterState = {
-  categories: [],
-  statuses: [],
-  clientName: '',
-  location: '',
-  dateStart: '',
-  dateEnd: '',
-  amountMin: '',
-  amountMax: ''
-};
-
 const JobContext = createContext<JobContextType | undefined>(undefined);
 
+/** Job list filters live in the URL so the server filters before paginating and links are shareable. */
 export function JobProvider({ children }: { children: ReactNode }) {
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filters = useMemo(() => parseJobFilters(searchParams), [searchParams]);
   const [hasData, setHasData] = useState(false);
-  
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  return (
-    <JobContext.Provider value={{ 
-      filters, setFilters, 
-      isFilterModalOpen, setIsFilterModalOpen,
-      hasData, setHasData
-    }}>
-      {children}
-    </JobContext.Provider>
-  );
+  const setFilters = useCallback<JobContextType['setFilters']>((next) => {
+    const value = typeof next === 'function' ? next(filters) : next;
+    const qs = jobFiltersToParams(value, new URLSearchParams(searchParams.toString())).toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }, [filters, pathname, router, searchParams]);
+
+  const value = useMemo(() => ({
+    filters, setFilters, isFilterModalOpen, setIsFilterModalOpen, hasData, setHasData,
+  }), [filters, setFilters, isFilterModalOpen, hasData]);
+
+  return <JobContext.Provider value={value}>{children}</JobContext.Provider>;
 }
 
 export function useJobs() {

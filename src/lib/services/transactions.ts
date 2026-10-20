@@ -164,7 +164,7 @@ function productOrderPaymentKind(description: string | null): ProductOrderPaymen
   return null;
 }
 
-async function adjustProductOrder(tx: TxClient, row: Transaction, direction: "revert" | "reapply") {
+export async function adjustProductOrder(tx: TxClient, row: Transaction, direction: "revert" | "reapply") {
   if (!row.productOrderId) return;
   const kind = productOrderPaymentKind(row.description);
   if (!kind) return;

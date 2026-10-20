@@ -11,9 +11,9 @@ interface TaskAlertsProps {
 }
 
 export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingRetouch: propRetouch }: TaskAlertsProps = {}) {
-  const { data: rawAlerts } = useSWR('/api/dashboard/alerts', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
+  const { data: rawAlerts } = useSWR<any>('/api/dashboard/alerts', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
   const shouldFetchOverview = propUnconfirmed === undefined && propRetouch === undefined;
-  const { data: overviewData } = useSWR(shouldFetchOverview ? '/api/dashboard/overview' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
+  const { data: overviewData } = useSWR<any>(shouldFetchOverview ? '/api/dashboard/overview' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
 
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);

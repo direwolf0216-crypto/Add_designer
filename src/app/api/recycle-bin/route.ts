@@ -1,162 +1,137 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse, after } from "next/server";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { intParam, parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requireUser, roleHasPermission } from "@/lib/auth/session";
+import { businessRangeFromISO } from "@/lib/dates";
+import { deleteDriveFiles, forEachEntry, normalizeItemType, purgeItem, storedItemTypes } from "@/lib/services/recycleBin";
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}/).nullable();
+const querySchema = z.object({
+  source: z.string().max(50).nullable(),
+  trashedBy: z.string().max(50).nullable(),
+  startDate: isoDate,
+  endDate: isoDate,
+});
+
+const TRANSACTION_TYPES = ["transaction", "TRANSACTION_GROUP"];
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+
+export const GET = route(async (req) => {
+  const user = await requireUser();
+  const url = new URL(req.url);
+  const { searchParams } = url;
+  const query = querySchema.parse({
+    source: searchParams.get("source") || null,
+    trashedBy: searchParams.get("trashed_by") || null,
+    startDate: searchParams.get("startDate") || null,
+    endDate: searchParams.get("endDate") || null,
+  });
+  const limit = intParam(url, "limit", 100, 1, 500);
+  const offset = intParam(url, "offset", 0, 0, 1_000_000);
+
+  const conditions: Prisma.RecycleBinWhereInput[] = [];
+  if (query.source) {
+    const type = normalizeItemType(query.source);
+    conditions.push({ itemType: { in: type ? storedItemTypes(type) : [query.source] } });
   }
+  // Trashed payments are financial records: only shown to users who can see transactions.
+  if (!(await roleHasPermission(user.role, "view_transactions"))) {
+    conditions.push({ itemType: { notIn: TRANSACTION_TYPES } });
+  }
+  if (query.trashedBy) conditions.push({ trashedById: query.trashedBy });
+  const range = businessRangeFromISO(query.startDate, query.endDate);
+  if (range.start || range.end) conditions.push({ trashedAt: { gte: range.start, lte: range.end } });
+  const where: Prisma.RecycleBinWhereInput = { AND: conditions };
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const source = searchParams.get("source");
-    const trashedBy = searchParams.get("trashed_by");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 500);
-    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+  const [items, total] = await Promise.all([
+    prisma.recycleBin.findMany({ where, orderBy: { trashedAt: "desc" }, take: limit, skip: offset }),
+    prisma.recycleBin.count({ where }),
+  ]);
 
-    const whereClause: any = {};
+  const userIds = [...new Set(items.map((i) => i.trashedById).filter((id): id is string => !!id))];
+  const clientIds = [
+    ...new Set(
+      items
+        .filter((i) => normalizeItemType(i.itemType) === "job")
+        .map((i) => asRecord(i.originalData).clientId)
+        .filter((id): id is string => typeof id === "string")
+    ),
+  ];
+  const [users, clients] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true } }),
+    prisma.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } }),
+  ]);
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const clientMap = new Map(clients.map((c) => [c.id, c.name]));
 
-    if (source) whereClause.itemType = source;
-    if (trashedBy) whereClause.trashedById = trashedBy;
-    
+  const formattedItems = items.map((item) => {
+    let entryName = "Unknown";
+    let transactionId = "-";
+    let originalType = item.itemType;
 
-    if (startDate || endDate) {
-      whereClause.trashedAt = {};
-      if (startDate) whereClause.trashedAt.gte = new Date(startDate);
-      if (endDate) whereClause.trashedAt.lte = new Date(endDate);
+    const data = asRecord(item.originalData);
+    const trashedBy = item.trashedById ? userMap.get(item.trashedById) : null;
+    const type = normalizeItemType(item.itemType);
+
+    if (type === "job") {
+      const clientName = typeof data.clientId === "string" ? clientMap.get(data.clientId) : null;
+      entryName = clientName || String(data.clientName || data.eventName || "Job");
+      transactionId = String(data.jobNumber || item.itemId.substring(0, 8));
+    } else if (type === "transaction") {
+      entryName = String(data.category || "Transaction");
+      transactionId = String(data.transactionId || "-");
+      originalType = String(data.type || "transaction");
+    } else if (type === "TRANSACTION_GROUP") {
+      const children = (Array.isArray(data.children) ? data.children : []).map(asRecord);
+      entryName = children.map((c) => c.category).join(", ") || "Transaction Group";
+      transactionId = children.map((c) => c.transactionId).join(", ") || "-";
+      originalType = String(children[0]?.type || "TRANSACTION_GROUP");
+    } else if (type === "product-order") {
+      entryName = String(asRecord(data.customData).clientName || data.clientName || "Order");
+      transactionId = String(data.orderNumber || data.orderId || item.itemId.substring(0, 8));
     }
+    return {
+      id: item.id,
+      itemType: item.itemType,
+      itemId: item.itemId,
+      transactionId,
+      originalType,
+      entryName,
+      trashedBy: trashedBy?.name || trashedBy?.email || item.trashedById || "Unknown",
+      trashedAt: item.trashedAt,
+      originalData: item.originalData,
+    };
+  });
 
-    const [items, total] = await Promise.all([
-      prisma.recycleBin.findMany({
-        where: whereClause,
-        orderBy: { trashedAt: "desc" },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.recycleBin.count({ where: whereClause }),
-    ]);
+  return NextResponse.json(
+    { items: formattedItems, total, limit, offset },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
+});
 
-    const userIds = [...new Set(items.map(i => i.trashedById).filter(Boolean))];
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds as string[] } },
-      select: { id: true, name: true, email: true }
-    });
-    const userMap = new Map(users.map(u => [u.id, u]));
+const idsSchema = z.object({ ids: z.array(z.string().min(1).max(50)).min(1).max(100) });
 
-    const clientIds = [...new Set(items.filter(i => i.itemType === 'job').map(i => (i.originalData as any)?.clientId).filter(Boolean))];
-    const clients = await prisma.client.findMany({
-      where: { id: { in: clientIds as string[] } },
-      select: { id: true, name: true }
-    });
-    const clientMap = new Map(clients.map(c => [c.id, c.name]));
+export const DELETE = route(async (req) => {
+  const admin = await requireAdmin();
+  const { ids } = await parseJson(req, idsSchema);
 
-    // Map items to standard format
-    const formattedItems = items.map(item => {
-      let entryName = "Unknown";
-      let transactionId = "-";
-      let originalType = item.itemType;
-      
-      const data: any = item.originalData || {};
-      const user = item.trashedById ? userMap.get(item.trashedById) : null;
-      
-      if (item.itemType === "job") {
-        const clientName = data.clientId ? clientMap.get(data.clientId) : null;
-        entryName = clientName || data.clientName || data.eventName || `Job`;
-        transactionId = data.jobNumber || item.itemId.substring(0, 8);
-      } else if (item.itemType === "transaction") {
-        entryName = data.category || "Transaction";
-        transactionId = data.transactionId || "-";
-        originalType = data.type || "transaction";
-      } else if (item.itemType === "TRANSACTION_GROUP") {
-        const children = data.children || [];
-        entryName = children.map((c: any) => c.category).join(', ') || "Transaction Group";
-        transactionId = children.map((c: any) => c.transactionId).join(', ') || "-";
-        originalType = children[0]?.type || "TRANSACTION_GROUP";
-      } else if (item.itemType === "frame" || item.itemType === "product-order") {
-        entryName = data.customData?.clientName || data.clientName || `Order`;
-        transactionId = data.orderNumber || data.orderId || item.itemId.substring(0, 8);
-      }
-      return {
-        id: item.id,
-        itemType: item.itemType,
-        itemId: item.itemId,
-        transactionId,
-        originalType,
-        entryName,
-        trashedBy: user?.name || user?.email || item.trashedById || "Unknown",
-        trashedAt: item.trashedAt,
-        originalData: item.originalData
-      };
-    });
+  const entries = await prisma.recycleBin.findMany({ where: { id: { in: ids } } });
+  const files: string[] = [];
+  const result = await forEachEntry(entries, async (entry) => {
+    const { driveFileIds } = await purgeItem(entry, admin);
+    files.push(...driveFileIds);
+  });
+  after(() => deleteDriveFiles(admin, files));
 
-    return NextResponse.json({ items: formattedItems, total, limit, offset }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch recycle bin" }, { status: 500 });
+  if (result.failed.length > 0) {
+    return NextResponse.json(
+      { error: "Some items could not be deleted", details: { deleted: result.done.length, failed: result.failed } },
+      { status: 409 }
+    );
   }
-}
-
-export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { ids } = await request.json();
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json({ error: "No ids provided" }, { status: 422 });
-    }
-
-    const entries = await prisma.recycleBin.findMany({
-      where: { id: { in: ids } }
-    });
-
-    for (const entry of entries) {
-      // If job, we also hard delete the job itself if we are permanently deleting
-      if (entry.itemType === "job") {
-        try {
-          await prisma.transaction.deleteMany({ where: { jobId: entry.itemId } });
-          await prisma.order.deleteMany({ where: { jobId: entry.itemId } });
-          await prisma.job.delete({ where: { id: entry.itemId } });
-        } catch (e) {
-        }
-      }
-      // Product orders if they use deletedAt
-      if (entry.itemType === "product-order" || entry.itemType === "frame") {
-        try {
-          await prisma.productOrder.delete({ where: { id: entry.itemId } });
-        } catch (e) {}
-      }
-      if (entry.itemType === "TRANSACTION_GROUP") {
-        try {
-          await prisma.transaction.deleteMany({ where: { groupId: entry.itemId } });
-        } catch (e) {}
-      }
-
-    }
-
-    // Now permanently delete the RecycleBin entries (or mark them)
-    // Physically delete to save space
-    await prisma.recycleBin.deleteMany({
-      where: { id: { in: ids } }
-    });
-
-    await prisma.systemLog.create({
-      data: {
-        action: "RECYCLE_BIN_BULK_DELETE",
-        details: `Permanently deleted ${ids.length} items from recycle bin`,
-        userId: (session.user as any).id,
-      }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete items" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true, deleted: result.done.length });
+});

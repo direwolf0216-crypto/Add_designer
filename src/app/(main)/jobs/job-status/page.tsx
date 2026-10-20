@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { requirePageUser } from "@/lib/auth/session";
 import JobStatusClient from "./JobStatusClient";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export default async function JobStatusPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  await requirePageUser();
   const params = await searchParams;
   const initialTab = params?.tab || 'Pending';
   
@@ -34,11 +36,13 @@ export default async function JobStatusPage({
       orderBy: [
         { date: 'desc' },
         { time: 'desc' }
-      ]
+      ],
+      // Status board shows the most recent jobs; older ones are reachable from All Jobs.
+      take: 1000,
     }),
     prisma.user.findMany({
       where: { status: 'ACTIVE' },
-      select: { id: true, name: true, email: true, role: true }
+      select: { id: true, name: true, role: true }
     })
   ]);
 

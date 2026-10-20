@@ -9,7 +9,7 @@ import CustomDropdown from "@/components/ui/CustomDropdown";
 import CustomMultiDropdown from "@/components/ui/CustomMultiDropdown";
 import FileAttachment from "@/components/ui/FileAttachment";
 import { toast } from "sonner";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import { useRouter, useSearchParams } from "next/navigation";
 import { uploadFileToDrive } from "@/lib/uploadHelper";
 

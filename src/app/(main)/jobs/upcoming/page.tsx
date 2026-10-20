@@ -1,12 +1,15 @@
 import prisma from "@/lib/prisma";
+import { businessTodayUtc } from "@/lib/dates";
+import { requirePageUser } from "@/lib/auth/session";
 import { Job } from "@/types";
 import UpcomingDeliveriesFeed from "./UpcomingDeliveriesFeed";
 
 export const dynamic = "force-dynamic";
 
 export default async function UpcomingDeliveriesPage() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  await requirePageUser();
+  // Job dates are calendar dates stored as UTC midnight; "today" is the IST calendar day.
+  const today = businessTodayUtc();
 
   const dbJobs = await prisma.job.findMany({
     where: { 
@@ -17,7 +20,8 @@ export default async function UpcomingDeliveriesPage() {
     orderBy: [
       { date: 'asc' },
       { time: 'asc' }
-    ]
+    ],
+    take: 500,
   });
 
   const jobs: Job[] = dbJobs.map(b => ({

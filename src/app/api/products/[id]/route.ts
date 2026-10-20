@@ -1,89 +1,46 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { notFound, parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requirePermission, requireUser } from "@/lib/auth/session";
+import { round2 } from "@/lib/money";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const updateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().max(2000).nullish(),
+  price: z.coerce.number().nonnegative().max(100_000_000).transform(round2).optional(),
+  stock: z.coerce.number().int().min(0).max(1_000_000).optional(),
+});
 
-  try {
-    const id = (await params).id;
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        orders: true,
-      },
-    });
+export const GET = route<{ id: string }>(async (_req, { params }) => {
+  await requireUser();
+  const { id } = await params;
 
-    if (!product) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { orders: { orderBy: { createdAt: "desc" }, take: 200 } },
+  });
+  if (!product) throw notFound("Product not found");
 
-    return NextResponse.json(product, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch product" }, { status: 500 });
-  }
-}
+  return NextResponse.json(product, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PUT = route<{ id: string }>(async (req, { params }) => {
+  await requirePermission("manage_jobs");
+  const { id } = await params;
+  const data = await parseJson(req, updateSchema);
 
-  try {
-    const id = (await params).id;
-    const body = await request.json();
-    const { name, description, price, stock } = body;
+  const updated = await prisma.product.update({ where: { id }, data });
 
-    const updated = await prisma.product.update({
-      where: { id },
-      data: {
-        name: name?.trim(),
-        description: description?.trim(),
-        price: price !== undefined ? parseFloat(price) : undefined,
-        stock: stock !== undefined ? parseInt(stock, 10) : undefined,
-      },
-    });
+  return NextResponse.json(updated, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-    return NextResponse.json(updated, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
-  }
-}
+export const DELETE = route<{ id: string }>(async (_req, { params }) => {
+  await requireAdmin();
+  const { id } = await params;
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // A product with orders is protected by the foreign key; route() maps that to 409.
+  await prisma.product.delete({ where: { id } });
 
-  try {
-    const id = (await params).id;
-    await prisma.product.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ success: true }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
+});

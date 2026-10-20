@@ -1,54 +1,33 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse, after } from "next/server";
 import prisma from "@/lib/prisma";
+import { route } from "@/lib/api/http";
+import { requireAdmin } from "@/lib/auth/session";
+import { deleteDriveFiles, forEachEntry, purgeItem } from "@/lib/services/recycleBin";
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const POST = route(async () => {
+  const admin = await requireAdmin();
+
+  const entries = await prisma.recycleBin.findMany({ orderBy: { trashedAt: "asc" } });
+  const files: string[] = [];
+  const result = await forEachEntry(entries, async (entry) => {
+    const { driveFileIds } = await purgeItem(entry, admin);
+    files.push(...driveFileIds);
+  });
+  after(() => deleteDriveFiles(admin, files));
+
+  await prisma.systemLog.create({
+    data: {
+      action: "RECYCLE_BIN_EMPTY",
+      details: `Emptied recycle bin: ${result.done.length} deleted, ${result.failed.length} failed`,
+      userId: admin.id,
+    },
+  });
+
+  if (result.failed.length > 0) {
+    return NextResponse.json(
+      { error: "Some items could not be deleted", details: { deleted: result.done.length, failed: result.failed } },
+      { status: 409 }
+    );
   }
-  const userRole = (session.user as any).role;
-  if (userRole !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden. Admin only." }, { status: 403 });
-  }
-
-  try {
-    const entries = await prisma.recycleBin.findMany({});
-
-    for (const entry of entries) {
-      if (entry.itemType === "job") {
-        try {
-          await prisma.transaction.deleteMany({ where: { jobId: entry.itemId } });
-          await prisma.order.deleteMany({ where: { jobId: entry.itemId } });
-          await prisma.job.delete({ where: { id: entry.itemId } });
-        } catch (e) {
-        }
-      }
-      if (entry.itemType === "product-order" || entry.itemType === "frame") {
-        try {
-          await prisma.productOrder.delete({ where: { id: entry.itemId } });
-        } catch (e) {}
-      }
-      if (entry.itemType === "TRANSACTION_GROUP") {
-        try {
-          await prisma.transaction.deleteMany({ where: { groupId: entry.itemId } });
-        } catch (e) {}
-      }
-    }
-
-    await prisma.recycleBin.deleteMany({});
-
-    await prisma.systemLog.create({
-      data: {
-        action: "RECYCLE_BIN_EMPTY",
-        details: `Emptied recycle bin containing ${entries.length} items`,
-        userId: (session.user as any).id,
-      }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to empty recycle bin" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true, deleted: result.done.length });
+});

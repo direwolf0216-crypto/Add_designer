@@ -4,6 +4,7 @@ import prisma, { type TxClient } from "@/lib/prisma";
 import { computeBalance, parseAmount, round2 } from "@/lib/money";
 import { newJobNumber, newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { calendarDateToUtc } from "@/lib/dates";
+import { notFound } from "@/lib/api/http";
 
 /** Statuses that mean the shoot happened and album work should start. */
 export const SHOOT_DONE_STATUSES = ["Shoot Completed", "Completed"];
@@ -177,7 +178,7 @@ async function saveJobOnce(input: SaveJobInput, userId: string) {
         ? await tx.job.findUnique({ where: { id: input.id }, include: { order: true } })
         : null;
       if (input.id && (!existing || existing.deletedAt)) {
-        throw new Error("Job not found");
+        throw notFound("Job not found");
       }
 
       const client = await resolveClient(tx, input.client, existing?.clientId);

@@ -1,130 +1,24 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { parseJson, route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
+import { forEachEntry, restoreItem } from "@/lib/services/recycleBin";
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const idsSchema = z.object({ ids: z.array(z.string().min(1).max(50)).min(1).max(100) });
+
+export const POST = route(async (req) => {
+  const user = await requireUser();
+  const { ids } = await parseJson(req, idsSchema);
+
+  const entries = await prisma.recycleBin.findMany({ where: { id: { in: ids } } });
+  const result = await forEachEntry(entries, (entry) => restoreItem(entry, user));
+
+  if (result.failed.length > 0) {
+    return NextResponse.json(
+      { error: "Some items could not be restored", details: { restored: result.done.length, failed: result.failed } },
+      { status: 409 }
+    );
   }
-
-  try {
-    const { ids } = await request.json();
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json({ error: "No ids provided" }, { status: 422 });
-    }
-
-    const entries = await prisma.recycleBin.findMany({
-      where: { id: { in: ids } }
-    });
-
-    for (const entry of entries) {
-      if (entry.itemType === "job") {
-        await prisma.job.update({
-          where: { id: entry.itemId },
-          data: { deletedAt: null }
-        });
-      } else if (entry.itemType === "transaction") {
-        try {
-          await prisma.transaction.update({
-            where: { id: entry.itemId },
-            data: { deletedAt: null }
-          });
-        } catch (e) {
-          console.error("Failed to restore transaction:", e);
-        }
-      } else if (entry.itemType === "TRANSACTION_GROUP") {
-        const data: any = entry.originalData;
-        const transactions = data.children || [];
-        for (const tx of transactions) {
-          try {
-            await prisma.transaction.update({
-              where: { id: tx.id },
-              data: { deletedAt: null }
-            });
-          } catch (e) {}
-        }
-      } else if (entry.itemType === "product-order" || entry.itemType === "frame") {
-        const data: any = entry.originalData;
-        try {
-          await prisma.productOrder.create({
-            data: {
-              id: data.id,
-              orderNumber: data.orderNumber,
-              productId: data.productId,
-              quantity: data.quantity,
-              status: data.status,
-              clientName: data.clientName,
-              clientPhone: data.clientPhone,
-              customData: data.customData,
-              dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-              createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
-              updatedAt: data.updatedAt ? new Date(data.updatedAt) : undefined,
-            }
-          });
-
-          // Restore any associated transactions
-          if (data.transactions && Array.isArray(data.transactions) && data.transactions.length > 0) {
-            for (const tx of data.transactions) {
-              try {
-                await prisma.transaction.upsert({
-                  where: { id: tx.id },
-                  update: { deletedAt: null, productOrderId: entry.itemId },
-                  create: {
-                    id: tx.id,
-                    transactionId: tx.transactionId,
-                    amount: tx.amount,
-                    type: tx.type,
-                    date: new Date(tx.date),
-                    category: tx.category,
-                    paymentMode: tx.paymentMode,
-                    description: tx.description,
-                    status: tx.status,
-                    attachmentUrl: tx.attachmentUrl,
-                    customData: tx.customData,
-                    jobId: tx.jobId,
-                    productOrderId: entry.itemId,
-                    userId: tx.userId,
-                    createdAt: tx.createdAt ? new Date(tx.createdAt) : undefined,
-                    updatedAt: tx.updatedAt ? new Date(tx.updatedAt) : undefined,
-                  }
-                });
-              } catch (e) {
-              }
-            }
-          } else {
-            const fallbackString = data.orderNumber || entry.itemId.slice(-6).toUpperCase();
-            await prisma.transaction.updateMany({
-              where: { 
-                description: { contains: fallbackString }
-              },
-              data: {
-                deletedAt: null,
-                productOrderId: entry.itemId
-              }
-            });
-          }
-        } catch (e) {
-        }
-      }
-    }
-
-    // Physically delete from recycle bin
-    await prisma.recycleBin.deleteMany({
-      where: { id: { in: ids } }
-    });
-
-    await prisma.systemLog.create({
-      data: {
-        action: "RECYCLE_BIN_BULK_RESTORE",
-        details: `Restored ${ids.length} items from recycle bin`,
-        userId: (session.user as any).id,
-      }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to restore items" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true, restored: result.done.length });
+});

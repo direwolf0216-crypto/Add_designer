@@ -1,62 +1,45 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { intParam, notFound, parseJson, route } from "@/lib/api/http";
+import { requirePermission, requireUser } from "@/lib/auth/session";
+import { parseAmount, round2 } from "@/lib/money";
+import { refreshOrderTotals } from "@/lib/services/jobs";
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const amount = z.union([z.number().nonnegative(), z.string().max(30)]);
+// advance/due are accepted for backwards compatibility but derived from the job's payments.
+const createSchema = z.object({
+  jobId: z.string().min(1).max(50),
+  packageAmount: amount.optional(),
+  advanceAmount: amount.optional(),
+  dueAmount: amount.optional(),
+});
 
-  try {
-    const orders = await prisma.order.findMany({
-      include: {
-        job: {
-          include: {
-            client: true
-          }
-        }
-      },
-      orderBy: { createdAt: "desc" },
-    });
+export const GET = route(async (req) => {
+  await requireUser();
+  const url = new URL(req.url);
 
-    return NextResponse.json(orders, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
-  }
-}
+  const orders = await prisma.order.findMany({
+    where: { job: { deletedAt: null } },
+    include: { job: { include: { client: true } } },
+    orderBy: { createdAt: "desc" },
+    take: intParam(url, "limit", 500, 1, 500),
+    skip: intParam(url, "offset", 0, 0, 1_000_000),
+  });
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  return NextResponse.json(orders, { headers: { "Cache-Control": "private, no-store" } });
+});
 
-  try {
-    const body = await request.json();
-    const { jobId, packageAmount, advanceAmount, dueAmount } = body;
+export const POST = route(async (req) => {
+  await requirePermission("manage_jobs");
+  const body = await parseJson(req, createSchema);
 
-    if (!jobId) {
-      return NextResponse.json({ error: "Job ID is required" }, { status: 422 });
-    }
+  const order = await prisma.$transaction(async (tx) => {
+    const job = await tx.job.findUnique({ where: { id: body.jobId }, select: { deletedAt: true } });
+    if (!job || job.deletedAt) throw notFound("Job not found");
+    await tx.order.create({ data: { jobId: body.jobId, package: round2(parseAmount(body.packageAmount ?? 0)) } });
+    return refreshOrderTotals(tx, body.jobId);
+  });
 
-    const newOrder = await prisma.order.create({
-      data: {
-        jobId,
-        package: parseFloat(packageAmount || 0),
-        advance: parseFloat(advanceAmount || 0),
-        due: parseFloat(dueAmount || 0),
-      },
-    });
-
-    return NextResponse.json(newOrder, {
-      status: 201,
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
-  }
-}
+  return NextResponse.json(order, { status: 201, headers: { "Cache-Control": "private, no-store" } });
+});

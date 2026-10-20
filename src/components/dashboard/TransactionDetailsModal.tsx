@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { invalidateFinance } from "@/lib/swr";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import { toast } from "sonner";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 
