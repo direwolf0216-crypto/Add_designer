@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MonthYearPicker from "../ui/MonthYearPicker";
 import WeekPicker from "../ui/WeekPicker";
@@ -30,13 +30,16 @@ function CalendarWidgetInner() {
     return new Date();
   });
 
-  useEffect(() => {
-    const d = searchParams.get('date');
-    if (d) {
-      const [y, m, day] = d.split('-').map(Number);
+  // Follow ?date= when it changes after mount (adjust during render rather than in an effect).
+  const dateParam = searchParams.get('date');
+  const [prevDateParam, setPrevDateParam] = useState(dateParam);
+  if (dateParam !== prevDateParam) {
+    setPrevDateParam(dateParam);
+    if (dateParam) {
+      const [y, m, day] = dateParam.split('-').map(Number);
       setCurrentDate(new Date(y, m - 1, day));
     }
-  }, [searchParams]);
+  }
 
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [isPickerOpen, setIsPickerOpen] = useState(false);

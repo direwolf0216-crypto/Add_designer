@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { asList, fetcher } from "@/lib/swr";
 import { useSession } from "next-auth/react";
 import InviteUserModal from "./InviteUserModal";
 import EditUserModal from "./EditUserModal";
@@ -55,29 +57,16 @@ const STATUS_STYLES: Record<string, { dot: string; text: string; bg: string }> =
 
 export default function UserManagement() {
   const { data: session } = useSession();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading, mutate: refreshUsers } = useSWR<User[]>("/api/users", fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    onError: () => toast.error("Failed to load users"),
+  });
+  const users = asList<User>(data);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
 
   const currentUserId = (session?.user as any)?.id;
-
-  const fetchUsers = useCallback(async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setUsers(data);
-    } catch {
-      toast.error("Failed to load users");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
 
   const getInitials = (name: string | null) => {
     if (!name) return "??";
@@ -108,7 +97,7 @@ export default function UserManagement() {
           <div>
             <h2 className="text-[1.75rem] font-bold text-slate-900 tracking-tight">System Access</h2>
             <p className="text-slate-500 text-sm mt-1">
-              Control who has access to your system's financial and settings.
+              Control who has access to your system&apos;s financial and settings.
             </p>
           </div>
           <button
@@ -236,7 +225,7 @@ export default function UserManagement() {
           onClose={() => setShowInviteModal(false)}
           onSuccess={() => {
             setShowInviteModal(false);
-            fetchUsers();
+            refreshUsers();
           }}
         />
       )}
@@ -248,7 +237,7 @@ export default function UserManagement() {
           onClose={() => setEditTarget(null)}
           onSuccess={() => {
             setEditTarget(null);
-            fetchUsers();
+            refreshUsers();
           }}
         />
       )}

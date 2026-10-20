@@ -82,7 +82,11 @@ function TransactionModalInner() {
 
   const isEditMode = !!editTransaction;
 
-  useEffect(() => {
+  // Reset the form whenever the modal opens or its source data arrives (adjusted during render, not in an effect).
+  const formSyncDeps = [isOpen, editTransaction, isTxLoading, layoutSchema, searchParams, transactionInitialData];
+  const [prevFormSyncDeps, setPrevFormSyncDeps] = useState<unknown[] | null>(null);
+  if (!prevFormSyncDeps || formSyncDeps.some((dep, i) => dep !== prevFormSyncDeps[i])) {
+    setPrevFormSyncDeps(formSyncDeps);
     if (isOpen && !isTxLoading) {
       if (editTransaction) {
         const { customData, ...rest } = editTransaction;
@@ -131,7 +135,7 @@ function TransactionModalInner() {
       }
       setErrors({});
     }
-  }, [isOpen, editTransaction, isTxLoading, layoutSchema, searchParams, transactionInitialData]);
+  }
 
   const set = (key: string) => (value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 

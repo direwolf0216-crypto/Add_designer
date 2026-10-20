@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useJobs } from "../providers/JobProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import Autocomplete from "../ui/Autocomplete";
@@ -17,11 +17,14 @@ export default function JobFilterModal() {
 
   const [filterState, setFilterState] = useState(filters);
 
-  useEffect(() => {
+  // Re-sync the draft with the applied filters whenever the modal opens (or they change while open).
+  const [prevSync, setPrevSync] = useState({ isFilterModalOpen, filters });
+  if (prevSync.isFilterModalOpen !== isFilterModalOpen || prevSync.filters !== filters) {
+    setPrevSync({ isFilterModalOpen, filters });
     if (isFilterModalOpen) {
       setFilterState(filters);
     }
-  }, [isFilterModalOpen, filters]);
+  }
 
   const toggleFilterCategory = (cat: string) => {
     setFilterState(prev => ({

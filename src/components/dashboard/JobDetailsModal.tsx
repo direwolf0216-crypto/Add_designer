@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { invalidateJobs } from "@/lib/swr";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { deleteJobAction, updateJobStatusAction, updateJobTrackingAction, generateInvoiceAction } from "@/app/actions";
 import { toast } from "sonner";
@@ -120,16 +120,11 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
   const [isExporting, setIsExporting] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isAlbumStatusDropdownOpen, setIsAlbumStatusDropdownOpen] = useState(false);
-  const [layoutSchema, setLayoutSchema] = useState<any>(null);
-  const [teamUsers, setTeamUsers] = useState<any[]>([]);
-
   const { data: layoutRes } = useSWR(isVisible ? "/api/settings/layouts/JOB_FORM" : null, fetcher);
   const { data: usersRes } = useSWR(isVisible ? "/api/users" : null, fetcher);
 
-  useEffect(() => {
-    if (layoutRes?.schema) setLayoutSchema(layoutRes.schema);
-    if (usersRes) setTeamUsers(Array.isArray(usersRes) ? usersRes : (usersRes.data || []));
-  }, [layoutRes, usersRes]);
+  const layoutSchema: any = layoutRes?.schema ?? null;
+  const teamUsers: any[] = usersRes ? (Array.isArray(usersRes) ? usersRes : (usersRes.data || [])) : [];
 
   const standardFieldMap: Record<string, string> = {
     fld_b_client: 'title', fld_b_phone: 'phone', fld_b_email: 'email',

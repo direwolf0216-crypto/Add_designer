@@ -95,9 +95,11 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
   const [jobs, setJobs] = useState(initialJobs);
   const router = useRouter();
 
-  useEffect(() => {
+  const [prevInitialJobs, setPrevInitialJobs] = useState(initialJobs);
+  if (initialJobs !== prevInitialJobs) {
+    setPrevInitialJobs(initialJobs);
     setJobs(initialJobs);
-  }, [initialJobs]);
+  }
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   
   const { data: layoutData } = useSWR('/api/settings/layouts/JOB_FORM', fetcher);

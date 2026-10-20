@@ -358,7 +358,7 @@ export default function OverviewPage() {
           <div className="bg-white rounded-lg sm:rounded-[18px] md:rounded-[22px] p-3 sm:p-4 md:p-5 shadow-sm sm:shadow-[0_18px_45px_rgba(15,23,42,0.08)] border border-slate-100/80 flex flex-col justify-between h-[110px] sm:h-[130px] md:h-[150px] animate-slide-up hover:shadow-md hover:-translate-y-0.5 hover:border-orange-200 transition-all relative overflow-hidden group-focus-visible:ring-2 group-focus-visible:ring-orange-200" style={{ animationDelay: "100ms" }}>
             <div className="flex justify-between items-start gap-1.5 sm:gap-2">
               <div className="min-w-0">
-                <span className="text-[0.55rem] sm:text-[0.6rem] md:text-[0.65rem] font-extrabold text-slate-500 uppercase tracking-[1px]">Today's Income</span>
+                <span className="text-[0.55rem] sm:text-[0.6rem] md:text-[0.65rem] font-extrabold text-slate-500 uppercase tracking-[1px]">Today&apos;s Income</span>
                 <div className="text-[0.95rem] sm:text-[1.2rem] md:text-[1.5rem] font-extrabold text-slate-950 mt-1.5 sm:mt-2 md:mt-3 leading-none truncate">₹{todayIncome.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </div>
               <span className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-lg text-emerald-600 bg-emerald-50 flex items-center justify-center shrink-0">
@@ -385,7 +385,7 @@ export default function OverviewPage() {
           <div className="bg-white rounded-lg sm:rounded-[18px] md:rounded-[22px] p-3 sm:p-4 md:p-5 shadow-sm sm:shadow-[0_18px_45px_rgba(15,23,42,0.08)] border border-slate-100/80 flex flex-col justify-between h-[110px] sm:h-[130px] md:h-[150px] animate-slide-up hover:shadow-md hover:-translate-y-0.5 hover:border-orange-200 transition-all relative overflow-hidden group-focus-visible:ring-2 group-focus-visible:ring-orange-200" style={{ animationDelay: "150ms" }}>
             <div className="flex justify-between items-start gap-1.5 sm:gap-2">
               <div className="min-w-0">
-                <span className="text-[0.55rem] sm:text-[0.6rem] md:text-[0.65rem] font-extrabold text-slate-500 uppercase tracking-[1px]">Today's Expenses</span>
+                <span className="text-[0.55rem] sm:text-[0.6rem] md:text-[0.65rem] font-extrabold text-slate-500 uppercase tracking-[1px]">Today&apos;s Expenses</span>
                 <div className="text-[0.95rem] sm:text-[1.2rem] md:text-[1.5rem] font-extrabold text-slate-950 mt-1.5 sm:mt-2 md:mt-3 leading-none truncate">₹{todayExpense.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </div>
               <span className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-lg text-rose-600 bg-rose-50 flex items-center justify-center shrink-0">
@@ -722,7 +722,7 @@ export default function OverviewPage() {
               <i className="ph-bold ph-receipt text-white text-lg" />
             </div>
             <div>
-              <h3 className="text-white text-[1rem] sm:text-[1.15rem] font-extrabold tracking-tight leading-tight">Today's Transactions</h3>
+              <h3 className="text-white text-[1rem] sm:text-[1.15rem] font-extrabold tracking-tight leading-tight">Today&apos;s Transactions</h3>
               <p className="text-slate-400 text-[0.65rem] sm:text-[0.7rem] font-semibold tracking-wide uppercase">{today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</p>
             </div>
           </div>
@@ -1257,7 +1257,7 @@ export default function OverviewPage() {
                   <span className="text-[1.2rem] font-black text-[#2563EB]">₹439</span>
                   <span className="text-[0.8rem] font-bold text-[#2563EB]">ahead</span>
                 </div>
-                <p className="text-[0.7rem] font-semibold text-slate-400 mt-0.5">of last week's average</p>
+                <p className="text-[0.7rem] font-semibold text-slate-400 mt-0.5">of last week&apos;s average</p>
               </div>
             </div>
           </div>

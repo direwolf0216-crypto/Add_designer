@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 
 interface SystemPreferences {
   currencySymbol: string;
@@ -22,30 +24,15 @@ const SystemContext = createContext<SystemContextType>({
 });
 
 export function SystemProvider({ children }: { children: React.ReactNode }) {
-  const [preferences, setPreferences] = useState<SystemPreferences | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchPreferences = async () => {
-    try {
-      const res = await fetch("/api/settings/system");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.UI_PREFERENCES) {
-          setPreferences(data.UI_PREFERENCES);
-        }
-      }
-    } catch (e) {
-    } finally {
-      setLoading(false);
-    }
+  const { data, isLoading, mutate } = useSWR<{ UI_PREFERENCES?: SystemPreferences }>("/api/settings/system", fetcher);
+  const preferences = data?.UI_PREFERENCES ?? null;
+  const loading = isLoading;
+  const refreshPreferences = () => {
+    void mutate();
   };
 
-  useEffect(() => {
-    fetchPreferences();
-  }, []);
-
   return (
-    <SystemContext.Provider value={{ preferences, loading, refreshPreferences: fetchPreferences }}>
+    <SystemContext.Provider value={{ preferences, loading, refreshPreferences }}>
       {children}
     </SystemContext.Provider>
   );

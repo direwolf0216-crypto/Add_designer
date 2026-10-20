@@ -6,6 +6,15 @@ import { format } from "date-fns";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
+/** Record `id` as dismissed now, persist the map, and return it (called from the Dismiss click handler). */
+function persistDismissal(dismissed: Record<string, number>, id: string) {
+  const newDismissed = { ...dismissed, [id]: Date.now() };
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem("dismissed_jobs", JSON.stringify(newDismissed));
+  }
+  return newDismissed;
+}
+
 export default function OverdueJobBanners() {
   const { data: jobs, mutate } = useSWR("/api/jobs/overdue", fetcher, {
     refreshInterval: 60000,
@@ -46,11 +55,7 @@ export default function OverdueJobBanners() {
   }, []);
 
   const handleDismiss = (id: string) => {
-    const newDismissed = { ...dismissed, [id]: Date.now() };
-    setDismissed(newDismissed);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem("dismissed_jobs", JSON.stringify(newDismissed));
-    }
+    setDismissed(persistDismissal(dismissed, id));
   };
 
   const handleComplete = async (id: string) => {
@@ -100,7 +105,7 @@ export default function OverdueJobBanners() {
             </div>
             <div>
               <p className="text-[15px] font-bold text-slate-800">
-                📦 {job.client?.name}'s delivery date passed on {format(new Date(job.date), "MMM d, yyyy")}
+                📦 {job.client?.name}&apos;s delivery date passed on {format(new Date(job.date), "MMM d, yyyy")}
               </p>
             </div>
           </div>

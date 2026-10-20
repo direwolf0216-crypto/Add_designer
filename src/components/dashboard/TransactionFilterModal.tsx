@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { TRANSACTION_CATEGORIES } from "@/lib/transactionConstants";
@@ -23,11 +23,14 @@ interface TransactionFilterModalProps {
 export default function TransactionFilterModal({ isOpen, onClose, activeFilters, onApply }: TransactionFilterModalProps) {
   const [filterState, setFilterState] = useState<TransactionFilters>(activeFilters);
 
-  useEffect(() => {
+  // Re-sync the draft with the applied filters whenever the modal opens (or they change while open).
+  const [prevSync, setPrevSync] = useState({ isOpen, activeFilters });
+  if (prevSync.isOpen !== isOpen || prevSync.activeFilters !== activeFilters) {
+    setPrevSync({ isOpen, activeFilters });
     if (isOpen) {
       setFilterState(activeFilters);
     }
-  }, [isOpen, activeFilters]);
+  }
 
   const toggleCategory = (cat: string) => {
     setFilterState(prev => ({

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { usePathname } from "next/navigation";
 
 interface MobileNavContextType {
@@ -19,9 +19,11 @@ export function MobileNavProvider({ children }: { children: React.ReactNode }) {
   const closeSidebar = () => setIsSidebarOpen(false);
 
   // Close sidebar on route change
-  useEffect(() => {
-    closeSidebar();
-  }, [pathname]);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setIsSidebarOpen(false);
+  }
 
   return (
     <MobileNavContext.Provider value={{ isSidebarOpen, toggleSidebar, closeSidebar }}>

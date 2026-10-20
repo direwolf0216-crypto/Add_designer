@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
+import { useState, Suspense, useCallback, useMemo } from "react";
+import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
@@ -100,20 +101,9 @@ function SettingsPage() {
 
   const activeSection = (searchParams.get("section") as SectionId) ?? "users";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  
-  useEffect(() => {
-    const saved = localStorage.getItem('settingsPanelCollapsed');
-    if (saved === 'true') setIsCollapsed(true);
-  }, []);
+  const [isCollapsed, setIsCollapsed] = useStoredBoolean('settingsPanelCollapsed');
 
-  const toggleCollapse = () => {
-    setIsCollapsed(prev => {
-      const next = !prev;
-      localStorage.setItem('settingsPanelCollapsed', String(next));
-      return next;
-    });
-  };
+  const toggleCollapse = () => setIsCollapsed(!isCollapsed);
   
   // For transition animations
   const [displayedSection, setDisplayedSection] = useState<SectionId>(activeSection);

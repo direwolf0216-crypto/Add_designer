@@ -72,16 +72,15 @@ export default function CustomDropdown({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Reset focus when opened
-  useEffect(() => {
-    if (isOpen) {
-      const selectedIdx = options.findIndex(opt => {
-        const val = typeof opt === 'string' ? opt : opt.value;
-        return val === value;
-      });
-      setFocusedIndex(selectedIdx >= 0 ? selectedIdx : 0);
-    }
-  }, [isOpen, options, value]);
+  // Open with focus on the selected option (or the first one)
+  const openDropdown = () => {
+    const selectedIdx = options.findIndex(opt => {
+      const val = typeof opt === 'string' ? opt : opt.value;
+      return val === value;
+    });
+    setFocusedIndex(selectedIdx >= 0 ? selectedIdx : 0);
+    setIsOpen(true);
+  };
 
   const handleSelect = (opt: any) => {
     const val = typeof opt === 'string' ? opt : opt.value;
@@ -94,7 +93,7 @@ export default function CustomDropdown({
     if (!isOpen) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
         e.preventDefault();
-        setIsOpen(true);
+        openDropdown();
       }
       return;
     }
@@ -193,7 +192,7 @@ export default function CustomDropdown({
       <button 
         ref={buttonRef}
         type="button" 
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
         onKeyDown={handleKeyDown}
         className={cn(
           "flex h-[45px] w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-[0.95rem] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",

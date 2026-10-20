@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -14,6 +14,8 @@ const ROLES = [
   { value: "PHOTOGRAPHER", label: "Designer", description: "Works on design deliverables; no financial access" },
   { value: "ADMIN", label: "Admin", description: "Full access to all features" },
 ];
+
+const noopSubscribe = () => () => {};
 
 export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalProps) {
   const [name, setName] = useState("");
@@ -58,8 +60,8 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
     }
   };
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Portals need document.body, so render nothing on the server / during hydration.
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   if (!mounted) return null;
 

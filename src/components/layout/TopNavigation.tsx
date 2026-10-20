@@ -240,7 +240,7 @@ export default function TopNavigation() {
                 {!isSearchLoading && (!searchResults?.results || searchResults.results.length === 0) ? (
                   <div className="px-4 py-6 text-center flex flex-col items-center justify-center text-slate-400">
                     <i className="ph-fill ph-ghost text-3xl mb-2 text-slate-300"></i>
-                    <p className="text-sm">No results found for "{searchQuery}"</p>
+                    <p className="text-sm">No results found for &quot;{searchQuery}&quot;</p>
                   </div>
                 ) : (
                   <div className="flex flex-col">

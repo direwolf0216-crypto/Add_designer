@@ -1,7 +1,8 @@
 "use client";
 
-import { mutate as globalMutate } from "swr";
-import { useState, useEffect, useCallback } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
+import { asList, fetcher } from "@/lib/swr";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ColorPicker } from "../ui/color-picker";
@@ -88,17 +89,20 @@ const FIELD_TYPES = [
 
 import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
 
+/** Timestamp-based id for new sections/fields; only called from event handlers. */
+const newLayoutId = (prefix: string) => `${prefix}_${Date.now()}`;
+
 export default function LayoutsFieldsBuilder() {
   const [layouts, setLayouts] = useState<FormLayout[]>([]);
   const [activeFormKey, setActiveFormKey] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showNewFormModal, setShowNewFormModal] = useState(false);
   const [newFormName, setNewFormName] = useState("");
   const [newFormDescription, setNewFormDescription] = useState("");
-  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const { data: usersData } = useSWR("/api/users", fetcher);
+  const allUsers = asList<any>(usersData);
 
   // Safe Deletion states
   const [checkingUsage, setCheckingUsage] = useState(false);
@@ -116,42 +120,25 @@ export default function LayoutsFieldsBuilder() {
   const [draggedFieldContext, setDraggedFieldContext] = useState<{ sectionId: string, fieldIndex: number } | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<{ sectionId: string, fieldIndex: number } | null>(null);
 
-  const fetchLayouts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/settings/layouts");
-      if (!res.ok) throw new Error("Failed to fetch layouts");
-      const data: FormLayout[] = await res.json();
-
-      const merged: FormLayout[] = [...(DEFAULT_LAYOUTS as unknown as FormLayout[])];
-      data.forEach(dbLayout => {
-        const idx = merged.findIndex(m => m.formKey === dbLayout.formKey);
-        if (idx >= 0) merged[idx] = dbLayout;
-        else merged.push(dbLayout);
-      });
-
-      setLayouts(merged as FormLayout[]);
-    } catch (error) {
-      toast.error("Failed to load form layouts");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchUsers = useCallback(async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (res.ok) {
-        const data = await res.json();
-        setAllUsers(data);
-      }
-    } catch (e) {
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLayouts();
-    fetchUsers();
-  }, [fetchLayouts, fetchUsers]);
+  // Layouts are edited as a local draft: seed it once from the first successful load. Later revalidations
+  // (e.g. the globalMutate after a save) must not clobber unsaved edits.
+  const { data: dbLayouts, error: layoutsError } = useSWR<FormLayout[]>("/api/settings/layouts", fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    onError: () => toast.error("Failed to load form layouts"),
+  });
+  const [isSeeded, setIsSeeded] = useState(false);
+  if (!isSeeded && Array.isArray(dbLayouts)) {
+    setIsSeeded(true);
+    const merged: FormLayout[] = [...(DEFAULT_LAYOUTS as unknown as FormLayout[])];
+    dbLayouts.forEach(dbLayout => {
+      const idx = merged.findIndex(m => m.formKey === dbLayout.formKey);
+      if (idx >= 0) merged[idx] = dbLayout;
+      else merged.push(dbLayout);
+    });
+    setLayouts(merged);
+  }
+  const loading = !isSeeded && !layoutsError;
 
   const activeLayout = layouts.find(l => l.formKey === activeFormKey);
 
@@ -197,7 +184,7 @@ export default function LayoutsFieldsBuilder() {
   const addSection = () => {
     if (!activeLayout) return;
     const newSection: FormSection = {
-      id: `sec_${Date.now()}`,
+      id: newLayoutId("sec"),
       title: `Untitled Section ${(activeLayout.schema.sections?.length || 0) + 1}`,
       description: "Section description goes here.",
       icon: "ph-squares-four",
@@ -256,7 +243,7 @@ export default function LayoutsFieldsBuilder() {
     if (!activeLayout) return;
     const typeDef = FIELD_TYPES.find(t => t.value === fieldType);
     const newField: FormField = {
-      id: `field_${Date.now()}`,
+      id: newLayoutId("field"),
       name: typeDef ? typeDef.label : "New Field",
       type: fieldType,
       mandatory: false,
@@ -308,7 +295,7 @@ export default function LayoutsFieldsBuilder() {
       // Create new field and insert at targetIndex
       const typeDef = FIELD_TYPES.find(t => t.value === draggedNewFieldType);
       const newField: FormField = {
-        id: `field_${Date.now()}`,
+        id: newLayoutId("field"),
         name: typeDef ? typeDef.label : "New Field",
         type: draggedNewFieldType,
         mandatory: false,
@@ -1196,7 +1183,7 @@ export default function LayoutsFieldsBuilder() {
                               <div className="absolute bottom-full -left-4 mb-2 w-64 p-2.5 bg-slate-800 text-white text-[0.75rem] font-medium rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none text-left leading-relaxed">
                                 Prevent changing status to a value that represents a future stage.
                                 <div className="mt-1.5 pt-1.5 border-t border-slate-700/50 text-slate-300 italic text-[0.7rem]">
-                                  Example: If the event date is tomorrow, "Shoot completed" cannot be selected today.
+                                  Example: If the event date is tomorrow, &quot;Shoot completed&quot; cannot be selected today.
                                 </div>
                                 <div className="absolute top-full left-5 border-4 border-transparent border-t-slate-800"></div>
                               </div>
@@ -1504,7 +1491,7 @@ export default function LayoutsFieldsBuilder() {
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">Value in Use</h3>
             <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-              The value <strong className="text-slate-800">"{usageModalData.oldValue}"</strong> is currently used in <strong className="text-orange-600">{usageModalData.inUseCount} record(s)</strong>.
+              The value <strong className="text-slate-800">&quot;{usageModalData.oldValue}&quot;</strong> is currently used in <strong className="text-orange-600">{usageModalData.inUseCount} record(s)</strong>.
               Before you can delete this option, please select a replacement value to migrate the existing records to.
             </p>
             <div className="space-y-4 mb-6">

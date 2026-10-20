@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 interface DeleteUserModalProps {
@@ -18,6 +18,8 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
   STAFF: "Staff",
 };
+
+const noopSubscribe = () => () => {};
 
 export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalProps) {
   const [deleting, setDeleting] = useState(false);
@@ -37,8 +39,8 @@ export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUser
         .slice(0, 2)
     : "??";
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Portals need document.body, so render nothing on the server / during hydration.
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   if (!mounted) return null;
 

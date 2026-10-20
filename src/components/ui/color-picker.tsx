@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Wheel, ShadeSlider, hexToHsva, hsvaToHex } from "@uiw/react-color";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { cn } from "@/lib/utils";
@@ -50,10 +50,12 @@ export function ColorPicker({ color, onChange, className }: ColorPickerProps) {
 
   const [internalColor, setInternalColor] = useState(() => normalizeColor(color));
   
-  useEffect(() => {
-    const normalized = normalizeColor(color);
-    if (normalized !== internalColor) setInternalColor(normalized);
-  }, [color, internalColor]);
+  // Follow the `color` prop when it changes (adjusted during render, not in an effect).
+  const [prevColor, setPrevColor] = useState(color);
+  if (color !== prevColor) {
+    setPrevColor(color);
+    setInternalColor(normalizeColor(color));
+  }
 
 
   const handleColorChange = (colorResult: any) => {

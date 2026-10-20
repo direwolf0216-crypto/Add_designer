@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 
@@ -10,35 +10,61 @@ interface TaskAlertsProps {
   pendingRetouch?: number;
 }
 
+const DISMISS_PREFIX = 'dismissed_alert_';
+const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
+const noopSubscribe = () => () => {};
+
+/** Ids dismissed within the last 24h. Empty on the server; only read once on the client. */
+function readDismissedAlerts(): string[] {
+  if (typeof window === 'undefined') return [];
+  const dismissed: string[] = [];
+  const now = Date.now();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(DISMISS_PREFIX)) {
+        const val = localStorage.getItem(key);
+        if (val && now - parseInt(val, 10) < DISMISS_TTL_MS) {
+          dismissed.push(key.replace(DISMISS_PREFIX, ''));
+        }
+      }
+    }
+  } catch {}
+  return dismissed;
+}
+
+function markAlertDismissed(id: string) {
+  try {
+    localStorage.setItem(`${DISMISS_PREFIX}${id}`, Date.now().toString());
+  } catch {}
+}
+
+function pruneDismissedAlerts() {
+  const now = Date.now();
+  try {
+    const expired: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(DISMISS_PREFIX)) {
+        const val = localStorage.getItem(key);
+        if (val && !(now - parseInt(val, 10) < DISMISS_TTL_MS)) expired.push(key);
+      }
+    }
+    expired.forEach((key) => localStorage.removeItem(key));
+  } catch {}
+}
+
 export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingRetouch: propRetouch }: TaskAlertsProps = {}) {
   const { data: rawAlerts } = useSWR<any>('/api/dashboard/alerts', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
   const shouldFetchOverview = propUnconfirmed === undefined && propRetouch === undefined;
   const { data: overviewData } = useSWR<any>(shouldFetchOverview ? '/api/dashboard/overview' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
 
-  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>(readDismissedAlerts);
+  const isMounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
+  // Prune expired dismissals from storage (no state involved).
   useEffect(() => {
-    setIsMounted(true);
-    const dismissed: string[] = [];
-    const now = Date.now();
-    
-    // Clean up and collect active dismissals (24h TTL)
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('dismissed_alert_')) {
-        const val = localStorage.getItem(key);
-        if (val) {
-          const timestamp = parseInt(val, 10);
-          if (now - timestamp < 24 * 60 * 60 * 1000) {
-            dismissed.push(key.replace('dismissed_alert_', ''));
-          } else {
-            localStorage.removeItem(key);
-          }
-        }
-      }
-    }
-    setDismissedAlerts(dismissed);
+    pruneDismissedAlerts();
   }, []);
 
   const alerts = (Array.isArray(rawAlerts) ? rawAlerts : []).filter((a: any) => !dismissedAlerts.includes(a.id));
@@ -46,7 +72,7 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingR
   const pendingRetouch = propRetouch ?? (overviewData?.pendingRetouch || 0);
 
   const handleDismiss = (id: string) => {
-    localStorage.setItem(`dismissed_alert_${id}`, Date.now().toString());
+    markAlertDismissed(id);
     setDismissedAlerts(prev => [...prev, id]);
   };
 

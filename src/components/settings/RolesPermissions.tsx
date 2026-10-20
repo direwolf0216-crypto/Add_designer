@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 import { toast } from "sonner";
 
 interface RolePermission {
@@ -31,26 +33,16 @@ const ROLE_DISPLAY: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default function RolesPermissions() {
-  const [permissions, setPermissions] = useState<RolePermission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading, mutate } = useSWR<RolePermission[]>("/api/permissions", fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    onError: () => toast.error("Failed to load permissions"),
+  });
+  const permissions = Array.isArray(data) ? data : [];
+  // Local (optimistic) edits go straight into the SWR cache; the PUT below persists them.
+  const setPermissions = (update: (prev: RolePermission[]) => RolePermission[]) =>
+    mutate((prev) => update(Array.isArray(prev) ? prev : []), { revalidate: false });
   const [updatingKeys, setUpdatingKeys] = useState<Set<string>>(new Set());
-
-  const fetchPermissions = useCallback(async () => {
-    try {
-      const res = await fetch("/api/permissions");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setPermissions(data);
-    } catch {
-      toast.error("Failed to load permissions");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPermissions();
-  }, [fetchPermissions]);
 
   const isEnabled = (role: string, permission: string): boolean => {
     const perm = permissions.find((p) => p.role === role && p.permission === permission);

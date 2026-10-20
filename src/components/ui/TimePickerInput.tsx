@@ -86,14 +86,22 @@ export default function TimePickerInput({ value, onChange, placeholder = "hh:mm 
     }
   };
 
-  // When opening, parse value and scroll to selection
-  useEffect(() => {
+  // When opening (or if the value changes while open), load the value into the wheels...
+  const [prevSync, setPrevSync] = useState({ isOpen, value });
+  if (prevSync.isOpen !== isOpen || prevSync.value !== value) {
+    setPrevSync({ isOpen, value });
     if (isOpen) {
       const parsed = parseTime(value);
       setSelectedHour(parsed.h);
       setSelectedMinute(parsed.m);
       setSelectedPeriod(parsed.p);
+    }
+  }
 
+  // ...and scroll each wheel to the selection.
+  useEffect(() => {
+    if (isOpen) {
+      const parsed = parseTime(value);
       setTimeout(() => {
         scrollToItem(hourRef, hours.indexOf(parsed.h));
         scrollToItem(minuteRef, minutes.indexOf(parsed.m));

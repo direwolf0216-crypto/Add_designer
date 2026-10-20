@@ -43,20 +43,12 @@ export default function UpcomingJobs({ jobs }: { jobs: Job[] }) {
   grouped.tomorrow.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   grouped.nextWeek.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  let totalShown = 0;
   const maxToShow = 5;
 
-  const truncateGroup = (group: Job[]) => {
-    if (totalShown >= maxToShow) return [];
-    const allowed = maxToShow - totalShown;
-    const toShow = group.slice(0, allowed);
-    totalShown += toShow.length;
-    return toShow;
-  };
-
-  const todayToShow = truncateGroup(grouped.today);
-  const tomorrowToShow = truncateGroup(grouped.tomorrow);
-  const nextWeekToShow = truncateGroup(grouped.nextWeek);
+  // Fill up to maxToShow slots in order: today, then tomorrow, then next week.
+  const todayToShow = grouped.today.slice(0, maxToShow);
+  const tomorrowToShow = grouped.tomorrow.slice(0, maxToShow - todayToShow.length);
+  const nextWeekToShow = grouped.nextWeek.slice(0, maxToShow - todayToShow.length - tomorrowToShow.length);
 
   const hasMore = (grouped.today.length + grouped.tomorrow.length + grouped.nextWeek.length) > 0;
 

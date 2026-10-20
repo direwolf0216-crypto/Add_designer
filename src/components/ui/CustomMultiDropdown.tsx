@@ -14,9 +14,12 @@ interface CustomMultiDropdownProps {
   error?: boolean;
 }
 
+// Stable default so an omitted `value` doesn't look like a new prop on every render.
+const EMPTY_VALUE: string[] = [];
+
 export default function CustomMultiDropdown({
   options,
-  value = [],
+  value = EMPTY_VALUE,
   onChange,
   placeholder = "Select...",
   className,
@@ -33,9 +36,15 @@ export default function CustomMultiDropdown({
   // Local state so we don't apply immediately until "Done" is clicked
   const [localValue, setLocalValue] = useState<string[]>(value);
 
-  useEffect(() => {
+  // Re-sync the draft from props whenever `value` changes or the menu opens/closes; focus the first option on open.
+  const [prevSync, setPrevSync] = useState({ value, isOpen });
+  if (prevSync.value !== value || prevSync.isOpen !== isOpen) {
+    setPrevSync({ value, isOpen });
     setLocalValue(value || []);
-  }, [value, isOpen]);
+    if (isOpen && !prevSync.isOpen) {
+      setFocusedIndex(0);
+    }
+  }
 
   const updateDropdownPosition = useCallback(() => {
     if (isOpen && buttonRef.current) {
@@ -90,13 +99,6 @@ export default function CustomMultiDropdown({
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
-  // Reset focus when opened
-  useEffect(() => {
-    if (isOpen) {
-      setFocusedIndex(0);
-    }
   }, [isOpen]);
 
   const handleToggle = (val: string) => {

@@ -5,32 +5,19 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useMobileNav } from "../providers/MobileNavProvider";
-import { useState, useEffect } from "react";
+import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 
 export default function Sidebar() {
   const pathname = usePathname() || "";
   const { data: session } = useSession();
   const { isSidebarOpen, closeSidebar } = useMobileNav();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('sidebar_collapsed');
-    if (saved === 'true') {
-      setIsCollapsed(true);
-    }
-  }, []);
+  const [isCollapsed, setIsCollapsed] = useStoredBoolean('sidebar_collapsed');
 
   if (pathname.startsWith('/settings')) {
     return null;
   }
 
-  const toggleCollapse = () => {
-    setIsCollapsed(prev => {
-      const next = !prev;
-      localStorage.setItem('sidebar_collapsed', String(next));
-      return next;
-    });
-  };
+  const toggleCollapse = () => setIsCollapsed(!isCollapsed);
 
   // Default to STAFF if role is undefined, or handle safely
   const userRole = (session?.user as any)?.role || "STAFF";

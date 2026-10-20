@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 import { signIn, useSession, getProviders } from "next-auth/react";
 import { toast } from "sonner";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -9,10 +11,13 @@ export default function GoogleDriveIntegration() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [isConnected, setIsConnected] = useState(false);
-  const [needsReauth, setNeedsReauth] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: status, isLoading, mutate: mutateStatus } = useSWR<{ connected?: boolean; email?: string | null; reauthRequired?: boolean }>(
+    "/api/integrations/google",
+    fetcher
+  );
+  const isConnected = !!status?.connected;
+  const needsReauth = !!status?.reauthRequired;
+  const email = status?.email || null;
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   
   // Custom disconnect UI state
@@ -20,8 +25,6 @@ export default function GoogleDriveIntegration() {
   const [disconnectInput, setDisconnectInput] = useState("");
 
   useEffect(() => {
-    fetchStatus();
-    
     // Check for inline error from NextAuth signin callback
     const errorParam = searchParams.get('error');
     const expectedEmail = searchParams.get('expectedEmail');
@@ -32,21 +35,6 @@ export default function GoogleDriveIntegration() {
       router.replace('/settings', undefined);
     }
   }, [searchParams, router]);
-
-  const fetchStatus = async () => {
-    try {
-      const res = await fetch("/api/integrations/google");
-      if (res.ok) {
-        const data = await res.json();
-        setIsConnected(data.connected);
-        setEmail(data.email || null);
-        setNeedsReauth(!!data.reauthRequired);
-      }
-    } catch (e) {
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleConnect = async () => {
     try {
@@ -74,8 +62,7 @@ export default function GoogleDriveIntegration() {
     setIsDisconnecting(true);
     try {
       await fetch("/api/integrations/google", { method: "DELETE" });
-      setIsConnected(false);
-      setEmail(null);
+      await mutateStatus({ ...status, connected: false, email: null });
       setShowDisconnectConfirm(false);
       setDisconnectInput("");
       toast.success("Google Drive disconnected successfully");
