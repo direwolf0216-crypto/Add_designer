@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CustomDropdown from "@/components/ui/CustomDropdown";
 import DatePickerInput from "@/components/ui/DatePickerInput";
-import { cn } from "@/lib/utils";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 
 import { updateJobTrackingAction, deleteJobAction } from "@/app/actions";
@@ -12,8 +11,7 @@ import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
-import { FolderClock, PenTool, Printer, Package, ChevronRight, AlertTriangle, ChevronDown } from 'lucide-react';
-import styles from './job-status.module.css';
+import { FolderClock, PenTool, Printer, Package, AlertTriangle } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   FolderClock: <FolderClock size={18} />,
@@ -373,7 +371,7 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
 
                       const finalCategory = resolvedCategory || a.category || '-';
 
-                      let statusLabel = cData.fld_b_status || 'Pending';
+                      const statusLabel = cData.fld_b_status || 'Pending';
                       let statusBg = 'bg-slate-100';
                       let statusText = 'text-slate-700';
                       let statusDot = 'bg-slate-400';
@@ -532,7 +530,7 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
                   cData = typeof selectedJob.customData === 'string' ? JSON.parse(selectedJob.customData) : (selectedJob.customData || {});
                 } catch (e) { }
 
-                let statusLabel = cData.fld_b_status || 'Pending';
+                const statusLabel = cData.fld_b_status || 'Pending';
                 let statusColor = 'bg-slate-100 text-slate-700';
                 let progress = parseInt(cData.job_progress || '0');
 

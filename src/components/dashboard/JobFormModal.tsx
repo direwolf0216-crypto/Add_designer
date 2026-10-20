@@ -1347,7 +1347,7 @@ function JobFormModalInner() {
                                                     className="flex h-[34px] sm:h-[36px] w-full rounded-lg bg-white border border-slate-200 pl-6 sm:pl-7 pr-2 py-1 text-[0.95rem] font-semibold text-slate-700 text-right transition-colors focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500"
                                                     value={financialRates[`${secKey}_${idx}`] || ''}
                                                     onChange={(e) => {
-                                                      let val = e.target.value.replace(/[^0-9.]/g, '');
+                                                      const val = e.target.value.replace(/[^0-9.]/g, '');
                                                       setFinancialRates(prev => ({ ...prev, [`${secKey}_${idx}`]: val }));
                                                     }}
                                                     placeholder="0"
@@ -1374,7 +1374,7 @@ function JobFormModalInner() {
                                         const repSection = layoutSchema?.sections?.find((s: any) => `rep_${s.id}` === secKey);
                                         (repeatableData[secKey] || []).forEach((entry, idx) => {
                                           const rate = parseFloat(financialRates[`${secKey}_${idx}`]) || 0;
-                                          let qtyFieldKey = Object.keys(entry).find(k => {
+                                          const qtyFieldKey = Object.keys(entry).find(k => {
                                             if (repSection && repSection.fields) {
                                               const f = repSection.fields.find((field: any) => (standardFieldMap[field.id] || field.id) === k);
                                               if (f && (f.name.toLowerCase().includes('qty') || f.name.toLowerCase().includes('quantity'))) return true;

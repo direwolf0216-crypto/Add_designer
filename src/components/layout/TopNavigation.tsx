@@ -47,7 +47,6 @@ export default function TopNavigation() {
   const unreadReminderCount = notificationsData?.unreadReminderCount || 0;
   const prevUnreadCount = useRef(unreadCount);
 
-  const { data: systemInfo } = useSWR("/api/ping", fetcher, { refreshInterval: 60000 });
 
   // Swipe-to-dismiss state for mobile notifications
   const [startY, setStartY] = useState<number | null>(null);

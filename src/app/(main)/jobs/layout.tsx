@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import Modals from '@/components/dashboard/Modals';
 import { useJobs } from '@/components/providers/JobProvider';
 import { useGlobalForm } from '@/components/providers/GlobalFormProvider';
-import OverdueJobBanners from '@/components/jobs/OverdueJobBanners';
 
 export default function JobsLayout({
   children,

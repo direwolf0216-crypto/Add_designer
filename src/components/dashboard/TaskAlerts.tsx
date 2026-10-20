@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import useSWR from "swr";
-import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

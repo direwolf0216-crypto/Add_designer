@@ -4,7 +4,6 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
 import useSWR, { mutate as globalMutate } from "swr";
 import { deleteJobAction, updateJobStatusAction, updateJobTrackingAction, generateInvoiceAction } from "@/app/actions";
 import { toast } from "sonner";
@@ -14,16 +13,12 @@ import {
   Trash2, Receipt, FileText, Upload, Wallet,
   Clock, MapPin, Tag, UserCircle, Calendar, Link as LinkIcon, Phone, Mail, Info,
   Camera, Image as ImageIcon, LayoutList, Users, FolderOpen, Package,
-  BookOpen, Maximize, Images, Activity, CheckCircle2, XCircle, ChevronDown, Edit3, Send, Play, User, Focus, Gem, Church, Heart, Target,
-  TrendingUp,
-  Check,
-  CreditCard,
+  BookOpen, Maximize, Images, Activity, Edit3,
   ArrowLeft,
   Printer,
   IndianRupee
 } from "lucide-react";
 import JobStatusStepper from './JobStatusStepper';
-import VerticalStatusStepper from './VerticalStatusStepper';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -188,7 +183,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
     }
 
     setIsUpdatingStatus(true);
-    let updates: any = { customData: { [fieldId]: newStatus } };
+    const updates: any = { customData: { [fieldId]: newStatus } };
     if (fieldId === 'fld_b_job_status') {
       updates.status = newStatus;
     }

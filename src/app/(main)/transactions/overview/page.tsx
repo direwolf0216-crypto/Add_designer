@@ -829,7 +829,7 @@ export default function OverviewPage() {
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         {(() => {
-                          let title = txn.category;
+                          const title = txn.category;
 
                           return (
                             <>

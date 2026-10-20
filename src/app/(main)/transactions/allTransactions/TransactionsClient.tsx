@@ -654,7 +654,7 @@ function TransactionsList() {
                         </div>
                         <div className="min-w-0">
                           {(() => {
-                            let title = tx.description ? tx.description.split(' - ')[0] : tx.category;
+                            const title = tx.description ? tx.description.split(' - ')[0] : tx.category;
 
                             return (
                               <>

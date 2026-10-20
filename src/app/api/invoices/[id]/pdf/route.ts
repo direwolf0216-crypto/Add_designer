@@ -7,7 +7,6 @@ import InvoiceDocument from '@/components/invoices/InvoiceDocument';
 import QRCode from 'qrcode';
 import { initFonts } from '@/components/invoices/theme/invoiceTheme';
 import { buildInvoiceViewModel } from '@/components/invoices/utils/invoiceLogic';
-import { getPdfMetadata } from '@/components/invoices/utils/metadata';
 
 export async function GET(
   req: Request,

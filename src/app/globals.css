@@ -3,8 +3,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@tailwind components;
-@tailwind utilities;
 
 :root {
   /* Modern SaaS Color Tokens */

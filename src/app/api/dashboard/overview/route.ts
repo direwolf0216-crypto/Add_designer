@@ -121,7 +121,7 @@ export async function GET(req: Request) {
     const periodExpense = expenseItem?._sum.amount || 0;
 
     const dailyDataMap: Record<string, { date: string, income: number, expense: number }> = {};
-    let curr = new Date(startOfDay);
+    const curr = new Date(startOfDay);
     while (curr <= endOfDay) {
       const dateStr = curr.toISOString().split('T')[0];
       dailyDataMap[dateStr] = { date: dateStr, income: 0, expense: 0 };

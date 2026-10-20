@@ -2,10 +2,9 @@ import { Invoice, Job, Transaction, InvoiceLineItem, Client } from '@prisma/clie
 import { InvoiceViewModel, InvoiceLineItemVM, SummaryCardVariant } from '../types/invoiceViewModel';
 import { InvoiceStatus } from '../types/invoiceStatus';
 import { SummaryRow } from '../types/summaryRow';
-import { PaymentProgress, PaymentStep } from '../types/paymentProgress';
+import { PaymentStep } from '../types/paymentProgress';
 import { formatCurrency } from './currency';
 import { formatDate } from './date';
-import { INVOICE_CONSTANTS } from '../theme/constants';
 import { colors } from '../theme/invoiceTheme';
 import { assets } from './assetRegistry';
 

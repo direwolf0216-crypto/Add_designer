@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { FileDashed, Trash, ArrowCounterClockwise, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { FileX, Trash2, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -187,7 +187,7 @@ export default function RecycleBin() {
               disabled={total === 0}
               className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Trash weight="bold" />
+              <Trash2 size={16} strokeWidth={2.5} />
               Empty Bin
             </button>
           )}
@@ -257,7 +257,7 @@ export default function RecycleBin() {
                 <td colSpan={7} className="p-12 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
-                      <FileDashed size={24} className="text-slate-400" />
+                      <FileX size={24} className="text-slate-400" />
                     </div>
                     <span className="text-sm font-medium">Recycle bin is empty</span>
                   </div>
@@ -324,14 +324,14 @@ export default function RecycleBin() {
                             className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             title="Restore"
                           >
-                            <ArrowCounterClockwise size={18} weight="bold" />
+                            <RotateCcw size={18} strokeWidth={2.5} />
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(item.id)}
                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete Permanently"
                           >
-                            <Trash size={18} weight="bold" />
+                            <Trash2 size={18} strokeWidth={2.5} />
                           </button>
                         </>
                       )}
@@ -355,14 +355,14 @@ export default function RecycleBin() {
               disabled={page === 0}
               className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-transparent"
             >
-              <CaretLeft weight="bold" />
+              <ChevronLeft size={16} strokeWidth={2.5} />
             </button>
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-transparent"
             >
-              <CaretRight weight="bold" />
+              <ChevronRight size={16} strokeWidth={2.5} />
             </button>
           </div>
         </div>

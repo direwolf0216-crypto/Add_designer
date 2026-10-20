@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 import { InvoiceViewModel } from '../types/invoiceViewModel';
-import { colors, typography } from '../theme/invoiceTheme';
+import { colors } from '../theme/invoiceTheme';
 
 const styles = StyleSheet.create({
   container: {

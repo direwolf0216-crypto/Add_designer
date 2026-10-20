@@ -55,7 +55,7 @@ function ResetPasswordForm() {
       }
     } catch (err) {
       setError("An unexpected error occurred.");
-    } font-medium; finally {
+    } finally {
       setLoading(false);
     }
   };

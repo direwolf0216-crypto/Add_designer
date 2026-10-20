@@ -165,7 +165,7 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
               </div>
             ) : (
               transactions.slice(0, 5).map((txn: any) => {
-                let title = txn.description ? txn.description.split(' - ')[0] : txn.category;
+                const title = txn.description ? txn.description.split(' - ')[0] : txn.category;
 
                 return (
                   <div key={txn.id} onClick={() => openTransactionDetails(txn.id)} className="flex items-center justify-between group py-2 px-3 -mx-3 rounded-2xl hover:bg-white cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10">

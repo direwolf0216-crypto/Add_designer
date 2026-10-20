@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { InvoiceViewModel } from '../types/invoiceViewModel';
 import { CalendarIcon, LocationIcon, PackageIcon, CameraIcon } from '../icons';
-import { colors, spacing, typography, radius } from '../theme/invoiceTheme';
+import { colors, typography, radius } from '../theme/invoiceTheme';
 
 const styles = StyleSheet.create({
   container: {
