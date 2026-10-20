@@ -1,85 +1,50 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { NotificationPriority, NotificationType, type Prisma } from "@prisma/client";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { intParam, route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
+const REMINDER_TYPES: NotificationType[] = [
+  NotificationType.ORDER_STATUS_STALE,
+  NotificationType.JOB_STATUS_STALE,
+  NotificationType.PAYMENT_DUE_REMINDER,
+  NotificationType.ADVANCE_NOT_COLLECTED,
+  NotificationType.GALLERY_NOT_DELIVERED,
+  NotificationType.ALBUM_PENDING_REMINDER,
+];
 
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const querySchema = z.object({
+  priority: z.enum(NotificationPriority).optional(),
+  isRead: z.enum(["true", "false"]).optional(),
+});
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+export const GET = route(async (req) => {
+  const { id: userId } = await requireUser();
+  const url = new URL(req.url);
+  const limit = intParam(url, "limit", 50, 1, 100);
+  const query = querySchema.parse({
+    priority: url.searchParams.get("priority") || undefined,
+    isRead: url.searchParams.get("isRead") || undefined,
+  });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+  const notSnoozed: Prisma.NotificationWhereInput = {
+    OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: new Date() } }],
+  };
 
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
+  const where: Prisma.NotificationWhereInput = { userId, ...notSnoozed };
+  if (query.priority) where.priority = query.priority;
+  if (query.isRead) where.isRead = query.isRead === "true";
 
-    const priority = searchParams.get("priority");
-    const isReadParam = searchParams.get("isRead");
+  const [notifications, unreadCount, unreadReminderCount] = await Promise.all([
+    prisma.notification.findMany({ where, orderBy: { createdAt: "desc" }, take: limit }),
+    prisma.notification.count({
+      where: { userId, isRead: false, type: { notIn: REMINDER_TYPES }, ...notSnoozed },
+    }),
+    prisma.notification.count({
+      where: { userId, isRead: false, type: { in: REMINDER_TYPES }, ...notSnoozed },
+    }),
+  ]);
 
-    const whereClause: any = { userId: user.id };
-    if (priority) {
-      whereClause.priority = priority;
-    }
-    if (isReadParam !== null) {
-      whereClause.isRead = isReadParam === 'true';
-    }
-
-    // Don't fetch notifications that are currently snoozed
-    const now = new Date();
-    whereClause.OR = [
-      { snoozedUntil: null },
-      { snoozedUntil: { lt: now } }
-    ];
-
-    const notifications = await prisma.notification.findMany({
-      where: whereClause,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    });
-
-    const reminderTypes = [
-      'ORDER_STATUS_STALE',
-      'JOB_STATUS_STALE',
-      'PAYMENT_DUE_REMINDER',
-      'ADVANCE_NOT_COLLECTED',
-      'GALLERY_NOT_DELIVERED',
-      'ALBUM_PENDING_REMINDER'
-    ];
-
-    const unreadRegularCount = await prisma.notification.count({
-      where: { 
-        userId: user.id, 
-        isRead: false,
-        type: { notIn: reminderTypes as any[] },
-        OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }]
-      },
-    });
-
-    const unreadReminderCount = await prisma.notification.count({
-      where: { 
-        userId: user.id, 
-        isRead: false,
-        type: { in: reminderTypes as any[] },
-        OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }]
-      },
-    });
-
-    return NextResponse.json({ notifications, unreadCount: unreadRegularCount, unreadReminderCount });
-  } catch (error: any) {
-    console.error("API Notifications Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch notifications", details: error.message },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json({ notifications, unreadCount, unreadReminderCount });
+});

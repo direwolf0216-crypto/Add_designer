@@ -2,68 +2,30 @@
 
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
+import { isPermission, isRole, resolvePermission } from "@/lib/permissions";
 
-const DEFAULT_MATRIX: Record<string, Record<string, boolean>> = {
-  ADMIN: {
-    manage_jobs: true,
-    view_transactions: true,
-    manage_transactions: true,
-    view_analytics: true,
-    manage_users: true,
-    view_galleries: true,
-    manage_galleries: true,
-    view_export_analytics: true,
-  },
-  STAFF: {
-    manage_jobs: true,
-    view_transactions: true,
-    manage_transactions: false,
-    view_analytics: true,
-    manage_users: false,
-    view_galleries: true,
-    manage_galleries: false,
-    view_export_analytics: false,
-  },
-  PHOTOGRAPHER: {
-    manage_jobs: false,
-    view_transactions: false,
-    manage_transactions: false,
-    view_analytics: false,
-    manage_users: false,
-    view_galleries: true,
-    manage_galleries: true,
-    view_export_analytics: false,
-  },
-};
+type PermissionRow = { role: string; permission: string; enabled: boolean };
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function usePermissions() {
   const { data: session, status } = useSession();
-  
-  const { data: dbPermissions } = useSWR(
-    status === "authenticated" ? '/api/permissions' : null,
+
+  const { data: dbPermissions } = useSWR<PermissionRow[]>(
+    status === "authenticated" ? "/api/permissions" : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
-  const checkPermission = (action: string) => {
-    const role = (session?.user as any)?.role || "STAFF";
-    
-    // Check if we have overrides from the DB
-    if (dbPermissions && Array.isArray(dbPermissions)) {
-      const override = dbPermissions.find(p => p.role === role && p.permission === action);
-      if (override) {
-        return override.enabled;
-      }
-    }
-    
-    // Fallback to default matrix synchronously (prevents layout shift on load)
-    if (DEFAULT_MATRIX[role] && typeof DEFAULT_MATRIX[role][action] === "boolean") {
-      return DEFAULT_MATRIX[role][action];
-    }
-    
-    return false;
+  // UI gating only; every action is enforced again on the server.
+  const checkPermission = (action: string): boolean => {
+    if (status !== "authenticated") return false;
+    const role = session?.user?.role;
+    if (!isRole(role)) return false;
+    if (role === "ADMIN") return true;
+    if (!isPermission(action)) return false;
+    // Until the matrix loads, fall back to defaults so gated UI doesn't flicker.
+    return resolvePermission(role, action, Array.isArray(dbPermissions) ? dbPermissions : null);
   };
 
   return { checkPermission };

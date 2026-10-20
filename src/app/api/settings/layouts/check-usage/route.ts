@@ -1,42 +1,35 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { TransactionType } from "@prisma/client";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { parseJson, route } from "@/lib/api/http";
+import { requireAdmin } from "@/lib/auth/session";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user || (session.user as any).role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const bodySchema = z.object({
+  formKey: z.string().min(1).max(64),
+  fieldId: z.string().min(1).max(100),
+  value: z.string().min(1).max(200),
+});
 
-  try {
-    const body = await req.json();
-    const { formKey, fieldId, value } = body;
-
-    if (!formKey || !fieldId || !value) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+async function countUsage(formKey: string, fieldId: string, value: string): Promise<number> {
+  if (formKey === "JOB_FORM") {
+    if (fieldId === "fld_b_category") return prisma.job.count({ where: { category: value } });
+    if (fieldId === "fld_b_status") return prisma.job.count({ where: { status: value } });
+  } else if (formKey === "TRANSACTION_FORM") {
+    if (fieldId === "fld_tx_type") {
+      const type = Object.values(TransactionType).find((t) => t === value);
+      return type ? prisma.transaction.count({ where: { type } }) : 0;
     }
-
-    let count = 0;
-
-    if (formKey === "JOB_FORM") {
-      if (fieldId === "fld_b_category") {
-        count = await prisma.job.count({ where: { category: value } });
-      } else if (fieldId === "fld_b_status") {
-        count = await prisma.job.count({ where: { status: value } });
-      }
-    } else if (formKey === "TRANSACTION_FORM") {
-      if (fieldId === "fld_tx_type") {
-        count = await prisma.transaction.count({ where: { type: value } });
-      } else if (fieldId === "fld_tx_category") {
-        count = await prisma.transaction.count({ where: { category: value } });
-      } else if (fieldId === "fld_tx_mode") {
-        count = await prisma.transaction.count({ where: { paymentMode: value } });
-      }
-    }
-
-    return NextResponse.json({ inUse: count > 0, count });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to check usage" }, { status: 500 });
+    if (fieldId === "fld_tx_category") return prisma.transaction.count({ where: { category: value } });
+    if (fieldId === "fld_tx_mode") return prisma.transaction.count({ where: { paymentMode: value } });
   }
+  return 0;
 }
+
+export const POST = route(async (req) => {
+  await requireAdmin();
+  const { formKey, fieldId, value } = await parseJson(req, bodySchema);
+
+  const count = await countUsage(formKey, fieldId, value);
+  return NextResponse.json({ inUse: count > 0, count });
+});

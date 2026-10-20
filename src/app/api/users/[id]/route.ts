@@ -1,107 +1,60 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
+import { requireAdmin } from "@/lib/auth/session";
+import { ROLES } from "@/lib/permissions";
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .transform((v) => (v ? v : null));
+
+const updateSchema = z
+  .object({
+    name: optionalText(120).optional(),
+    phone: optionalText(32).optional(),
+    role: z.enum(ROLES).optional(),
+    status: z.enum(["ACTIVE", "PENDING", "INACTIVE"]).optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), { message: "No valid fields provided" });
+
+export const PUT = route<{ id: string }>(async (req, { params }) => {
+  const admin = await requireAdmin();
+  const { id } = await params;
+  const data = await parseJson(req, updateSchema);
+
+  if (id === admin.id) {
+    if (data.role && data.role !== "ADMIN") throw badRequest("You cannot change your own role");
+    if (data.status && data.status !== "ACTIVE") throw badRequest("You cannot deactivate your own account");
   }
 
-  const userRole = (session.user as any).role;
-  if (userRole !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const updated = await prisma.user.update({
+    where: { id },
+    data,
+    select: { id: true, name: true, email: true, role: true, status: true },
+  });
 
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const { role, status, name, phone } = body;
+  return NextResponse.json(updated);
+});
 
-    const validRoles = ["ADMIN", "STAFF"];
-    const validStatuses = ["ACTIVE", "PENDING", "INACTIVE"];
-    
-    const updateData: any = {};
-    if (role) {
-      if (!validRoles.includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 422 });
-      updateData.role = role;
-    }
-    if (status) {
-      if (!validStatuses.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 422 });
-      updateData.status = status;
-    }
-    if (name !== undefined) {
-      updateData.name = name;
-    }
-    if (phone !== undefined) {
-      updateData.phone = phone;
-    }
+export const DELETE = route<{ id: string }>(async (_req, { params }) => {
+  const admin = await requireAdmin();
+  const { id } = await params;
 
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: "No valid fields provided" }, { status: 422 });
-    }
+  if (id === admin.id) throw badRequest("You cannot delete your own account");
 
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+  const user = await prisma.user.findUnique({ where: { id }, select: { email: true } });
+  if (!user) throw notFound("User not found");
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-      },
-    });
+  // Accounts, sessions, notifications, push subscriptions, integrations and budgets cascade in the schema.
+  await prisma.$transaction(async (tx) => {
+    if (user.email) await tx.passwordResetToken.deleteMany({ where: { email: user.email } });
+    await tx.user.delete({ where: { id } });
+  });
 
-    return NextResponse.json(updated);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
-  }
-}
-
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const currentUserId = (session.user as any).id;
-  const userRole = (session.user as any).role;
-  if (userRole !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  try {
-    const { id } = await params;
-
-    if (id === currentUserId) {
-      return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
-    }
-
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Delete related records first
-    await prisma.account.deleteMany({ where: { userId: id } });
-    await prisma.session.deleteMany({ where: { userId: id } });
-    await prisma.user.delete({ where: { id } });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true });
+});

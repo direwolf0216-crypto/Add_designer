@@ -1,52 +1,20 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { notFound, route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+const SNOOZE_MS = 24 * 60 * 60 * 1000;
 
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const PATCH = route<{ id: string }>(async (_req, { params }) => {
+  const { id: userId } = await requireUser();
+  const { id } = await params;
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, role: true },
-    });
+  const snoozedUntil = new Date(Date.now() + SNOOZE_MS);
+  const { count } = await prisma.notification.updateMany({
+    where: { id, userId },
+    data: { snoozedUntil },
+  });
+  if (count === 0) throw notFound("Notification not found");
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const { id } = await params;
-
-    // Verify the notification exists and belongs to this user (or user is admin)
-    const notification = await prisma.notification.findUnique({
-      where: { id },
-    });
-
-    if (!notification) {
-      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-    }
-
-    if (notification.userId !== user.id && user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    // Set snoozedUntil to 24 hours from now
-    const snoozeTime = new Date();
-    snoozeTime.setHours(snoozeTime.getHours() + 24);
-
-    await prisma.notification.update({
-      where: { id },
-      data: { snoozedUntil: snoozeTime },
-    });
-
-    return NextResponse.json({ success: true, snoozedUntil: snoozeTime });
-  } catch (error: any) {
-    console.error('API Notification Snooze Error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true, snoozedUntil });
+});

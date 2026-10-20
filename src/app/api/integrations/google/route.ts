@@ -1,80 +1,74 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { HttpError, route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
+import { getGoogleDriveAccess } from "@/lib/googleDriveAuth";
 
-export async function GET() {
+export const GET = route(async () => {
+  const user = await requireUser();
+
+  let accessToken: string;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    ({ accessToken } = await getGoogleDriveAccess(user));
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) return NextResponse.json({ connected: false });
+    if (error instanceof HttpError && error.status === 401) {
+      return NextResponse.json({ connected: false, reauthRequired: true });
     }
+    throw error;
+  }
 
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: (session.user as any).id,
-        provider: "google-drive"
-      }
-    });
+  const integration = await prisma.userIntegration.findUnique({
+    where: { userId_provider: { userId: user.id, provider: "google-drive" } },
+    select: { connectedEmail: true },
+  });
+  let email = integration?.connectedEmail || "Connected Account";
 
-    if (!account || !account.access_token) {
-      return NextResponse.json({ connected: false });
-    }
-
-    // Try to get the user's email from Google to display it
-    let email = "Connected Account";
+  if (!integration?.connectedEmail) {
     try {
       const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-        headers: { Authorization: `Bearer ${account.access_token}` }
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (userInfoRes.ok) {
-        const userInfo = await userInfoRes.json();
+        const userInfo = (await userInfoRes.json()) as { email?: string };
         if (userInfo.email) email = userInfo.email;
-      } else if (userInfoRes.status === 401 && !account.refresh_token) {
+      } else if (userInfoRes.status === 401) {
         return NextResponse.json({ connected: false, reauthRequired: true });
       }
-    } catch (e) {
+    } catch {
+      // Display-only lookup; the connection itself is still valid.
     }
-
-    return NextResponse.json({ connected: true, email });
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
 
-export async function DELETE() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return NextResponse.json({ connected: true, email });
+});
+
+export const DELETE = route(async () => {
+  const user = await requireUser();
+
+  const account = await prisma.account.findFirst({
+    where: { userId: user.id, provider: "google-drive" },
+    select: { access_token: true, refresh_token: true },
+  });
+
+  // Revoking the refresh token revokes the whole grant; fall back to the access token.
+  const token = account?.refresh_token || account?.access_token;
+  if (token) {
+    try {
+      await fetch("https://oauth2.googleapis.com/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token }),
+      });
+    } catch (error) {
+      console.error("[google-drive] token revoke failed", error instanceof Error ? error.name : "unknown");
     }
-
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: (session.user as any).id,
-        provider: "google-drive"
-      }
-    });
-
-    if (account?.access_token) {
-      try {
-        await fetch(`https://oauth2.googleapis.com/revoke?token=${account.access_token}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" }
-        });
-      } catch (e) {
-      }
-    }
-
-    await prisma.account.deleteMany({
-      where: {
-        userId: (session.user as any).id,
-        provider: "google-drive"
-      }
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
+
+  await prisma.$transaction([
+    prisma.account.deleteMany({ where: { userId: user.id, provider: "google-drive" } }),
+    prisma.userIntegration.deleteMany({ where: { userId: user.id, provider: "google-drive" } }),
+  ]);
+
+  return NextResponse.json({ success: true });
+});

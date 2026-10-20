@@ -1,53 +1,45 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { parseJson, route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
+const endpointSchema = z
+  .string()
+  .max(2048)
+  .url()
+  .refine((value) => value.startsWith("https://"), { message: "Endpoint must be an https URL" });
 
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const subscribeSchema = z.object({
+  endpoint: endpointSchema,
+  keys: z.object({
+    p256dh: z.string().min(1).max(512),
+    auth: z.string().min(1).max(256),
+  }),
+});
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+const unsubscribeSchema = z.object({ endpoint: endpointSchema });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+export const POST = route(async (req) => {
+  const { id: userId } = await requireUser();
+  const { endpoint, keys } = await parseJson(req, subscribeSchema);
 
-    const body = await request.json();
-    const { endpoint, keys } = body;
+  // A push endpoint is an unguessable capability URL held by the browser, so whoever presents it owns it:
+  // when another account signs in on the same browser, the subscription moves to that account.
+  await prisma.pushSubscription.upsert({
+    where: { endpoint },
+    update: { userId, auth: keys.auth, p256dh: keys.p256dh },
+    create: { endpoint, userId, auth: keys.auth, p256dh: keys.p256dh },
+  });
 
-    if (!endpoint || !keys || !keys.auth || !keys.p256dh) {
-      return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
-    }
+  return NextResponse.json({ success: true });
+});
 
-    // Save or update subscription
-    await prisma.pushSubscription.upsert({
-      where: { endpoint },
-      update: {
-        auth: keys.auth,
-        p256dh: keys.p256dh,
-        userId: user.id
-      },
-      create: {
-        endpoint,
-        auth: keys.auth,
-        p256dh: keys.p256dh,
-        userId: user.id
-      }
-    });
+export const DELETE = route(async (req) => {
+  const { id: userId } = await requireUser();
+  const { endpoint } = await parseJson(req, unsubscribeSchema);
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to save push subscription" },
-      { status: 500 }
-    );
-  }
-}
+  await prisma.pushSubscription.deleteMany({ where: { endpoint, userId } });
+
+  return NextResponse.json({ success: true });
+});

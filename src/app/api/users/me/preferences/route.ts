@@ -1,67 +1,31 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { notFound, parseJson, route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const preferencesSchema = z.object({
+  emailNotifications: z.boolean().optional(),
+  pushNotifications: z.boolean().optional(),
+});
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { emailNotifications: true, pushNotifications: true },
-    });
+export const GET = route(async () => {
+  const { id } = await requireUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { emailNotifications: true, pushNotifications: true },
+  });
+  if (!user) throw notFound("User not found");
 
-    return NextResponse.json({
-      emailNotifications: user.emailNotifications,
-      pushNotifications: user.pushNotifications
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
-  }
-}
+  return NextResponse.json(user);
+});
 
-export async function PATCH(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
+export const PATCH = route(async (req) => {
+  const { id } = await requireUser();
+  const data = await parseJson(req, preferencesSchema);
 
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  await prisma.user.update({ where: { id }, data });
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const { emailNotifications, pushNotifications } = body;
-
-    const updateData: any = {};
-    if (typeof emailNotifications === 'boolean') updateData.emailNotifications = emailNotifications;
-    if (typeof pushNotifications === 'boolean') updateData.pushNotifications = pushNotifications;
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: updateData,
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to update preferences" },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json({ success: true });
+});

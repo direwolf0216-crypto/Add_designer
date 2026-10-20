@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-// Force rebuild
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requireUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -32,75 +33,78 @@ const DEFAULT_SETTINGS = {
   }
 };
 
-let systemSettingsCache: { value: Record<string, any>; timestamp: number } | null = null;
-const CACHE_TTL = 300000; // 5 minutes
+const color = z.string().max(32);
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Expected HH:MM");
+const studioText = z.string().trim().max(500);
+const threshold = z.object({ days: z.number().int().min(0).max(365) });
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+// Every key the app reads (SystemProvider, banner, invoices, reminders cron). Anything else is rejected,
+// which also keeps the Drive folder cache rows (google_drive_folder_*) out of reach.
+const SETTING_SCHEMAS = {
+  UI_PREFERENCES: z.looseObject({
+    currencySymbol: z.string().max(8).optional(),
+    hotDateThreshold: z.number().nonnegative().optional(),
+    calendarTiers: z.array(z.looseObject({ max: z.number(), bg: color, text: color })).max(20).optional(),
+    statusColors: z.record(z.string().max(100), z.looseObject({ bg: color, text: color })).optional(),
+  }),
+  BANNER_SETTINGS: z.looseObject({
+    bannerEnabled: z.boolean().optional(),
+    bannerTime1: time.optional(),
+    bannerTime2: time.optional(),
+  }),
+  studio_name: studioText,
+  studio_phone: studioText,
+  studio_email: studioText,
+  studio_address: studioText,
+  studio_instagram: studioText,
+  studio_website: studioText,
+  studio_bank_name: studioText,
+  studio_upi_id: studioText,
+  reminder_threshold_order_stale: threshold,
+  reminder_threshold_order_ready: threshold,
+  reminder_threshold_advance: threshold,
+  reminder_threshold_gallery: threshold,
+  reminder_threshold_album: threshold,
+  reminder_threshold_payment_due: threshold,
+} as const;
 
-  if (systemSettingsCache && Date.now() - systemSettingsCache.timestamp < CACHE_TTL) {
-    console.log("[Cache HIT] /api/settings/system");
-    return NextResponse.json(systemSettingsCache.value);
-  }
-  console.log("[Cache MISS] /api/settings/system");
+type SettingKey = keyof typeof SETTING_SCHEMAS;
+const SETTING_KEYS = Object.keys(SETTING_SCHEMAS) as [SettingKey, ...SettingKey[]];
 
-  try {
-    const settings = await prisma.systemSetting.findMany();
-    
-    // Convert array of settings into a key-value map
-    const settingsMap: Record<string, any> = {};
-    
-    // Seed defaults if missing
-    for (const [key, defaultValue] of Object.entries(DEFAULT_SETTINGS)) {
-      const existing = settings.find(s => s.key === key);
-      if (existing) {
-        settingsMap[key] = existing.value;
-      } else {
-        // Create the default in DB
-        const created = await prisma.systemSetting.create({
-          data: { key, value: defaultValue }
-        });
-        settingsMap[key] = created.value;
-      }
-    }
+const bodySchema = z.object({ key: z.enum(SETTING_KEYS), value: z.unknown() });
 
-    systemSettingsCache = { value: settingsMap, timestamp: Date.now() };
-    return NextResponse.json(settingsMap);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
-  }
-}
+export const GET = route(async () => {
+  await requireUser();
 
-export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  
-  if ((session.user as any).role !== "ADMIN") {
-     return NextResponse.json({ error: "Forbidden: Admins only" }, { status: 403 });
-  }
+  const defaultKeys = Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[];
+  let settings = await prisma.systemSetting.findMany({ where: { key: { in: defaultKeys } } });
 
-  try {
-    const body = await request.json();
-    const { key, value } = body;
-
-    if (!key || value === undefined) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
-    }
-
-    const updatedSetting = await prisma.systemSetting.upsert({
-      where: { key },
-      update: { value },
-      create: { key, value }
+  if (settings.length < defaultKeys.length) {
+    await prisma.systemSetting.createMany({
+      data: defaultKeys.map((key) => ({ key, value: DEFAULT_SETTINGS[key] })),
+      skipDuplicates: true,
     });
-
-    systemSettingsCache = null; // Invalidate cache on write
-    return NextResponse.json(updatedSetting);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update setting" }, { status: 500 });
+    settings = await prisma.systemSetting.findMany({ where: { key: { in: defaultKeys } } });
   }
-}
+
+  const settingsMap: Record<string, unknown> = {};
+  for (const key of defaultKeys) {
+    settingsMap[key] = settings.find((s) => s.key === key)?.value ?? DEFAULT_SETTINGS[key];
+  }
+
+  return NextResponse.json(settingsMap);
+});
+
+export const PUT = route(async (req) => {
+  await requireAdmin();
+  const { key, value: raw } = await parseJson(req, bodySchema);
+  const value = SETTING_SCHEMAS[key].parse(raw) as Prisma.InputJsonValue;
+
+  const updatedSetting = await prisma.systemSetting.upsert({
+    where: { key },
+    update: { value },
+    create: { key, value },
+  });
+
+  return NextResponse.json(updatedSetting);
+});

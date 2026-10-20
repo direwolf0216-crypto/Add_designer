@@ -1,58 +1,53 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-import { clearLayoutCache } from "./[formKey]/route";
+import { parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requireUser } from "@/lib/auth/session";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const formKeySchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Invalid formKey");
 
-  try {
-    const layouts = await prisma.formLayout.findMany({
-      orderBy: { name: "asc" }
-    });
-    return NextResponse.json(layouts);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch form layouts" }, { status: 500 });
-  }
-}
+// Loose on purpose: the builder stores many optional per-field settings. Older default fields use `label`.
+const fieldSchema = z.looseObject({
+  id: z.string().min(1).max(100),
+  name: z.string().max(200).optional(),
+  label: z.string().max(200).optional(),
+  type: z.string().min(1).max(50),
+});
 
-export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const sectionSchema = z.looseObject({
+  id: z.string().min(1).max(100),
+  title: z.string().max(200).optional(),
+  fields: z.array(fieldSchema).max(200),
+});
 
-  const userRole = (session.user as any).role;
-  if (userRole !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-  }
+const layoutSchema = z.looseObject({
+  sections: z.array(sectionSchema).max(50),
+});
 
-  try {
-    const body = await request.json();
-    const { formKey, name, description, schema } = body;
+const bodySchema = z.object({
+  formKey: formKeySchema,
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(500).nullish(),
+  schema: layoutSchema,
+});
 
-    if (!formKey || !name || !schema) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
-    }
+export const GET = route(async () => {
+  await requireUser();
+  const layouts = await prisma.formLayout.findMany({ orderBy: { name: "asc" } });
+  return NextResponse.json(layouts);
+});
 
-    const updated = await prisma.formLayout.upsert({
-      where: { formKey },
-      update: { name, description, schema },
-      create: { formKey, name, description, schema },
-    });
+export const PUT = route(async (req) => {
+  await requireAdmin();
+  const { formKey, name, description, schema: parsedSchema } = await parseJson(req, bodySchema);
+  const schema = parsedSchema as Prisma.InputJsonValue;
 
-    // Invalidate caches so the modal reads the newest layout immediately
-    clearLayoutCache(formKey);
-    revalidatePath("/api/settings/layouts");
-    revalidatePath(`/api/settings/layouts/${formKey}`);
+  const updated = await prisma.formLayout.upsert({
+    where: { formKey },
+    update: { name, description: description ?? null, schema },
+    create: { formKey, name, description: description ?? null, schema },
+  });
 
-    return NextResponse.json(updated);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update form layout" }, { status: 500 });
-  }
-}
+  return NextResponse.json(updated);
+});

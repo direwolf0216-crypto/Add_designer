@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getGoogleDriveToken } from "@/lib/googleDriveAuth";
+import { route } from "@/lib/api/http";
+import { requireUser } from "@/lib/auth/session";
+import { getGoogleDriveAccess } from "@/lib/googleDriveAuth";
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// The Google Picker runs in the browser and needs the user's own OAuth token (drive.file scope).
+export const GET = route(async () => {
+  const user = await requireUser();
+  const { accessToken, expiresAt } = await getGoogleDriveAccess(user);
 
-    const accessToken = await getGoogleDriveToken(session);
-    return NextResponse.json({ accessToken });
-  } catch (error: any) {
-    if (error.message === "reauth_required") {
-      return NextResponse.json({ error: 'reauth_required' }, { status: 401 });
-    }
-    if (error.message === "No Google Drive account connected") {
-      return NextResponse.json({ error: "No Google Drive account connected" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "Failed to get access token" }, { status: 500 });
-  }
-}
+  return NextResponse.json(
+    { accessToken, expiresAt: expiresAt ? new Date(expiresAt * 1000).toISOString() : null },
+    { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } }
+  );
+});

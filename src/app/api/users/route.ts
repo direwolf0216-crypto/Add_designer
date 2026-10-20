@@ -1,31 +1,40 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+import prisma from "@/lib/prisma";
+import { conflict, parseJson, route } from "@/lib/api/http";
+import { requireAdmin, requireUser } from "@/lib/auth/session";
+import { generateTempPassword } from "@/lib/auth/tempPassword";
+import { ROLES } from "@/lib/permissions";
 
-const usersCache: Record<string, { value: any; timestamp: number }> = {};
-const USERS_CACHE_TTL = 30000; // 30 seconds
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const inviteSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  email: z.string().trim().toLowerCase().email().max(254),
+  phone: z.string().trim().max(32).optional(),
+  role: z.enum(ROLES),
+});
 
-  const userRole = (session.user as any).role || "STAFF";
-  const cacheKey = `users_${userRole}`;
+export const GET = route(async () => {
+  const user = await requireUser();
 
-  if (usersCache[cacheKey] && Date.now() - usersCache[cacheKey].timestamp < USERS_CACHE_TTL) {
-    return NextResponse.json(usersCache[cacheKey].value);
-  }
-
-  try {
+  if (user.role !== "ADMIN") {
     const users = await prisma.user.findMany({
+      select: { id: true, idNumber: true, name: true, image: true, role: true, status: true },
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json(users);
+  }
+
+  const [users, activeTokens] = await Promise.all([
+    prisma.user.findMany({
       select: {
         id: true,
         idNumber: true,
         name: true,
+        image: true,
         email: true,
         phone: true,
         role: true,
@@ -33,102 +42,62 @@ export async function GET() {
         invitedAt: true,
       },
       orderBy: { name: "asc" },
-    });
+    }),
+    prisma.passwordResetToken.findMany({
+      where: { expires: { gt: new Date() } },
+      select: { email: true, token: true, expires: true },
+      orderBy: { expires: "desc" },
+    }),
+  ]);
 
-    const userRole = (session.user as any).role;
-    if (userRole === "ADMIN") {
-      const activeTokens = await prisma.passwordResetToken.findMany({
-        where: { expires: { gt: new Date() } }
-      });
-      
-      const usersWithTokens = users.map(user => {
-        if (!user.email) return user;
-        const userToken = activeTokens.find(t => t.email.toLowerCase() === user.email!.toLowerCase());
-        if (userToken) {
-          return { ...user, tempPassword: userToken.token };
-        }
-        return user;
-      });
-      
-      usersCache[cacheKey] = { value: usersWithTokens, timestamp: Date.now() };
-      return NextResponse.json(usersWithTokens);
-    }
-
-    usersCache[cacheKey] = { value: users, timestamp: Date.now() };
-    return NextResponse.json(users);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
-  }
-}
-
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const tokenByEmail = new Map<string, string>();
+  for (const t of activeTokens) {
+    const key = t.email.toLowerCase();
+    if (!tokenByEmail.has(key)) tokenByEmail.set(key, t.token);
   }
 
-  const userRole = (session.user as any).role;
-  if (userRole !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const response = NextResponse.json(
+    users.map((u) => {
+      const tempPassword = u.email ? tokenByEmail.get(u.email.toLowerCase()) : undefined;
+      return tempPassword ? { ...u, tempPassword } : u;
+    })
+  );
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+});
 
-  try {
-    const body = await request.json();
-    const { name, email, role } = body;
+export const POST = route(async (req) => {
+  await requireAdmin();
+  const { name, email, phone, role } = await parseJson(req, inviteSchema);
 
-    if (!name?.trim() || !email?.trim()) {
-      return NextResponse.json({ error: "Name and email are required" }, { status: 422 });
-    }
+  const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existingUser) throw conflict("A user with this email already exists");
 
-    const validRoles = ["ADMIN", "STAFF"];
-    if (!role || !validRoles.includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 422 });
-    }
+  const tempPassword = generateTempPassword();
+  // The account password is unguessable; the user signs in with the temp code and is forced to set a real one.
+  const hashedPassword = await bcrypt.hash(randomBytes(32).toString("base64url"), 12);
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ error: "A user with this email already exists" }, { status: 409 });
-    }
-
-    // Generate temporary password to be used as a token
-    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase();
-    
-    // Create an impossible random password for the actual user record so they cannot log in directly
-    const impossiblePassword = Math.random().toString(36) + Math.random().toString(36) + Math.random().toString(36);
-    const hashedPassword = await bcrypt.hash(impossiblePassword, 12);
-
-    const newUser = await prisma.user.create({
+  const newUser = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
       data: {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
+        name,
+        email,
+        phone: phone || null,
         password: hashedPassword,
         role,
-        status: "ACTIVE", // Removed approval concept
+        status: "ACTIVE",
         invitedAt: new Date(),
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-        invitedAt: true,
-      },
+      select: { id: true, name: true, email: true, role: true, status: true, invitedAt: true },
     });
-
-    // Create a PasswordResetToken containing the temporary password
-    // This allows the auth system to detect it and force a password reset
-    await prisma.passwordResetToken.create({
-      data: {
-        email: email.trim().toLowerCase(),
-        token: tempPassword,
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days valid
-      }
+    await tx.passwordResetToken.deleteMany({ where: { email } });
+    await tx.passwordResetToken.create({
+      data: { email, token: tempPassword, expires: new Date(Date.now() + INVITE_TTL_MS) },
     });
+    return created;
+  });
 
-    return NextResponse.json({ user: newUser, tempPassword }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
-  }
-}
+  const response = NextResponse.json({ user: newUser, tempPassword }, { status: 201 });
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+});

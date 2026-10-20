@@ -1,52 +1,48 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { HttpError, forbidden, parseJson, route } from "@/lib/api/http";
+import { requireUser, roleHasPermission } from "@/lib/auth/session";
+import { REAUTH_REQUIRED, folderCachePrefix, getGoogleDriveToken } from "@/lib/googleDriveAuth";
 
-export async function POST(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const bodySchema = z.object({
+  fileId: z.string().regex(/^[A-Za-z0-9_-]{10,200}$/, "Invalid fileId"),
+});
 
-    const { fileId } = await req.json();
-    if (!fileId) {
-      return NextResponse.json({ error: "Missing fileId" }, { status: 400 });
-    }
+/** Makes a Drive file "anyone with the link can view" so teammates can open it. */
+export const POST = route(async (req) => {
+  const user = await requireUser();
+  const { fileId } = await parseJson(req, bodySchema);
+  const accessToken = await getGoogleDriveToken(user);
+  const auth = { Authorization: `Bearer ${accessToken}` };
 
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: (session.user as any).id,
-        provider: "google-drive"
-      }
-    });
+  const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,parents`, {
+    headers: auth,
+  });
+  if (metaRes.status === 401) throw new HttpError(401, REAUTH_REQUIRED);
+  if (!metaRes.ok) throw new HttpError(404, "File not found in your Google Drive");
+  const meta = (await metaRes.json()) as { parents?: string[] };
 
-    if (!account || !account.access_token) {
-      return NextResponse.json({ error: "No Google Drive account connected" }, { status: 404 });
-    }
-
-    // Call Google Drive API to add "anyone with link can view" permission
-    const url = `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${account.access_token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        role: "reader",
-        type: "anyone"
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json({ error: "Failed to share file" }, { status: response.status });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  // Files inside this user's app folders were uploaded through the app; anything else needs manage_jobs.
+  const appFolders = await prisma.systemSetting.findMany({
+    where: { key: { startsWith: folderCachePrefix(user.id) } },
+    select: { value: true },
+  });
+  const appFolderIds = new Set(appFolders.map((f) => f.value).filter((v): v is string => typeof v === "string"));
+  const inAppFolder = (meta.parents ?? []).some((p) => appFolderIds.has(p));
+  if (!inAppFolder && !(await roleHasPermission(user.role, "manage_jobs"))) {
+    throw forbidden("You do not have permission to share this file");
   }
-}
+
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "reader", type: "anyone" }),
+  });
+  if (!response.ok) {
+    console.error("[google-drive] share failed", { status: response.status });
+    throw new HttpError(response.status === 403 || response.status === 404 ? response.status : 502, "Failed to share file");
+  }
+
+  return NextResponse.json({ success: true });
+});
