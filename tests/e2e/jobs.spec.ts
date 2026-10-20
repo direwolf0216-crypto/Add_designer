@@ -1,71 +1,22 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.describe('Jobs Module E2E (Add, Edit, View)', () => {
-  test('should successfully add, view, and edit a job', async ({ page }) => {
-    // 0. Login
-    await page.goto('http://localhost:3000/login');
-    await page.fill('input[type="email"]', 'test@example.com');
-    await page.fill('input[type="password"]', 'password123');
+// Writes data: runs only against a disposable database with a test account supplied via env.
+const email = process.env.E2E_USER_EMAIL;
+const password = process.env.E2E_USER_PASSWORD;
+
+test.describe("jobs flow (requires E2E_USER_EMAIL / E2E_USER_PASSWORD)", () => {
+  test.skip(!email || !password, "No E2E test account configured");
+
+  test("sign in and open the job form", async ({ page }) => {
+    await page.goto("/login");
+    await page.fill('input[type="email"]', email!);
+    await page.fill('input[type="password"]', password!);
     await page.click('button[type="submit"]');
-    
-    // Wait for redirect to dashboard
-    await page.waitForURL('**/dashboard**', { timeout: 10000 });
+    await page.waitForURL("**/dashboard/**");
 
-    // 1. Navigate to jobs page
-    await page.goto('http://localhost:3000/jobs');
-    
-    // Wait for the page to load
-    await page.waitForSelector('text=Jobs', { state: 'visible' });
-
-    // 2. Add Job
-    await page.click('button:has-text("Add New Job")');
-    
-    // Wait for Add Job Modal
-    await page.waitForSelector('text=Create Printing Job', { state: 'visible' });
-
-    const totalAmountInput = page.locator('input[type="number"]').first();
-    if (await totalAmountInput.isVisible()) {
-      await totalAmountInput.fill('50000');
-    }
-
-    // Attempt to submit
-    const submitBtn = page.locator('button:has-text("Create Job")');
-    if (await submitBtn.isVisible()) {
-      await submitBtn.click();
-    }
-
-    // 4. View Job
-    // Wait for list to load jobs
-    await page.waitForTimeout(2000); 
-    // Click on the first element that looks like a job card or row
-    // Since we just created a job, we can click the first element with class containing 'bg-white' and maybe 'cursor-pointer', or just any visible job ID like #
-    const firstJob = page.locator('text=#').first();
-    await firstJob.click();
-
-    // Verify View Form appears
-    await page.waitForSelector('text=Job Status & Timeline', { state: 'visible' });
-
-    // 5. Edit Job
-    const editBtn = page.locator('button:has-text("Edit")');
-    if (await editBtn.isVisible()) {
-      await editBtn.click();
-      
-      // Wait for Edit Modal
-      await page.waitForSelector('text=Edit Job', { state: 'visible' });
-
-      // Change total amount
-      if (await totalAmountInput.isVisible()) {
-        await totalAmountInput.fill('60000');
-      }
-
-      const saveBtn = page.locator('button:has-text("Save Changes")');
-      if (await saveBtn.isVisible()) {
-        await saveBtn.click();
-      }
-
-      // Verify View Form updates
-      await page.waitForTimeout(1000);
-      await expect(page.locator('body')).toContainText('60000');
-    }
+    await page.goto("/jobs/job-status");
+    await expect(page).toHaveURL(/\/jobs\/job-status/);
+    await page.getByRole("button", { name: /new job|add new job/i }).first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
   });
 });

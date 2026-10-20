@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Add designer — Printing press management
 
-## Getting Started
+Job, payment and invoice management for a printing press: print jobs with configurable forms,
+installment payments, a daily income/expense ledger, invoices (PDF), reminders and Google Drive attachments.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · React 19 · Prisma 7 on Neon Postgres (WebSocket adapter) ·
+NextAuth v4 (credentials) · SWR · Tailwind CSS 3 · Vitest · Playwright.
+
+## Getting started
 
 ```bash
+cp .env.example .env        # fill in DATABASE_URL and NEXTAUTH_SECRET at minimum
+npm install                 # also runs `prisma generate`
+npm run db:migrate:deploy   # apply migrations (see "Database" below first if the DB already exists)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | What it does |
+| --- | --- |
+| `npm run dev` / `build` / `start` | Next.js dev server / production build / production server. `build` never touches the database. |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (flat config) |
+| `npm test` | Vitest unit tests (`src/**/*.test.ts`) |
+| `npm run test:e2e` | Playwright. Smoke tests are read-only; the jobs flow runs only with `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` against a disposable database. |
+| `npm run db:migrate:dev` | Create a new migration from schema changes (development database only). |
+| `npm run db:migrate:deploy` | Apply pending migrations. Run as a separate release step, never inside the build. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database
 
-## Learn More
+Schema changes are versioned in `prisma/migrations`. The first migration, `0_init`, matches the schema
+that was previously applied with `prisma db push`.
 
-To learn more about Next.js, take a look at the following resources:
+**An existing database (created by `db push`) must be baselined once** before deploying migrations:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npx prisma migrate resolve --applied 0_init
+npm run db:migrate:deploy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Never run `prisma db push --accept-data-loss` against a database with real data. Scripts in
+`scripts/oneoff/` are historical one-off data fixes and may wipe data — read them before running.
 
-## Deploy on Vercel
+## Architecture notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Auth & permissions.** Every API route and server action authenticates and authorises on the server
+  (`src/lib/auth/session.ts`: `requireUser`, `requirePermission`, `requireAdmin`). The role matrix
+  (`src/lib/permissions.ts`) is shared with the UI (`usePermissions`), which only hides controls.
+  Sessions re-check role/status every minute, so deactivated users lose access promptly.
+- **API conventions.** Handlers are wrapped in `route()` (`src/lib/api/http.ts`), validate input with zod
+  and return `{ error, details? }` on failure without leaking internals.
+- **Data integrity.** Saving a job (client + job + order + installment payments) is one database
+  transaction (`src/lib/services/jobs.ts`). A job's balance is always derived from its non-deleted INCOME
+  payments. Jobs, transactions and invoices are soft-deleted (a Prisma extension hides them from list
+  reads) and restored/purged through `src/lib/services/recycleBin.ts`.
+- **Dates.** The business runs in IST: use `src/lib/dates.ts` for day/week/month boundaries. Job dates are
+  calendar dates stored as UTC midnight.
+- **Client data.** SWR with the shared `fetcher` (throws on non-2xx) and `invalidate*` helpers in
+  `src/lib/swr.ts`. Job list filters live in the URL and are applied in the database query.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Operations
+
+- **Cron:** call `/api/cron/reminders`, `/api/cron/daily-reminders` and `/api/cron/purge-recycle-bin`
+  with `Authorization: Bearer $CRON_SECRET` (they refuse to run when it is unset).
+- **Docker:** `docker build .` produces a standalone image (`node server.js`, port 3000, health check on
+  `/api/ping`). Run migrations separately before rolling out a new image.
+- **Security headers** are set in `next.config.ts`; route protection lives in `src/proxy.ts`.
