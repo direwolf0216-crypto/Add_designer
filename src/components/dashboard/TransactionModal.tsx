@@ -291,8 +291,10 @@ function TransactionModalInner() {
         onSuccess();
       } else {
         const data = await res.json().catch(() => ({}));
-        if (res.status === 422 && data.errors) {
-          setErrors(data.errors);
+        if (res.status === 422 && (data.details || data.errors)) {
+          // API returns { details: { field: string[] } }; keep the first message per field.
+          const raw = (data.details || data.errors) as Record<string, string | string[]>;
+          setErrors(Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])));
           toast.error("Please fix the highlighted fields.");
         } else {
           toast.error(data.error || "Failed to save. Please try again.");

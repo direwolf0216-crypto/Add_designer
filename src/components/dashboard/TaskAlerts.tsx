@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from "@/lib/swr";
 
 interface TaskAlertsProps {
   unconfirmedCount?: number;
@@ -41,7 +41,7 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingR
     setDismissedAlerts(dismissed);
   }, []);
 
-  const alerts = (rawAlerts || []).filter((a: any) => !dismissedAlerts.includes(a.id));
+  const alerts = (Array.isArray(rawAlerts) ? rawAlerts : []).filter((a: any) => !dismissedAlerts.includes(a.id));
   const unconfirmedCount = propUnconfirmed ?? (overviewData?.unconfirmedJobsCount || 0);
   const pendingRetouch = propRetouch ?? (overviewData?.pendingRetouch || 0);
 

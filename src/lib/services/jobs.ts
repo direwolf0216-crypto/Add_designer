@@ -113,24 +113,20 @@ async function syncInstallments(
       continue;
     }
 
-    const created = await withUniqueRetry(
-      (transactionId) =>
-        tx.transaction.create({
-          data: {
-            amount,
-            type: "INCOME",
-            category: "JOB",
-            status: "SETTLED",
-            paymentMode,
-            date,
-            description: `Advance Payment for Job ${jobNumber} - ${clientName}`,
-            transactionId,
-            jobId,
-            userId,
-          },
-        }),
-      newTransactionRef
-    );
+    const created = await tx.transaction.create({
+      data: {
+        amount,
+        type: "INCOME",
+        category: "JOB",
+        status: "SETTLED",
+        paymentMode,
+        date,
+        description: `Advance Payment for Job ${jobNumber} - ${clientName}`,
+        transactionId: newTransactionRef(),
+        jobId,
+        userId,
+      },
+    });
     keptIds.add(created.id);
     saved.push({ ...inst, amount: String(amount), transactionId: created.id });
   }
@@ -169,6 +165,12 @@ export async function getJobBalance(jobId: string) {
  * database transaction, so a failure part-way never leaves orphaned or duplicated payments.
  */
 export async function saveJob(input: SaveJobInput, userId: string) {
+  // A unique-ref collision aborts the Postgres transaction, so the whole transaction is retried
+  // (with fresh random refs) rather than the single insert.
+  return withUniqueRetry(() => saveJobOnce(input, userId), () => "");
+}
+
+async function saveJobOnce(input: SaveJobInput, userId: string) {
   return prisma.$transaction(
     async (tx) => {
       const existing = input.id
@@ -215,19 +217,15 @@ export async function saveJob(input: SaveJobInput, userId: string) {
           where: { id: existing.id },
           data: { ...common, clientId: client.id, ...(date ? { date } : {}) },
         })
-        : await withUniqueRetry(
-          (jobNumber) =>
-            tx.job.create({
-              data: {
-                ...common,
-                jobNumber: input.jobNumber || jobNumber,
-                clientId: client.id,
-                date: date ?? new Date(),
-                createdById: userId,
-              },
-            }),
-          newJobNumber
-        );
+        : await tx.job.create({
+          data: {
+            ...common,
+            jobNumber: input.jobNumber || newJobNumber(),
+            clientId: client.id,
+            date: date ?? new Date(),
+            createdById: userId,
+          },
+        });
 
       const installments = await syncInstallments(
         tx,
