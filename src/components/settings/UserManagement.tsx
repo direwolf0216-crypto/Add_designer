@@ -12,7 +12,7 @@ interface User {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: "ADMIN" | "STAFF";
+  role: "ADMIN" | "STAFF" | "PHOTOGRAPHER";
   status: "ACTIVE" | "PENDING" | "INACTIVE";
   invitedAt: string | null;
   tempPassword?: string;
@@ -21,11 +21,13 @@ interface User {
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
   STAFF: "Staff",
+  PHOTOGRAPHER: "Designer",
 };
 
 const ROLE_BADGES: Record<string, { bg: string; text: string; icon: string }> = {
   ADMIN: { bg: "bg-orange-50", text: "text-orange-600", icon: "ph-shield-check" },
   STAFF: { bg: "bg-[#eff6ff]", text: "text-blue-600", icon: "ph-users" },
+  PHOTOGRAPHER: { bg: "bg-violet-50", text: "text-violet-600", icon: "ph-paint-brush" },
 };
 
 const AVATAR_COLORS = [

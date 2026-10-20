@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import Script from "next/script";
 
 declare global {
@@ -15,7 +16,7 @@ interface GooglePickerProps {
 
 export default function GooglePicker({ onPick, className = "" }: GooglePickerProps) {
   const [isReady, setIsReady] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<{ value: string; expiresAt: number } | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   
   // Developer key from env
@@ -36,10 +37,12 @@ export default function GooglePicker({ onPick, className = "" }: GooglePickerPro
         throw new Error("Failed to get Google Drive token");
       }
       const data = await res.json();
-      setToken(data.accessToken);
-      return data.accessToken;
-    } catch (e) {
-      alert("Please connect Google Drive in Settings first.");
+      // Unknown expiry: assume Google's default 1h lifetime.
+      const expiresAt = data.expiresAt ? new Date(data.expiresAt).getTime() : Date.now() + 55 * 60 * 1000;
+      setToken({ value: data.accessToken, expiresAt });
+      return data.accessToken as string;
+    } catch {
+      toast.error("Please connect Google Drive in Settings first.");
       return null;
     }
   };
@@ -48,7 +51,8 @@ export default function GooglePicker({ onPick, className = "" }: GooglePickerPro
     if (!isReady || !window.google) return;
     setIsPickerOpen(true);
 
-    let accessToken = token;
+    // Refresh a minute before expiry so the Picker never gets a dead token.
+    let accessToken = token && token.expiresAt - Date.now() > 60_000 ? token.value : null;
     if (!accessToken) {
       accessToken = await handleAuth();
       if (!accessToken) {
@@ -77,7 +81,11 @@ export default function GooglePicker({ onPick, className = "" }: GooglePickerPro
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ fileId: doc.id })
-          }).catch(console.error);
+          })
+            .then((res) => {
+              if (!res.ok) toast.error("Couldn't share this file with your team. Others may not be able to open it.");
+            })
+            .catch(console.error);
 
           onPick({
             id: doc.id,

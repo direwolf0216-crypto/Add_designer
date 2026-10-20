@@ -18,13 +18,16 @@ const PERMISSION_LABELS: Record<string, { label: string; description: string; ic
   manage_users: { label: "Manage Users", description: "Invite, edit, and remove team members", icon: "ph-users-three" },
   view_galleries: { label: "View Designs", description: "View design deliverables", icon: "ph-images" },
   manage_galleries: { label: "Manage Designs", description: "Upload and manage design content", icon: "ph-image" },
+  view_export_analytics: { label: "Export Reports", description: "Export dashboard and ledger reports", icon: "ph-download-simple" },
 };
 
-const ROLES = ["ADMIN", "STAFF"] as const;
+const ROLES = ["ADMIN", "STAFF", "PHOTOGRAPHER"] as const;
 
 const ROLE_DISPLAY: Record<string, { label: string; color: string; bg: string }> = {
   ADMIN: { label: "Admin", color: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
   STAFF: { label: "Staff", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+  // Stored as PHOTOGRAPHER for historical reasons.
+  PHOTOGRAPHER: { label: "Designer", color: "text-violet-700", bg: "bg-violet-50 border-violet-200" },
 };
 
 export default function RolesPermissions() {

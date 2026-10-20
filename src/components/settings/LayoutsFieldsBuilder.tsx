@@ -398,6 +398,11 @@ export default function LayoutsFieldsBuilder() {
 
   const handleRemoveOption = async (idx: number) => {
     if (!activeLayout || !selectedField || !selectedField.options) return;
+    if (selectedField.id === 'fld_tx_type') {
+      // INCOME / EXPENSE drive every financial report and are a database enum.
+      toast.error("Transaction type options are fixed and can't be removed.");
+      return;
+    }
     const oldValue = selectedField.options[idx];
 
     setCheckingUsage(true);

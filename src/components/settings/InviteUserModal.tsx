@@ -11,6 +11,7 @@ interface InviteUserModalProps {
 
 const ROLES = [
   { value: "STAFF", label: "Staff", description: "Can manage jobs and view transactions" },
+  { value: "PHOTOGRAPHER", label: "Designer", description: "Works on design deliverables; no financial access" },
   { value: "ADMIN", label: "Admin", description: "Full access to all features" },
 ];
 
