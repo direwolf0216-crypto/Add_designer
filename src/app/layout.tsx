@@ -11,12 +11,12 @@ import GlobalBannerProvider from "@/components/providers/GlobalBannerProvider";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Kanakkupulla - Studio Management",
-  description: "Modern Studio Management Dashboard",
+  title: "ADD Designer - Printing Management",
+  description: "Modern Printing Management Dashboard",
 };
 
 export default function RootLayout({

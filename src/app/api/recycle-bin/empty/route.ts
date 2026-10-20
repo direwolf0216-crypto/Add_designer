@@ -17,15 +17,15 @@ export async function POST(request: Request) {
     const entries = await prisma.recycleBin.findMany({});
 
     for (const entry of entries) {
-      if (entry.itemType === "booking") {
+      if (entry.itemType === "job") {
         try {
-          await prisma.transaction.deleteMany({ where: { bookingId: entry.itemId } });
-          await prisma.order.deleteMany({ where: { bookingId: entry.itemId } });
-          await prisma.booking.delete({ where: { id: entry.itemId } });
+          await prisma.transaction.deleteMany({ where: { jobId: entry.itemId } });
+          await prisma.order.deleteMany({ where: { jobId: entry.itemId } });
+          await prisma.job.delete({ where: { id: entry.itemId } });
         } catch (e) {
         }
       }
-      if (entry.itemType === "product-order" || entry.itemType === "gift" || entry.itemType === "frame") {
+      if (entry.itemType === "product-order" || entry.itemType === "frame") {
         try {
           await prisma.productOrder.delete({ where: { id: entry.itemId } });
         } catch (e) {}

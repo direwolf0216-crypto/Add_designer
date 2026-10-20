@@ -17,7 +17,7 @@ export async function GET(
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
-        booking: {
+        job: {
           include: {
             client: true
           }

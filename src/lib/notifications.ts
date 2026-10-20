@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 const BOT_URL = process.env.WHATSAPP_BOT_URL || "http://localhost:3001";
 
 webpush.setVapidDetails(
-  "mailto:admin@moondotstudio.com",
+  "mailto:admin@adddesigner.com",
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BM7mYrnONkCPpx7wemRCy4R7r7eD8ZuDGAU9NOE-K1gvS7apjLkhRTfYgJ_LonMla20uX61yHvbt1yUak20CXiI",
   process.env.VAPID_PRIVATE_KEY || "WDeshUo0oOmE6nvY5lOXNHIZrmoGbHbSUf6m5AVDbpY"
 );
@@ -82,11 +82,11 @@ export async function createNotification(params: {
     if (user.emailNotifications && user.email) {
       try {
         await transporter.sendMail({
-          from: '"Moondot Studio" <notifications@moondotstudio.com>',
+          from: '"Add designer" <notifications@adddesigner.com>',
           to: user.email,
           subject: title,
           html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-            <h2 style="color: #ea580c; font-weight: bold; font-size: 24px;">Moondot Studio</h2>
+            <h2 style="color: #ea580c; font-weight: bold; font-size: 24px;">Add designer</h2>
             <h3>${title}</h3>
             <p>${message}</p>
             ${actionUrl ? `<a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${actionUrl}" style="display: inline-block; padding: 10px 20px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 15px;">View Details</a>` : ''}
@@ -100,10 +100,10 @@ export async function createNotification(params: {
     if (user.phone) {
        const cleanPhone = user.phone.replace(/[^0-9]/g, '');
        if (cleanPhone.length >= 10) {
-         let prefix = '🔔 *Moondot Notification*';
+         let prefix = '🔔 *Add designer Notification*';
          if (priority === 'HIGH') prefix = '🚨 *High Priority Alert*';
-         else if (type === 'BOOKING_CREATED') prefix = '🆕 *New Booking Alert*';
-         else if (type === 'BOOKING_UPDATED') prefix = '🔄 *Status Update*';
+         else if (type === 'JOB_CREATED') prefix = '🆕 *New Job Alert*';
+         else if (type === 'JOB_UPDATED') prefix = '🔄 *Status Update*';
 
          let text = `${prefix}\n\n${message}`;
          if (actionUrl) {

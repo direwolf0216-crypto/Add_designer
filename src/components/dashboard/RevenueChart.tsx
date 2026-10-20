@@ -61,7 +61,7 @@ export default function RevenueChart({ data, periodIncome = 0, periodExpense = 0
   };
 
   return (
-    <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-sm flex flex-col flex-1">
+    <div className="dashboard-card p-5 md:p-6 flex flex-col flex-1">
       <div className="flex justify-between items-start mb-6">
         <div>
           <h3 className="text-[1.1rem] font-extrabold text-slate-900 tracking-tight">Revenue vs. Expenses</h3>

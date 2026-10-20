@@ -4,7 +4,16 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
 
-export const dynamic = "force-dynamic";
+export const layoutCache: Record<string, { value: any; timestamp: number }> = {};
+const CACHE_TTL = 300000; // 5 minutes
+
+export function clearLayoutCache(formKey?: string) {
+  if (formKey) {
+    delete layoutCache[formKey];
+  } else {
+    Object.keys(layoutCache).forEach((k) => delete layoutCache[k]);
+  }
+}
 
 export async function GET(
   request: Request,
@@ -16,6 +25,12 @@ export async function GET(
   }
 
   const { formKey } = await params;
+
+  if (layoutCache[formKey] && Date.now() - layoutCache[formKey].timestamp < CACHE_TTL) {
+    console.log(`[Cache HIT] /api/settings/layouts/${formKey}`);
+    return NextResponse.json(layoutCache[formKey].value);
+  }
+  console.log(`[Cache MISS] /api/settings/layouts/${formKey}`);
 
   try {
     let layout = await prisma.formLayout.findUnique({
@@ -40,6 +55,7 @@ export async function GET(
       }
     }
 
+    layoutCache[formKey] = { value: layout, timestamp: Date.now() };
     return NextResponse.json(layout);
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch form layout" }, { status: 500 });

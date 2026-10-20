@@ -58,8 +58,8 @@ export async function GET() {
     const tStartUTC = toUTC(tomorrowLocalStart);
     const dEndUTC = toUTC(dayAfterLocalEnd);
 
-    // 3. Query upcoming bookings
-    const bookings = await prisma.booking.findMany({
+    // 3. Query upcoming jobs
+    const jobs = await prisma.job.findMany({
       where: {
         date: {
           gte: tStartUTC,
@@ -83,18 +83,18 @@ export async function GET() {
       }
     });
 
-    if (bookings.length === 0) {
+    if (jobs.length === 0) {
       return NextResponse.json({ show: false });
     }
 
-    // 4. Group bookings
+    // 4. Group jobs
     const day1: any[] = [];
     const day2: any[] = [];
 
     const tomorrowUTCStart = toUTC(tomorrowLocalStart);
     const tomorrowUTCEnd = toUTC(tomorrowLocalEnd);
 
-    for (const b of bookings) {
+    for (const b of jobs) {
       const bDate = new Date(b.date);
       if (bDate >= tomorrowUTCStart && bDate <= tomorrowUTCEnd) {
         day1.push(b);

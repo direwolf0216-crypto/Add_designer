@@ -19,11 +19,11 @@ export async function POST(req: Request) {
 
     let count = 0;
 
-    if (formKey === "BOOKING_FORM") {
+    if (formKey === "JOB_FORM") {
       if (fieldId === "fld_b_category") {
-        count = await prisma.booking.count({ where: { category: value } });
+        count = await prisma.job.count({ where: { category: value } });
       } else if (fieldId === "fld_b_status") {
-        count = await prisma.booking.count({ where: { status: value } });
+        count = await prisma.job.count({ where: { status: value } });
       }
     } else if (formKey === "TRANSACTION_FORM") {
       if (fieldId === "fld_tx_type") {

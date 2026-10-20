@@ -23,11 +23,11 @@ export async function GET(request: Request) {
     let purgedCount = 0;
 
     for (const entry of entriesToPurge) {
-      if (entry.itemType === "booking") {
+      if (entry.itemType === "job") {
         try {
-          await prisma.booking.delete({ where: { id: entry.itemId } });
+          await prisma.job.delete({ where: { id: entry.itemId } });
         } catch (e) {}
-      } else if (entry.itemType === "product-order" || entry.itemType === "gift" || entry.itemType === "frame") {
+      } else if (entry.itemType === "product-order" || entry.itemType === "frame") {
         try {
           await prisma.productOrder.delete({ where: { id: entry.itemId } });
         } catch (e) {}

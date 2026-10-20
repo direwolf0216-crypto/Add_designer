@@ -1,20 +1,20 @@
 "use server";
 
 import { z } from "zod";
-import { bookingSchema } from "@/lib/validations/booking";
-import { Booking } from "@/types";
+import { jobSchema } from "@/lib/validations/job";
+import { Job } from "@/types";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { broadcastNotification } from "@/lib/notifications";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function saveBookingAction(formData: FormData) {
+export async function saveJobAction(formData: FormData) {
   try {
     const session = await getServerSession(authOptions);
     const rawData = Object.fromEntries(formData.entries());
-    const validatedData = bookingSchema.parse(rawData);
-    
+    const validatedData = jobSchema.parse(rawData);
+
     // Extract custom dynamic fields that are not part of the standard validatedData
     const standardKeys = ['id', 'title', 'category', 'date', 'time', 'location', 'phone', 'email', 'package', 'advance', 'due', 'status', 'installments', 'packageName', 'inclusions', 'notes', 'attachments', 'photographers', 'albumStatus', 'galleryDelivered'];
     const customData: Record<string, any> = {};
@@ -25,7 +25,7 @@ export async function saveBookingAction(formData: FormData) {
     }
 
     // Logic to reset Album Status to Pending if Event Status changes to Shoot Completed
-    // is now handled inside the existingBooking check below for updates, and here for creations.
+    // is now handled inside the existingJob check below for updates, and here for creations.
     if (!validatedData.id && (validatedData.status === 'Shoot Completed' || validatedData.status === 'Completed')) {
       customData.fld_b_album_status = 'Pending';
     }
@@ -33,105 +33,105 @@ export async function saveBookingAction(formData: FormData) {
     const recordDate = rawData.recordDate ? new Date(rawData.recordDate as string) : undefined;
 
     if (validatedData.id) {
-       const existingBooking = await prisma.booking.findUnique({ where: { id: validatedData.id }, include: { client: true, order: true } });
-       if (existingBooking) {
-         await prisma.client.update({
-           where: { id: existingBooking.clientId },
-           data: { name: validatedData.title, phone: validatedData.phone || "", email: validatedData.email }
-         });
-         const isNewlyShootCompleted = (validatedData.status === 'Shoot Completed' || validatedData.status === 'Completed') && 
-                                       (existingBooking.status !== 'Shoot Completed' && existingBooking.status !== 'Completed');
-                                       
-         if (isNewlyShootCompleted || ((validatedData.status === 'Shoot Completed' || validatedData.status === 'Completed') && !customData.fld_b_album_status)) {
-           customData.fld_b_album_status = 'Pending';
-         } else if (validatedData.status !== 'Shoot Completed' && validatedData.status !== 'Completed') {
-           delete customData.fld_b_album_status;
-         }
+      const existingJob = await prisma.job.findUnique({ where: { id: validatedData.id }, include: { client: true, order: true } });
+      if (existingJob) {
+        await prisma.client.update({
+          where: { id: existingJob.clientId },
+          data: { name: validatedData.title, phone: validatedData.phone || "", email: validatedData.email }
+        });
+        const isNewlyShootCompleted = (validatedData.status === 'Shoot Completed' || validatedData.status === 'Completed') &&
+          (existingJob.status !== 'Shoot Completed' && existingJob.status !== 'Completed');
 
-         await prisma.booking.update({
-           where: { id: validatedData.id },
-           data: {
-             category: validatedData.category,
-             date: recordDate ? recordDate : (validatedData.date ? new Date(validatedData.date) : new Date()),
-             time: validatedData.time || "",
-             location: validatedData.location || "",
-             status: validatedData.status,
-             packageName: rawData.packageName ? String(rawData.packageName) : undefined,
-             inclusions: rawData.inclusions ? JSON.parse(String(rawData.inclusions)) : undefined,
-             notes: rawData.notes ? String(rawData.notes) : undefined,
-             attachments: rawData.attachments ? JSON.parse(String(rawData.attachments)) : undefined,
-             photographers: rawData.photographers ? JSON.parse(String(rawData.photographers)) : undefined,
-             albumStatus: validatedData.albumStatus ? (validatedData.albumStatus.toUpperCase() as any) : undefined,
-             galleryDelivered: validatedData.galleryDelivered !== undefined ? (validatedData.galleryDelivered === 'true' || validatedData.galleryDelivered === true) : undefined,
-             customData: Object.keys(customData).length > 0 ? customData : undefined,
-             ...( (session?.user as any)?.id ? { updatedBy: { connect: { id: (session?.user as any)?.id } } } : {} ),
-           }
-         });
-         const pkg = parseFloat((validatedData.package || '0').toString().replace(/,/g, '')) || 0;
-         const adv = parseFloat((validatedData.advance || '0').toString().replace(/,/g, '')) || 0;
-         const due = parseFloat((validatedData.due || '0').toString().replace(/,/g, '')) || 0;
-         let parsedInstallments = null;
-         try {
-           if (validatedData.installments) parsedInstallments = JSON.parse(validatedData.installments);
-         } catch (e) {}
+        if (isNewlyShootCompleted || ((validatedData.status === 'Shoot Completed' || validatedData.status === 'Completed') && !customData.fld_b_album_status)) {
+          customData.fld_b_album_status = 'Pending';
+        } else if (validatedData.status !== 'Shoot Completed' && validatedData.status !== 'Completed') {
+          delete customData.fld_b_album_status;
+        }
 
-         if (existingBooking.order) {
-           await prisma.order.update({
-             where: { bookingId: validatedData.id },
-             data: { package: pkg, advance: adv, due: due, installments: parsedInstallments }
-           });
-         } else {
-            await prisma.order.create({
-              data: { bookingId: validatedData.id, package: pkg, advance: adv, due: due, installments: parsedInstallments }
-            });
-         }
-         
-         await prisma.systemLog.create({
-           data: { action: "BOOKING_UPDATED", details: `Updated booking ID: ${validatedData.id}` }
-         });
+        await prisma.job.update({
+          where: { id: validatedData.id },
+          data: {
+            category: validatedData.category,
+            date: recordDate ? recordDate : (validatedData.date ? new Date(validatedData.date) : new Date()),
+            time: validatedData.time || "",
+            location: validatedData.location || "",
+            status: validatedData.status,
+            packageName: rawData.packageName ? String(rawData.packageName) : undefined,
+            inclusions: rawData.inclusions ? JSON.parse(String(rawData.inclusions)) : undefined,
+            notes: rawData.notes ? String(rawData.notes) : undefined,
+            attachments: rawData.attachments ? JSON.parse(String(rawData.attachments)) : undefined,
+            photographers: rawData.photographers ? JSON.parse(String(rawData.photographers)) : undefined,
+            albumStatus: validatedData.albumStatus ? (validatedData.albumStatus.toUpperCase() as any) : undefined,
+            galleryDelivered: validatedData.galleryDelivered !== undefined ? (validatedData.galleryDelivered === 'true' || validatedData.galleryDelivered === true) : undefined,
+            customData: Object.keys(customData).length > 0 ? customData : undefined,
+            ...((session?.user as any)?.id ? { updatedBy: { connect: { id: (session?.user as any)?.id } } } : {}),
+          }
+        });
+        const pkg = parseFloat((validatedData.package || '0').toString().replace(/,/g, '')) || 0;
+        const adv = parseFloat((validatedData.advance || '0').toString().replace(/,/g, '')) || 0;
+        const due = parseFloat((validatedData.due || '0').toString().replace(/,/g, '')) || 0;
+        let parsedInstallments = null;
+        try {
+          if (validatedData.installments) parsedInstallments = JSON.parse(validatedData.installments);
+        } catch (e) { }
 
-         // Fire and forget notification to prevent blocking UI
-         broadcastNotification({
-           title: "Booking Updated",
-           message: `The booking ${existingBooking.bookingNumber || ''} has been updated.`,
-           type: "BOOKING_UPDATED",
-           actionUrl: `/bookings/details/${validatedData.id}`,
-           entityId: validatedData.id,
-           entityType: "booking",
-           skipUserId: (session?.user as any)?.id
-         }).catch(e => console.error("Notification error:", e));
+        if (existingJob.order) {
+          await prisma.order.update({
+            where: { jobId: validatedData.id },
+            data: { package: pkg, advance: adv, due: due, installments: parsedInstallments }
+          });
+        } else {
+          await prisma.order.create({
+            data: { jobId: validatedData.id, package: pkg, advance: adv, due: due, installments: parsedInstallments }
+          });
+        }
 
-         revalidatePath('/', 'layout');
-         return { success: true, data: validatedData as Booking };
-       }
+        await prisma.systemLog.create({
+          data: { action: "JOB_UPDATED", details: `Updated job ID: ${validatedData.id}` }
+        });
+
+        // Fire and forget notification to prevent blocking UI
+        broadcastNotification({
+          title: "Job Updated",
+          message: `The job ${existingJob.jobNumber || ''} has been updated.`,
+          type: "JOB_UPDATED",
+          actionUrl: `/jobs/details/${validatedData.id}`,
+          entityId: validatedData.id,
+          entityType: "job",
+          skipUserId: (session?.user as any)?.id
+        }).catch(e => console.error("Notification error:", e));
+
+        revalidatePath('/', 'layout');
+        return { success: true, data: validatedData as Job };
+      }
     }
-    
+
     const client = await prisma.client.create({
       data: { name: validatedData.title, phone: validatedData.phone || "", email: validatedData.email }
     });
-    
-    let nextBookingNumber = rawData.bookingNumber as string;
-    if (!nextBookingNumber) {
+
+    let nextJobNumber = rawData.jobNumber as string;
+    if (!nextJobNumber) {
       let isUnique = false;
       const crypto = require('crypto');
       while (!isUnique) {
         const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
-        nextBookingNumber = `#MD-${suffix}`;
-        
-        const activeExists = await prisma.booking.findFirst({
-          where: { bookingNumber: nextBookingNumber }
+        nextJobNumber = `#MD-${suffix}`;
+
+        const activeExists = await prisma.job.findFirst({
+          where: { jobNumber: nextJobNumber }
         });
-        
+
         if (!activeExists) {
           isUnique = true;
         }
       }
     }
 
-    const newBooking = await prisma.booking.create({
+    const newJob = await prisma.job.create({
       data: {
         id: validatedData.id || undefined,
-        bookingNumber: nextBookingNumber,
+        jobNumber: nextJobNumber,
         clientId: client.id,
         category: validatedData.category,
         date: recordDate ? recordDate : (validatedData.date ? new Date(validatedData.date) : new Date()),
@@ -157,11 +157,11 @@ export async function saveBookingAction(formData: FormData) {
     let parsedInstallments = null;
     try {
       if (validatedData.installments) parsedInstallments = JSON.parse(validatedData.installments);
-    } catch (e) {}
+    } catch (e) { }
 
     await prisma.order.create({
       data: {
-        bookingId: newBooking.id,
+        jobId: newJob.id,
         package: pkg,
         advance: adv,
         due: due,
@@ -170,132 +170,132 @@ export async function saveBookingAction(formData: FormData) {
     });
 
     await prisma.systemLog.create({
-      data: { action: "BOOKING_CREATED", details: `Created booking ID: ${newBooking.id} for client ${client.name}` }
+      data: { action: "JOB_CREATED", details: `Created job ID: ${newJob.id} for client ${client.name}` }
     });
 
     // Fire and forget notification to prevent blocking UI
     broadcastNotification({
-      title: "New Booking Created",
-      message: `A new booking (${nextBookingNumber}) has been created for ${validatedData.title}.`,
-      type: "BOOKING_CREATED",
-      actionUrl: `/bookings/details/${newBooking.id}`,
-      entityId: newBooking.id,
-      entityType: "booking",
+      title: "New Job Created",
+      message: `A new Job (${nextJobNumber}) has been created for ${validatedData.title}.`,
+      type: "JOB_CREATED",
+      actionUrl: `/jobs/details/${newJob.id}`,
+      entityId: newJob.id,
+      entityType: "Job",
       skipUserId: (session?.user as any)?.id
     }).catch(e => console.error("Notification error:", e));
 
     revalidatePath('/', 'layout');
 
-    return { 
-      success: true, 
-      data: { ...validatedData, id: newBooking.id } as Booking 
+    return {
+      success: true,
+      data: { ...validatedData, id: newJob.id } as Job
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { success: false, errors: error.flatten().fieldErrors };
     }
-    return { success: false, errors: { _form: [error instanceof Error ? error.message : "An unexpected error occurred while saving the booking."] } };
+    return { success: false, errors: { _form: [error instanceof Error ? error.message : "An unexpected error occurred while saving the job."] } };
   }
 }
 
-export async function deleteBookingAction(id: string) {
+export async function deleteJobAction(id: string) {
   try {
     const session = await getServerSession(authOptions);
-    const existing = await prisma.booking.findUnique({ where: { id } });
+    const existing = await prisma.job.findUnique({ where: { id } });
     if (!existing) return { success: false, error: "Not found" };
 
-    await prisma.booking.update({ 
+    await prisma.job.update({
       where: { id },
       data: { deletedAt: new Date() }
     });
-    
+
     await prisma.recycleBin.create({
       data: {
-        itemType: "booking",
+        itemType: "job",
         itemId: id,
         originalData: JSON.parse(JSON.stringify(existing)),
         trashedById: (session?.user as any)?.id || "System",
       }
     });
-    
+
     await prisma.systemLog.create({
-      data: { action: "BOOKING_SOFT_DELETED", details: `Soft deleted booking ID: ${id}` }
+      data: { action: "JOB_SOFT_DELETED", details: `Soft deleted job ID: ${id}` }
     });
-    
+
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (e) {
-    return { success: false, error: "Failed to delete booking" };
+    return { success: false, error: "Failed to delete job" };
   }
 }
 
-export async function updateBookingStatusAction(bookingId: string, newStatus: string) {
+export async function updateJobStatusAction(jobId: string, newStatus: string) {
   try {
     const session = await getServerSession(authOptions);
-    const existing = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const existing = await prisma.job.findUnique({ where: { id: jobId } });
     if (!existing) return { success: false, error: 'Not found' };
 
     const dataToUpdate: any = { status: newStatus };
     if (newStatus === 'Shoot Completed' || newStatus === 'Completed') {
       let customData = existing.customData as Record<string, any>;
       if (typeof customData === 'string') {
-        try { customData = JSON.parse(customData); } catch(e) { customData = {}; }
+        try { customData = JSON.parse(customData); } catch (e) { customData = {}; }
       } else {
         customData = customData || {};
       }
-      
+
       if (existing.status !== newStatus || !customData.fld_b_album_status) {
-         dataToUpdate.customData = { ...customData, fld_b_album_status: 'Pending' };
+        dataToUpdate.customData = { ...customData, fld_b_album_status: 'Pending' };
       }
     } else {
       let customData = existing.customData as Record<string, any>;
       if (typeof customData === 'string') {
-        try { customData = JSON.parse(customData); } catch(e) { customData = {}; }
+        try { customData = JSON.parse(customData); } catch (e) { customData = {}; }
       } else {
         customData = customData || {};
       }
-      
+
       if (customData.fld_b_album_status) {
         delete customData.fld_b_album_status;
         dataToUpdate.customData = customData;
       }
     }
-    const booking = await prisma.booking.update({
-      where: { id: bookingId },
+    const job = await prisma.job.update({
+      where: { id: jobId },
       data: dataToUpdate
     });
-    
+
     await prisma.systemLog.create({
-      data: { action: "BOOKING_STATUS_UPDATED", details: `Updated booking ID: ${bookingId} status to ${newStatus}` }
+      data: { action: "JOB_STATUS_UPDATED", details: `Updated job ID: ${jobId} status to ${newStatus}` }
     });
-    
+
     // Fire and forget notification to prevent blocking UI
     broadcastNotification({
-      title: "Booking Status Changed",
-      message: `Booking ${booking.bookingNumber || ''} status has been updated to ${newStatus}.`,
-      type: "BOOKING_UPDATED",
-      actionUrl: `/bookings/details/${bookingId}`,
-      entityId: bookingId,
-      entityType: "booking",
+      title: "Job Status Changed",
+      message: `Job ${job.jobNumber || ''} status has been updated to ${newStatus}.`,
+      type: "JOB_UPDATED",
+      actionUrl: `/jobs/details/${jobId}`,
+      entityId: jobId,
+      entityType: "job",
       skipUserId: (session?.user as any)?.id
     }).catch(e => console.error("Notification error:", e));
 
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (e) {
-    return { success: false, error: "Failed to update booking status" };
+    return { success: false, error: "Failed to update job status" };
   }
 }
 
-export async function updateAlbumTrackingAction(bookingId: string, updates: { status?: string, customData?: any }) {
+export async function updateJobTrackingAction(jobId: string, updates: { status?: string, customData?: any }) {
   try {
     const session = await getServerSession(authOptions);
-    const existing = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const existing = await prisma.job.findUnique({ where: { id: jobId } });
     if (!existing) return { success: false, error: 'Not found' };
 
     let newCustomData = existing.customData as Record<string, any>;
     if (typeof newCustomData === 'string') {
-      try { newCustomData = JSON.parse(newCustomData); } catch(e) { newCustomData = {}; }
+      try { newCustomData = JSON.parse(newCustomData); } catch (e) { newCustomData = {}; }
     } else {
       newCustomData = newCustomData || {};
     }
@@ -311,8 +311,8 @@ export async function updateAlbumTrackingAction(bookingId: string, updates: { st
     if (updates.status !== undefined) dataToUpdate.status = updates.status;
     if ((session?.user as any)?.id) dataToUpdate.updatedById = (session?.user as any)?.id;
 
-    await prisma.booking.update({
-      where: { id: bookingId },
+    await prisma.job.update({
+      where: { id: jobId },
       data: dataToUpdate
     });
 
@@ -321,4 +321,88 @@ export async function updateAlbumTrackingAction(bookingId: string, updates: { st
   } catch (e) {
     return { success: false, error: "Failed to update album tracking" };
   }
+}
+
+export async function generateInvoiceAction(jobId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+  const userRole = (session.user as any).role || 'STAFF';
+  const permission = await prisma.rolePermission.findUnique({
+    where: { role_permission: { role: userRole, permission: 'manage_transactions' } }
+  });
+
+  if (!permission?.enabled && userRole !== 'ADMIN') {
+    return { success: false, error: 'Permission denied' };
+  }
+
+  const existingInvoice = await prisma.invoice.findUnique({
+    where: { jobId }
+  });
+
+  if (existingInvoice) {
+    return { success: true, invoiceId: existingInvoice.id };
+  }
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { order: true }
+  });
+
+  if (!job) {
+    return { success: false, error: 'Job not found' };
+  }
+
+  // Generate sequential INV-XXXX with retry logic for race conditions
+  let invoiceId = null;
+  let attempt = 0;
+
+  while (attempt < 5) {
+    try {
+      const lastInvoice = await prisma.invoice.findFirst({
+        orderBy: { invoiceNumber: 'desc' }
+      });
+
+      let nextNum = 1;
+      if (lastInvoice && lastInvoice.invoiceNumber.startsWith('INV-')) {
+        const numPart = parseInt(lastInvoice.invoiceNumber.replace('INV-', ''), 10);
+        if (!isNaN(numPart)) {
+          nextNum = numPart + 1;
+        }
+      }
+      const invoiceNumber = `INV-${String(nextNum).padStart(4, '0')}`;
+
+      const newInvoice = await prisma.invoice.create({
+        data: {
+          jobId,
+          invoiceNumber,
+          discount: 0,
+          lineItems: {
+            create: [
+              {
+                description: `${job.category || 'Standard'} Package`,
+                quantity: 1,
+                rate: job.order?.package || 0,
+                amount: job.order?.package || 0
+              }
+            ]
+          }
+        }
+      });
+      invoiceId = newInvoice.id;
+      break;
+    } catch (e: any) {
+      if (e.code === 'P2002') { // Prisma unique constraint violation
+        attempt++;
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  if (!invoiceId) {
+    return { success: false, error: 'Failed to generate unique invoice number after multiple attempts' };
+  }
+
+  return { success: true, invoiceId };
 }

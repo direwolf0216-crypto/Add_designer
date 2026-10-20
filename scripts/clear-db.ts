@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_9yer3vJADMhO@ep-lucky-wildflower-aoouw89k.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('DATABASE_URL is not set');
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -30,8 +31,8 @@ async function clearDB() {
     await prisma.productOrder.deleteMany({});
     console.log('Cleared ProductOrders');
     
-    await prisma.booking.deleteMany({});
-    console.log('Cleared Bookings');
+    await prisma.job.deleteMany({});
+    console.log('Cleared Jobs');
     
     await prisma.client.deleteMany({});
     console.log('Cleared Clients');

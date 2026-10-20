@@ -2,12 +2,12 @@
 
 import dynamic from 'next/dynamic';
 
-const BookingFilterModal = dynamic(() => import('./BookingFilterModal'), { ssr: false });
+const JobFilterModal = dynamic(() => import('./JobFilterModal'), { ssr: false });
 
 export default function Modals() {
   return (
     <>
-      <BookingFilterModal />
+      <JobFilterModal />
     </>
   );
 }

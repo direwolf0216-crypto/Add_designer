@@ -5,7 +5,10 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BudgetOverview() {
-  const { data, isLoading } = useSWR('/api/budget/overview', fetcher);
+  const { data, isLoading } = useSWR('/api/budget/overview', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30000,
+  });
   const [isExpanded, setIsExpanded] = useState(false);
 
   const overview = data?.overview || [];

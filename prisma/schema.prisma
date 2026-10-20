@@ -13,26 +13,26 @@ model Client {
   email     String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  bookings  Booking[]
+  jobs  Job[]
 
   @@index([createdAt])
 }
 
 model Order {
   id           String   @id @default(cuid())
-  bookingId    String   @unique
+  jobId    String   @unique
   package      Float    @default(0)
   advance      Float    @default(0)
   due          Float    @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   installments Json?
-  booking      Booking  @relation(fields: [bookingId], references: [id])
+  job      Job  @relation(fields: [jobId], references: [id])
 
   @@index([createdAt])
 }
 
-model Booking {
+model Job {
   id               String        @id @default(cuid())
   clientId         String
   category         String        @default("Wedding")
@@ -45,7 +45,7 @@ model Booking {
   contractUrl      String?
   galleryUrl       String?
   attachments      Json?
-  bookingNumber    String?       @unique
+  jobNumber    String?       @unique
   createdById      String?
   customData       Json?
   deletedAt        DateTime?
@@ -57,9 +57,10 @@ model Booking {
   galleryDelivered Boolean       @default(false)
   albumStatus      AlbumStatus   @default(PENDING)
   client           Client        @relation(fields: [clientId], references: [id])
-  createdBy        User?         @relation("BookingCreatedBy", fields: [createdById], references: [id])
-  updatedBy        User?         @relation("BookingUpdatedBy", fields: [updatedById], references: [id])
+  createdBy        User?         @relation("JobCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User?         @relation("JobUpdatedBy", fields: [updatedById], references: [id])
   order            Order?
+  invoice          Invoice?
   transactions     Transaction[]
 
   @@index([date])
@@ -93,14 +94,14 @@ model Transaction {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   attachmentUrl  String?
-  bookingId      String?
+  jobId      String?
   customData     Json?
   transactionId  String?       @unique
   userId         String?
   productOrderId String?
   deletedAt      DateTime?
   groupId        String?
-  booking        Booking?      @relation(fields: [bookingId], references: [id])
+  job        Job?      @relation(fields: [jobId], references: [id])
   productOrder   ProductOrder? @relation(fields: [productOrderId], references: [id])
   user           User?         @relation(fields: [userId], references: [id])
 
@@ -162,8 +163,8 @@ model User {
   whatsappNotifs     Boolean            @default(false)
   notificationPrefs  Json?
   accounts           Account[]
-  createdBookings    Booking[]          @relation("BookingCreatedBy")
-  updatedBookings    Booking[]          @relation("BookingUpdatedBy")
+  createdJobs    Job[]          @relation("JobCreatedBy")
+  updatedJobs    Job[]          @relation("JobUpdatedBy")
   categoryBudgets    CategoryBudget[]
   notifications      Notification[]
   pushSubscriptions  PushSubscription[]
@@ -349,8 +350,8 @@ enum AlbumStatus {
 }
 
 enum NotificationType {
-  BOOKING_CREATED
-  BOOKING_UPDATED
+  JOB_CREATED
+  JOB_UPDATED
   PAYMENT_RECEIVED
   PAYMENT_OVERDUE
   ORDER_CREATED
@@ -359,7 +360,7 @@ enum NotificationType {
   GALLERY_DELIVERED
   HOT_DATE_ALERT
   ORDER_STATUS_STALE
-  BOOKING_STATUS_STALE
+  JOB_STATUS_STALE
   PAYMENT_DUE_REMINDER
   ADVANCE_NOT_COLLECTED
   GALLERY_NOT_DELIVERED
@@ -371,4 +372,36 @@ enum NotificationPriority {
   HIGH
   NORMAL
   LOW
+}
+
+model Invoice {
+  id            String            @id @default(cuid())
+  invoiceNumber String            @unique
+  jobId     String            @unique
+  discount      Float             @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  job       Job           @relation(fields: [jobId], references: [id])
+  lineItems     InvoiceLineItem[]
+
+  @@index([jobId])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int      @default(1)
+  rate        Float
+  amount      Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }

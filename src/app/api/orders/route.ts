@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   try {
     const orders = await prisma.order.findMany({
       include: {
-        booking: {
+        job: {
           include: {
             client: true
           }
@@ -37,15 +37,15 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { bookingId, packageAmount, advanceAmount, dueAmount } = body;
+    const { jobId, packageAmount, advanceAmount, dueAmount } = body;
 
-    if (!bookingId) {
-      return NextResponse.json({ error: "Booking ID is required" }, { status: 422 });
+    if (!jobId) {
+      return NextResponse.json({ error: "Job ID is required" }, { status: 422 });
     }
 
     const newOrder = await prisma.order.create({
       data: {
-        bookingId,
+        jobId,
         package: parseFloat(packageAmount || 0),
         advance: parseFloat(advanceAmount || 0),
         due: parseFloat(dueAmount || 0),

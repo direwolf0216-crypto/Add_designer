@@ -1,14 +1,14 @@
 import Sidebar from "@/components/layout/Sidebar";
 import TopNavigation from "@/components/layout/TopNavigation";
-import { BookingProvider } from "@/components/providers/BookingProvider";
+import { JobProvider } from "@/components/providers/JobProvider";
 import { SystemProvider } from "@/components/providers/SystemProvider";
 import PageTransition from "@/components/layout/PageTransition";
 import { MobileNavProvider } from "@/components/providers/MobileNavProvider";
 import { GlobalFormProvider } from "@/components/providers/GlobalFormProvider";
-import BookingFormModal from "@/components/dashboard/BookingFormModal";
+import JobFormModal from "@/components/dashboard/JobFormModal";
 import TransactionModal from "@/components/dashboard/TransactionModal";
 import TransactionDetailsModal from "@/components/dashboard/TransactionDetailsModal";
-import OrderDetailsPanel from "@/components/gifts/OrderDetailsPanel";
+
 import React from "react";
 
 export default function MainLayout({
@@ -19,25 +19,39 @@ export default function MainLayout({
   return (
     <SystemProvider>
       <MobileNavProvider>
-        <BookingProvider>
+        <JobProvider>
           <GlobalFormProvider>
             <Sidebar />
-            <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-              <TopNavigation />
-              <div className="flex-1 overflow-x-hidden overflow-y-auto bg-[#fafafa] p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 relative">
+            <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-transparent relative">
+              {/* Colorful Background Patterns */}
+              <div
+                className="absolute inset-0 z-0 pointer-events-none"
+                style={{
+                  backgroundImage: 'url("/assets/saas_dashboard_bg.png")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  opacity: 0.70
+                }}
+              ></div>
+
+              <div className="relative z-50">
+                <TopNavigation />
+              </div>
+              <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 relative z-10">
                 <PageTransition>
                   {children}
                 </PageTransition>
               </div>
             </main>
-            
+
             {/* Global Forms */}
-            <BookingFormModal />
+            <JobFormModal />
             <TransactionModal />
             <TransactionDetailsModal />
-            <OrderDetailsPanel />
+
           </GlobalFormProvider>
-        </BookingProvider>
+        </JobProvider>
       </MobileNavProvider>
     </SystemProvider>
   );

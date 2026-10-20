@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const tomorrowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
 
-    const upcomingBookings = await prisma.booking.findMany({
+    const upcomingJobs = await prisma.job.findMany({
       where: {
         date: {
           gte: tomorrowStart,
@@ -32,8 +32,8 @@ export async function GET(request: Request) {
       },
     });
 
-    if (upcomingBookings.length === 0) {
-      return NextResponse.json({ success: true, message: "No bookings for tomorrow." });
+    if (upcomingJobs.length === 0) {
+      return NextResponse.json({ success: true, message: "No jobs for tomorrow." });
     }
 
     // Get admins as fallback
@@ -44,8 +44,8 @@ export async function GET(request: Request) {
 
     let notificationsSent = 0;
 
-    for (const booking of upcomingBookings) {
-      const photographers = Array.isArray(booking.photographers) ? booking.photographers : [];
+    for (const job of upcomingJobs) {
+      const photographers = Array.isArray(job.photographers) ? job.photographers : [];
       let recipients: string[] = [];
 
       // If photographers are assigned, notify them. Otherwise, notify admins.
@@ -55,9 +55,9 @@ export async function GET(request: Request) {
         recipients = admins.map((admin) => admin.id);
       }
 
-      const bNo = booking.bookingNumber || booking.id.substring(0, 8);
+      const bNo = job.jobNumber || job.id.substring(0, 8);
       const title = `Shoot Tomorrow!`;
-      const message = `Reminder: ${booking.category} shoot for ${booking.client.name} is scheduled for tomorrow at ${booking.location || 'TBD'}.`;
+      const message = `Reminder: ${job.category} shoot for ${job.client.name} is scheduled for tomorrow at ${job.location || 'TBD'}.`;
 
       for (const userId of recipients) {
         if (typeof userId === "string") {
@@ -66,9 +66,9 @@ export async function GET(request: Request) {
             title,
             message,
             type: "HOT_DATE_ALERT",
-            actionUrl: `/bookings/details/${booking.id}`,
-            entityId: booking.id,
-            entityType: "booking",
+            actionUrl: `/jobs/details/${job.id}`,
+            entityId: job.id,
+            entityType: "job",
             priority: "HIGH"
           });
           notificationsSent++;
@@ -78,7 +78,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Sent ${notificationsSent} reminders for ${upcomingBookings.length} bookings.` 
+      message: `Sent ${notificationsSent} reminders for ${upcomingJobs.length} jobs.` 
     });
 
   } catch (error) {

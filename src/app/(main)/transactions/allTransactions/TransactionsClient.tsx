@@ -180,7 +180,7 @@ function TransactionsList() {
           const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
           return `"${str.replace(/"/g, '""')}"`;
         };
-        const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Description', 'Payment Mode', 'Status', 'Amount', 'Attachment URL', 'Custom Data', 'Booking ID'];
+        const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Description', 'Payment Mode', 'Status', 'Amount', 'Attachment URL', 'Custom Data', 'Job ID'];
         const rows = transactions.map(tx => [
           escapeCsv(tx.transactionId),
           escapeCsv(new Date(tx.date).toLocaleDateString('en-IN')),
@@ -192,7 +192,7 @@ function TransactionsList() {
           escapeCsv(tx.amount),
           escapeCsv(tx.attachmentUrl),
           escapeCsv(tx.customData),
-          escapeCsv(tx.bookingId)
+          escapeCsv(tx.jobId)
         ]);
         
         const summaryRows = [
@@ -655,15 +655,7 @@ function TransactionsList() {
                         <div className="min-w-0">
                           {(() => {
                             let title = tx.description ? tx.description.split(' - ')[0] : tx.category;
-                            const isGifts = tx.category === 'GIFTS_AND_FRAMES';
-                            let isAdvance = false;
-                            let isDue = false;
-                            if (isGifts && tx.description) {
-                              const match = tx.description.match(/\(([^)]+)\)$/);
-                              if (match) title = match[1];
-                              if (tx.description.startsWith('Advance')) isAdvance = true;
-                              if (tx.description.startsWith('Due')) isDue = true;
-                            }
+
                             return (
                               <>
                                 <div className="truncate font-bold text-slate-900 text-sm mb-1">
@@ -671,23 +663,14 @@ function TransactionsList() {
                                 </div>
                                 <div className="flex min-w-0 items-center gap-2 flex-wrap">
                                   <span className={`max-w-[110px] truncate text-[9px] font-extrabold px-2 py-0.5 rounded tracking-wider uppercase ${colorClass.bg} ${colorClass.text}`}>
-                                    {isGifts ? 'GIFTS & FRAMES' : (tx.isGroup ? tx.categoryNames[0] : tx.category)}
+                                    {tx.isGroup ? tx.categoryNames[0] : tx.category}
                                   </span>
                                   {tx.isGroup && tx.categoryNames.length > 1 && (
                                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded tracking-wider uppercase bg-slate-100 text-slate-500 shrink-0`}>
                                       +{tx.categoryNames.length - 1} more
                                     </span>
                                   )}
-                                  {isGifts && isAdvance && (
-                                    <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-600 shrink-0">
-                                      ADV
-                                    </span>
-                                  )}
-                                  {isGifts && isDue && (
-                                    <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-red-50 text-red-600 shrink-0">
-                                      DUE
-                                    </span>
-                                  )}
+
                                   <span className="truncate text-[11px] text-slate-400 font-medium shrink-0">{new Date(tx.date).toLocaleDateString('en-GB')} &middot; {tx.paymentMode}</span>
                                   {!tx.isGroup && <span className="hidden sm:inline text-[10px] text-slate-300 font-mono shrink-0">{tx.transactionId}</span>}
                                 </div>
@@ -710,7 +693,7 @@ function TransactionsList() {
                                 event.stopPropagation();
                                 setDeleteId(tx.id);
                               }}
-                              className={`h-8 w-8 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-rose-100 hover:text-rose-600 hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 ${tx.productOrderId || tx.bookingId ? 'invisible' : 'visible'}`}
+                              className={`h-8 w-8 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-rose-100 hover:text-rose-600 hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 ${tx.productOrderId || tx.jobId ? 'invisible' : 'visible'}`}
                               title="Delete Transaction"
                             >
                               <i className="ph-bold ph-trash"></i>
@@ -720,7 +703,7 @@ function TransactionsList() {
                                 event.stopPropagation();
                                 openTransactionForm(tx.id);
                               }}
-                              className={`h-8 w-8 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-orange-100 hover:text-orange-600 hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 ${tx.productOrderId || tx.bookingId ? 'invisible' : 'visible'}`}
+                              className={`h-8 w-8 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-orange-100 hover:text-orange-600 hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 ${tx.productOrderId || tx.jobId ? 'invisible' : 'visible'}`}
                               title="Edit Transaction"
                             >
                               <i className="ph-bold ph-pencil-simple"></i>
@@ -993,7 +976,7 @@ function TransactionsList() {
               </div>
               <input
                 type="text"
-                placeholder="e.g. Wedding, Software, Rent"
+                placeholder="e.g. Printing, Software, Rent"
                 value={tempFilters.categories}
                 onChange={e => setTempFilters({...tempFilters, categories: e.target.value})}
                 className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-slate-300"

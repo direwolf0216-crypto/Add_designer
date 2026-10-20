@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { clearLayoutCache } from "./[formKey]/route";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -46,6 +47,7 @@ export async function PUT(request: Request) {
     });
 
     // Invalidate caches so the modal reads the newest layout immediately
+    clearLayoutCache(formKey);
     revalidatePath("/api/settings/layouts");
     revalidatePath(`/api/settings/layouts/${formKey}`);
 

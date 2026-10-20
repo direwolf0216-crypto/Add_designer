@@ -11,7 +11,7 @@ export default function RevenueTarget({ currentRevenue }: RevenueTargetProps) {
   const isGoalReached = progress >= 100;
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[110px]">
+    <div className="dashboard-card p-4 flex flex-col justify-between min-h-[110px]">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-[0.95rem] font-extrabold text-slate-900 tracking-tight">Period Target</h3>
         <span className="text-[0.6rem] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-wider">₹{(target/1000).toFixed(0)}k Goal</span>

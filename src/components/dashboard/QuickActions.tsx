@@ -3,24 +3,24 @@ import { useGlobalForm } from '@/components/providers/GlobalFormProvider';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export default function QuickActions() {
-  const { openBookingForm, openTransactionForm } = useGlobalForm();
+  const { openJobForm, openTransactionForm } = useGlobalForm();
   const { checkPermission } = usePermissions();
 
-  const canManageBookings = checkPermission('manage_bookings');
+  const canManageJobs = checkPermission('manage_jobs');
   const canManageTransactions = checkPermission('manage_transactions');
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
       <button 
-        onClick={() => openBookingForm()}
-        className={`flex items-center gap-3 bg-[#1e2338] hover:bg-[#2a3048] text-white px-5 py-3 rounded-2xl shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 shrink-0 ${!canManageBookings ? 'hidden' : ''}`}
+        onClick={() => openJobForm()}
+        className={`flex items-center gap-3 bg-[#1e2338] hover:bg-[#2a3048] text-white px-5 py-3 rounded-2xl shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 shrink-0 ${!canManageJobs ? 'hidden' : ''}`}
       >
         <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
           <i className="ph-bold ph-plus text-lg"></i>
         </div>
         <div className="flex flex-col items-start pr-2">
           <span className="text-[0.65rem] font-bold text-slate-300 capitalize tracking-wide">New</span>
-          <span className="text-[1rem] font-extrabold leading-none tracking-tight">Booking</span>
+          <span className="text-[1rem] font-extrabold leading-none tracking-tight">Job</span>
         </div>
       </button>
 

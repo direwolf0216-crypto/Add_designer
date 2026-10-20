@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 interface InviteUserModalProps {
@@ -9,9 +10,8 @@ interface InviteUserModalProps {
 }
 
 const ROLES = [
-  { value: "STAFF", label: "Staff", description: "Can manage bookings and view transactions" },
-  { value: "PHOTOGRAPHER", label: "Photographer", description: "Can view and manage galleries" },
-  { value: "ADMIN", label: "Studio Admin", description: "Full access to all features" },
+  { value: "STAFF", label: "Staff", description: "Can manage jobs and view transactions" },
+  { value: "ADMIN", label: "Admin", description: "Full access to all features" },
 ];
 
 export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalProps) {
@@ -57,7 +57,12 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
     }
   };
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
@@ -75,7 +80,7 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
                 {result ? "Invite Sent!" : "Invite Team Member"}
               </h3>
               <p className="text-xs text-slate-500">
-                {result ? "Share these credentials" : "Add a new user to your studio"}
+                {result ? "Share these credentials" : "Add a new user to your system"}
               </p>
             </div>
           </div>
@@ -157,7 +162,7 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. arjun@studio.com"
+                    placeholder="e.g. arjun@example.com"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                   />
                 </div>
@@ -245,6 +250,7 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

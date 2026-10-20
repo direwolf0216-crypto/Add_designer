@@ -4,14 +4,21 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+const usersCache: Record<string, { value: any; timestamp: number }> = {};
+const USERS_CACHE_TTL = 30000; // 30 seconds
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Allow all authenticated users to see the team list for picklists
-  // (We removed the ADMIN-only restriction for GET)
+  const userRole = (session.user as any).role || "STAFF";
+  const cacheKey = `users_${userRole}`;
+
+  if (usersCache[cacheKey] && Date.now() - usersCache[cacheKey].timestamp < USERS_CACHE_TTL) {
+    return NextResponse.json(usersCache[cacheKey].value);
+  }
 
   try {
     const users = await prisma.user.findMany({
@@ -43,9 +50,11 @@ export async function GET() {
         return user;
       });
       
+      usersCache[cacheKey] = { value: usersWithTokens, timestamp: Date.now() };
       return NextResponse.json(usersWithTokens);
     }
 
+    usersCache[cacheKey] = { value: users, timestamp: Date.now() };
     return NextResponse.json(users);
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
@@ -71,7 +80,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name and email are required" }, { status: 422 });
     }
 
-    const validRoles = ["ADMIN", "STAFF", "PHOTOGRAPHER"];
+    const validRoles = ["ADMIN", "STAFF"];
     if (!role || !validRoles.includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 422 });
     }

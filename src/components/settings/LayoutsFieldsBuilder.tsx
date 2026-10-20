@@ -12,7 +12,8 @@ import CustomMultiDropdown from "@/components/ui/CustomMultiDropdown";
 export interface FormField {
   id: string;
   name: string;
-  type: string;
+  type: string; // 'SINGLE_LINE', 'MULTI_LINE', 'NUMBER', 'CURRENCY', 'DATE', 'PICK_LIST', 'MULTI_SELECT', 'CHECKBOX', 'FILE', 'IMAGE', 'USER_PICKLIST', 'MULTI_USER_PICKLIST', 'STATUS_PICKER', 'TIME', 'CATEGORY_PICKER'
+  isRepeatableField?: boolean;
   mandatory: boolean;
   options?: string[];
   statusOptions?: { label: string; color: string }[];
@@ -50,6 +51,7 @@ interface FormSection {
     operator: 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS';
     values?: string[];
   };
+  isRepeatable?: boolean;
 }
 
 interface FormSchema {
@@ -90,7 +92,7 @@ export default function LayoutsFieldsBuilder() {
   const [layouts, setLayouts] = useState<FormLayout[]>([]);
   const [activeFormKey, setActiveFormKey] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showNewFormModal, setShowNewFormModal] = useState(false);
@@ -108,7 +110,7 @@ export default function LayoutsFieldsBuilder() {
   const [draggedOptionIdx, setDraggedOptionIdx] = useState<number | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
-  
+
   // Field Drag and drop state
   const [draggedNewFieldType, setDraggedNewFieldType] = useState<string | null>(null);
   const [draggedFieldContext, setDraggedFieldContext] = useState<{ sectionId: string, fieldIndex: number } | null>(null);
@@ -119,14 +121,14 @@ export default function LayoutsFieldsBuilder() {
       const res = await fetch("/api/settings/layouts");
       if (!res.ok) throw new Error("Failed to fetch layouts");
       const data: FormLayout[] = await res.json();
-      
+
       const merged: FormLayout[] = [...(DEFAULT_LAYOUTS as unknown as FormLayout[])];
       data.forEach(dbLayout => {
         const idx = merged.findIndex(m => m.formKey === dbLayout.formKey);
         if (idx >= 0) merged[idx] = dbLayout;
         else merged.push(dbLayout);
       });
-      
+
       setLayouts(merged as FormLayout[]);
     } catch (error) {
       toast.error("Failed to load form layouts");
@@ -156,7 +158,7 @@ export default function LayoutsFieldsBuilder() {
   // Derive the currently selected field object and its parent section
   let selectedField: FormField | null = null;
   let selectedSectionId: string | null = null;
-  
+
   if (activeLayout && selectedFieldId) {
     for (const section of activeLayout.schema.sections) {
       const field = section.fields.find(f => f.id === selectedFieldId);
@@ -196,7 +198,7 @@ export default function LayoutsFieldsBuilder() {
     if (!activeLayout) return;
     const newSection: FormSection = {
       id: `sec_${Date.now()}`,
-      title: `Untitled Section ${activeLayout.schema.sections.length + 1}`,
+      title: `Untitled Section ${(activeLayout.schema.sections?.length || 0) + 1}`,
       description: "Section description goes here.",
       icon: "ph-squares-four",
       fields: []
@@ -209,7 +211,7 @@ export default function LayoutsFieldsBuilder() {
 
   const updateSectionTitle = (sectionId: string, newTitle: string) => {
     if (!activeLayout) return;
-    const sections = activeLayout.schema.sections.map(s => 
+    const sections = activeLayout.schema.sections.map(s =>
       s.id === sectionId ? { ...s, title: newTitle } : s
     );
     updateActiveLayout({ ...activeLayout, schema: { ...activeLayout.schema, sections } });
@@ -227,8 +229,16 @@ export default function LayoutsFieldsBuilder() {
 
   const updateSectionDescription = (sectionId: string, newDesc: string) => {
     if (!activeLayout) return;
-    const sections = activeLayout.schema.sections.map(s => 
+    const sections = activeLayout.schema.sections.map(s =>
       s.id === sectionId ? { ...s, description: newDesc } : s
+    );
+    updateActiveLayout({ ...activeLayout, schema: { ...activeLayout.schema, sections } });
+  };
+
+  const updateSectionRepeatable = (sectionId: string, isRepeatable: boolean) => {
+    if (!activeLayout) return;
+    const sections = activeLayout.schema.sections.map(s =>
+      s.id === sectionId ? { ...s, isRepeatable } : s
     );
     updateActiveLayout({ ...activeLayout, schema: { ...activeLayout.schema, sections } });
   };
@@ -252,7 +262,7 @@ export default function LayoutsFieldsBuilder() {
       mandatory: false,
       options: ["Option 1", "Option 2", "Option 3"]
     };
-    const sections = activeLayout.schema.sections.map(s => 
+    const sections = activeLayout.schema.sections.map(s =>
       s.id === sectionId ? { ...s, fields: [...(s.fields || []), newField] } : s
     );
     updateActiveLayout({ ...activeLayout, schema: { ...activeLayout.schema, sections } });
@@ -280,7 +290,7 @@ export default function LayoutsFieldsBuilder() {
     const sections = [...l.schema.sections];
     const sourceIdx = sections.findIndex(s => s.id === draggedSectionId);
     const targetIdx = sections.findIndex(s => s.id === targetSectionId);
-    
+
     if (sourceIdx === -1 || targetIdx === -1) return;
 
     const [moved] = sections.splice(sourceIdx, 1);
@@ -318,9 +328,9 @@ export default function LayoutsFieldsBuilder() {
     } else if (draggedFieldContext) {
       // Reorder existing field
       const { sectionId: sourceSectionId, fieldIndex: sourceIndex } = draggedFieldContext;
-      
+
       let movedField: FormField | null = null;
-      
+
       // Extract the field
       const tempSections = activeLayout.schema.sections.map(s => {
         if (s.id === sourceSectionId) {
@@ -389,7 +399,7 @@ export default function LayoutsFieldsBuilder() {
   const handleRemoveOption = async (idx: number) => {
     if (!activeLayout || !selectedField || !selectedField.options) return;
     const oldValue = selectedField.options[idx];
-    
+
     setCheckingUsage(true);
     try {
       const res = await fetch('/api/settings/layouts/check-usage', {
@@ -467,11 +477,11 @@ export default function LayoutsFieldsBuilder() {
             <i className="ph-bold ph-plus"></i> Create Form
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {layouts.map(layout => (
-              <div 
+              <div
                 key={layout.formKey}
                 onClick={() => setActiveFormKey(layout.formKey)}
                 className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-orange-300 transition-all cursor-pointer group"
@@ -503,7 +513,7 @@ export default function LayoutsFieldsBuilder() {
                   <label className="text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Form Name</label>
                   <input
                     type="text"
-                    value={newFormName}
+                    value={newFormName ?? ''}
                     onChange={(e) => setNewFormName(e.target.value)}
                     placeholder="e.g. Employee Feedback"
                     className="w-full text-sm font-semibold text-slate-800 bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-orange-400 focus:bg-white transition-colors"
@@ -512,7 +522,7 @@ export default function LayoutsFieldsBuilder() {
                 <div>
                   <label className="text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Description</label>
                   <textarea
-                    value={newFormDescription}
+                    value={newFormDescription ?? ''}
                     onChange={(e) => setNewFormDescription(e.target.value)}
                     placeholder="What is this form used for?"
                     rows={2}
@@ -534,11 +544,11 @@ export default function LayoutsFieldsBuilder() {
   // --- View 2: Form Editor (3-Column Layout) ---
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden h-[850px] flex flex-col font-sans">
-      
+
       {/* Top Header */}
       <div className="min-h-[4rem] h-auto border-b border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between p-4 sm:px-6 sm:py-0 shrink-0 gap-4 sm:gap-0">
         <div className="flex items-center gap-4 w-full sm:w-auto">
-          <button 
+          <button
             onClick={() => {
               setActiveFormKey(null);
               setSelectedFieldId(null);
@@ -567,7 +577,7 @@ export default function LayoutsFieldsBuilder() {
       </div>
 
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden bg-slate-50">
-        
+
         {/* Left Column: Palette */}
         <div className="w-full lg:w-[280px] h-[250px] lg:h-auto bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shrink-0">
           <div className="flex border-b border-gray-100 px-4 py-3">
@@ -586,7 +596,7 @@ export default function LayoutsFieldsBuilder() {
                   }}
                   onDragEnd={() => setDraggedNewFieldType(null)}
                   onClick={() => {
-                    if (activeLayout.schema.sections.length === 0) {
+                    if (!activeLayout.schema.sections || activeLayout.schema.sections.length === 0) {
                       toast.error("Please add a section first!");
                       return;
                     }
@@ -599,7 +609,7 @@ export default function LayoutsFieldsBuilder() {
                 </button>
               ))}
             </div>
-            
+
             <div className="mt-8 px-2">
               <button
                 onClick={addSection}
@@ -614,238 +624,248 @@ export default function LayoutsFieldsBuilder() {
         {/* Center Column: Canvas (WYSIWYG Form Representation) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-10 relative bg-white" onClick={() => setSelectedFieldId(null)}>
           <div className="max-w-[850px] mx-auto flex flex-col gap-6 lg:gap-8 pb-20">
-            {activeLayout.schema.sections.length === 0 ? (
-               <div className="border-2 border-dashed border-gray-200 bg-slate-50/50 rounded-2xl p-16 text-center shadow-sm">
-                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200">
-                   <i className="ph ph-layout text-3xl text-slate-400"></i>
-                 </div>
-                 <h3 className="font-extrabold text-slate-900 text-lg mb-2">No Sections Yet</h3>
-                 <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">Start building your form by adding a section. Sections help group related fields together logically.</p>
-                 <button onClick={(e) => { e.stopPropagation(); addSection(); }} className="px-5 py-2.5 bg-orange-100 text-orange-700 font-bold text-sm rounded-xl hover:bg-orange-200 transition-colors">
-                   Add First Section
-                 </button>
-               </div>
+            {(!activeLayout.schema.sections || activeLayout.schema.sections.length === 0) ? (
+              <div className="border-2 border-dashed border-gray-200 bg-slate-50/50 rounded-2xl p-16 text-center shadow-sm">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200">
+                  <i className="ph ph-layout text-3xl text-slate-400"></i>
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-lg mb-2">No Sections Yet</h3>
+                <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">Start building your form by adding a section. Sections help group related fields together logically.</p>
+                <button onClick={(e) => { e.stopPropagation(); addSection(); }} className="px-5 py-2.5 bg-orange-100 text-orange-700 font-bold text-sm rounded-xl hover:bg-orange-200 transition-colors">
+                  Add First Section
+                </button>
+              </div>
             ) : (
               activeLayout.schema.sections.map((section) => {
-                const isSectionLocked = section.id === 'sec_booking_financial' || section.locked;
+                const isSectionLocked = section.id === 'sec_job_financial' || section.locked;
                 return (
-                <div 
-                  key={section.id} 
-                  draggable={!isSectionLocked}
-                  onDragStart={(e) => {
-                    if (isSectionLocked) {
-                      e.preventDefault();
-                      return;
-                    }
-                    e.stopPropagation();
-                    setDraggedSectionId(section.id);
-                  }}
-                  onDragEnd={() => {
-                    if (isSectionLocked) return;
-                    setDraggedSectionId(null);
-                    setDragOverSectionId(null);
-                  }}
-                  className={`group/section relative bg-slate-50 border rounded-2xl p-8 transition-colors ${
-                    dragOverSectionId === section.id ? 'border-orange-500 shadow-[0_0_0_3px_rgba(249,115,22,0.3)] -translate-y-1' : ''} ${
-                    dragOverTarget?.sectionId === section.id && dragOverTarget?.fieldIndex === section.fields.length
+                  <div
+                    key={section.id}
+                    draggable={!isSectionLocked}
+                    onDragStart={(e) => {
+                      if (isSectionLocked) {
+                        e.preventDefault();
+                        return;
+                      }
+                      e.stopPropagation();
+                      setDraggedSectionId(section.id);
+                    }}
+                    onDragEnd={() => {
+                      if (isSectionLocked) return;
+                      setDraggedSectionId(null);
+                      setDragOverSectionId(null);
+                    }}
+                    className={`group/section relative bg-slate-50 border rounded-2xl p-8 transition-colors ${dragOverSectionId === section.id ? 'border-orange-500 shadow-[0_0_0_3px_rgba(249,115,22,0.3)] -translate-y-1' : ''} ${dragOverTarget?.sectionId === section.id && dragOverTarget?.fieldIndex === (section.fields?.length || 0)
                       ? 'border-orange-400 shadow-[0_0_0_2px_rgba(249,115,22,0.2)]'
                       : 'border-gray-100'
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (draggedSectionId) {
-                      e.dataTransfer.dropEffect = "move";
-                      if (dragOverSectionId !== section.id) setDragOverSectionId(section.id);
-                    } else {
-                      e.dataTransfer.dropEffect = draggedNewFieldType ? "copy" : "move";
-                      setDragOverTarget({ sectionId: section.id, fieldIndex: section.fields.length });
-                    }
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (draggedSectionId) {
-                      handleSectionDrop(e, section.id);
-                    } else {
-                      handleDrop(e, section.id, section.fields.length);
-                    }
-                  }}
-                >
-                  {/* Section Header */}
-                  <div className="flex items-start gap-4 mb-8">
-                    <Popover>
-                      <PopoverTrigger>
-                        <div className="text-orange-500 mt-1 w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center hover:bg-orange-100 transition-colors cursor-pointer border border-orange-100 outline-none">
-                          <i className={`ph-fill ${section.icon || 'ph-squares-four'} text-2xl`}></i>
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-0 rounded-2xl border-slate-100 shadow-xl" align="start">
-                        <div className="p-3 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
-                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Choose Section Icon</p>
-                        </div>
-                        <div className="p-2 max-h-72 overflow-y-auto">
-                          {Object.entries(APP_ICONS_BY_CATEGORY).map(([cat, icons]) => (
-                            <div key={cat} className="mb-3 last:mb-0">
-                              <p className="text-[0.65rem] font-bold text-slate-400 uppercase tracking-widest px-2 mb-1.5">{cat}</p>
-                              <div className="grid grid-cols-5 gap-1">
-                                {icons.map(icon => (
-                                  <button
-                                    key={icon.id}
-                                    onClick={() => updateSectionIcon(section.id, icon.className)}
-                                    title={icon.label}
-                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${section.icon === icon.className ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-slate-600 hover:bg-slate-100 hover:text-orange-600'}`}
-                                  >
-                                    <i className={`ph-fill ${icon.className}`}></i>
-                                  </button>
-                                ))}
+                      }`}
+                    onClick={(e) => e.stopPropagation()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggedSectionId) {
+                        e.dataTransfer.dropEffect = "move";
+                        if (dragOverSectionId !== section.id) setDragOverSectionId(section.id);
+                      } else {
+                        e.dataTransfer.dropEffect = draggedNewFieldType ? "copy" : "move";
+                        setDragOverTarget({ sectionId: section.id, fieldIndex: (section.fields?.length || 0) });
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedSectionId) {
+                        handleSectionDrop(e, section.id);
+                      } else {
+                        handleDrop(e, section.id, (section.fields?.length || 0));
+                      }
+                    }}
+                  >
+                    {/* Section Header */}
+                    <div className="flex items-start gap-4 mb-8">
+                      <Popover>
+                        <PopoverTrigger>
+                          <div className="text-orange-500 mt-1 w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center hover:bg-orange-100 transition-colors cursor-pointer border border-orange-100 outline-none">
+                            <i className={`ph-fill ${section.icon || 'ph-squares-four'} text-2xl`}></i>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-0 rounded-2xl border-slate-100 shadow-xl" align="start">
+                          <div className="p-3 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Choose Section Icon</p>
+                          </div>
+                          <div className="p-2 max-h-72 overflow-y-auto">
+                            {Object.entries(APP_ICONS_BY_CATEGORY).map(([cat, icons]) => (
+                              <div key={cat} className="mb-3 last:mb-0">
+                                <p className="text-[0.65rem] font-bold text-slate-400 uppercase tracking-widest px-2 mb-1.5">{cat}</p>
+                                <div className="grid grid-cols-5 gap-1">
+                                  {icons.map(icon => (
+                                    <button
+                                      key={icon.id}
+                                      onClick={() => updateSectionIcon(section.id, icon.className)}
+                                      title={icon.label}
+                                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${section.icon === icon.className ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-slate-600 hover:bg-slate-100 hover:text-orange-600'}`}
+                                    >
+                                      <i className={`ph-fill ${icon.className}`}></i>
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={section.title}
-                        onChange={(e) => updateSectionTitle(section.id, e.target.value)}
-                        className={`font-extrabold text-slate-900 bg-transparent border-none outline-none focus:ring-0 p-0 text-xl placeholder:text-slate-300 w-full mb-1 ${isSectionLocked ? 'pointer-events-none' : ''}`}
-                        placeholder="Section Title"
-                        readOnly={isSectionLocked}
-                      />
-                      <input
-                        type="text"
-                        value={section.description || ""}
-                        onChange={(e) => updateSectionDescription(section.id, e.target.value)}
-                        className={`text-[0.95rem] text-slate-500 bg-transparent border-none outline-none focus:ring-0 p-0 w-full placeholder:text-slate-300 ${isSectionLocked ? 'pointer-events-none' : ''}`}
-                        placeholder="Section Description..."
-                        readOnly={isSectionLocked}
-                      />
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={section.title ?? ''}
+                          onChange={(e) => updateSectionTitle(section.id, e.target.value)}
+                          className={`font-extrabold text-slate-900 bg-transparent border-none outline-none focus:ring-0 p-0 text-xl placeholder:text-slate-300 w-full mb-1 ${isSectionLocked ? 'pointer-events-none' : ''}`}
+                          placeholder="Section Title"
+                          readOnly={isSectionLocked}
+                        />
+                        <input
+                          type="text"
+                          value={section.description || ""}
+                          onChange={(e) => updateSectionDescription(section.id, e.target.value)}
+                          className={`text-[0.95rem] text-slate-500 bg-transparent border-none outline-none focus:ring-0 p-0 w-full placeholder:text-slate-300 ${isSectionLocked ? 'pointer-events-none' : ''}`}
+                          placeholder="Section Description..."
+                          readOnly={isSectionLocked}
+                        />
+                        {!isSectionLocked && (
+                          <div className="mt-2 flex items-center gap-2">
+                             <label className="text-xs font-semibold text-slate-500 flex items-center gap-2 cursor-pointer hover:text-slate-800 transition-colors">
+                               <input type="checkbox" checked={!!section.isRepeatable} onChange={(e) => updateSectionRepeatable(section.id, e.target.checked)} className="rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer" />
+                               Repeatable Section (Sub-form)
+                             </label>
+                          </div>
+                        )}
+                      </div>
+                      {!isSectionLocked && (
+                        <button
+                          onClick={() => removeSection(section.id)}
+                          className="opacity-0 group-hover/section:opacity-100 text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-all"
+                          title="Delete Section"
+                        >
+                          <i className="ph-bold ph-trash text-lg"></i>
+                        </button>
+                      )}
                     </div>
+
+                    {/* Section Fields Grid */}
+                    <div className={`gap-x-6 gap-y-6 ${section.isRepeatable ? 'p-4 bg-slate-50/80 border border-slate-200 rounded-2xl flex flex-col' : 'grid grid-cols-1 md:grid-cols-2'}`}>
+                      {section.fields.map((field, idx) => {
+                        const isSelected = selectedFieldId === field.id;
+                        const typeDef = FIELD_TYPES.find(t => t.value === field.type);
+                        const isDragOver = dragOverTarget?.sectionId === section.id && dragOverTarget?.fieldIndex === idx;
+
+                        return (
+                          <div key={field.id} className="relative">
+                            {isDragOver && !isSectionLocked && (
+                              <div className="absolute -left-3 -top-3 bottom-0 w-1.5 bg-orange-500 rounded-full z-20 shadow-[0_0_8px_rgba(249,115,22,0.6)] animate-pulse"></div>
+                            )}
+                            <div
+                              draggable={!isSectionLocked}
+                              onDragStart={(e) => {
+                                if (isSectionLocked) return;
+                                setDraggedFieldContext({ sectionId: section.id, fieldIndex: idx });
+                                e.dataTransfer.effectAllowed = "move";
+                                e.dataTransfer.setData("text/plain", `field_${field.id}`);
+                              }}
+                              onDragEnd={() => {
+                                if (isSectionLocked) return;
+                                setDraggedFieldContext(null);
+                                setDragOverTarget(null);
+                              }}
+                              onDragOver={(e) => {
+                                if (isSectionLocked) return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = draggedNewFieldType ? "copy" : "move";
+                                setDragOverTarget({ sectionId: section.id, fieldIndex: idx });
+                              }}
+                              onDrop={(e) => {
+                                if (isSectionLocked) return;
+                                e.stopPropagation();
+                                handleDrop(e, section.id, idx);
+                              }}
+                              onClick={(e) => {
+                                if (isSectionLocked) return;
+                                e.stopPropagation();
+                                setSelectedFieldId(field.id);
+                              }}
+                              className={`relative transition-all group/field rounded-2xl p-3 -m-3 ${isSectionLocked ? '' : 'cursor-grab active:cursor-grabbing'
+                                } ${isSelected
+                                  ? 'bg-orange-50/50 outline outline-2 outline-orange-500 z-10'
+                                  : isSectionLocked ? '' : 'hover:bg-slate-100/50 hover:outline hover:outline-1 hover:outline-gray-200'
+                                }`}
+                            >
+                              {/* Realistic Label */}
+                              {field.type !== 'CHECKBOX' && (
+                                <label className="text-[0.7rem] font-bold text-slate-600 uppercase tracking-wider mb-2 block truncate cursor-grab active:cursor-grabbing">
+                                  {field.name || 'Untitled Field'} {field.mandatory && <span className="text-red-500">*</span>}
+                                </label>
+                              )}
+
+                              {/* Realistic Input Field */}
+                              {field.type === 'CHECKBOX' ? (
+                                <div className="w-full h-[52px] bg-white border border-gray-200 rounded-xl flex items-center px-4 shadow-sm pointer-events-none gap-3">
+                                  <div className="w-5 h-5 rounded border-2 border-gray-300 bg-white flex shrink-0"></div>
+                                  <span className="text-[0.95rem] text-slate-600 font-semibold truncate">{field.name || 'Untitled Field'}</span>
+                                </div>
+                              ) : (
+                                <div className="w-full h-[52px] bg-white border border-gray-200 rounded-xl flex items-center justify-between px-4 shadow-sm pointer-events-none">
+                                  <span className="text-[0.95rem] text-slate-400 truncate">
+                                    {field.placeholder || (field.type === 'PICK_LIST' || field.type === 'DATE' ? `Select ${(field.name ?? '').toLowerCase()}...` : `e.g. Enter ${(field.name ?? '').toLowerCase()}...`)}
+                                  </span>
+                                  <i className={`ph ${typeDef?.icon || 'ph-text-t'} text-slate-400 text-lg`}></i>
+                                </div>
+                              )}
+
+                              {/* Floating Action Menu (Delete) */}
+                              {!isSectionLocked && (
+                                <div className={`absolute -right-2 -top-2 bg-white border border-gray-200 rounded-full shadow-sm flex items-center transition-opacity z-20 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/field:opacity-100'}`}>
+                                  <button
+                                    onClick={(e) => removeField(section.id, field.id, e)}
+                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-600 rounded-full hover:bg-slate-50"
+                                    title="Delete Field"
+                                  >
+                                    <i className="ph-bold ph-trash"></i>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {section.isRepeatable && (
+                      <div className="flex justify-center mt-4">
+                        <button className="px-4 py-2 rounded-xl bg-white border border-dashed border-slate-300 text-slate-500 text-sm font-semibold pointer-events-none flex items-center gap-2">
+                          <i className="ph-bold ph-plus"></i> Add Entry
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Inline Add Field Area (Drop Zone) */}
                     {!isSectionLocked && (
                       <button
-                        onClick={() => removeSection(section.id)}
-                        className="opacity-0 group-hover/section:opacity-100 text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-all"
-                        title="Delete Section"
+                        onClick={() => addFieldToSection(section.id)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverTarget({ sectionId: section.id, fieldIndex: (section.fields?.length || 0) });
+                        }}
+                        onDrop={(e) => {
+                          e.stopPropagation();
+                          handleDrop(e, section.id, (section.fields?.length || 0));
+                        }}
+                        className={`mt-8 w-full py-3.5 border border-dashed rounded-xl text-[0.85rem] font-bold transition-colors flex items-center justify-center gap-2 ${dragOverTarget?.sectionId === section.id && dragOverTarget?.fieldIndex === (section.fields?.length || 0)
+                          ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm outline outline-2 outline-orange-200'
+                          : 'border-gray-300 text-slate-500 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50/50'
+                          }`}
                       >
-                        <i className="ph-bold ph-trash text-lg"></i>
+                        <i className="ph-bold ph-plus"></i> Add Field Here
                       </button>
                     )}
                   </div>
-
-                  {/* Section Fields Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                    {section.fields.map((field, idx) => {
-                      const isSelected = selectedFieldId === field.id;
-                      const typeDef = FIELD_TYPES.find(t => t.value === field.type);
-                      const isDragOver = dragOverTarget?.sectionId === section.id && dragOverTarget?.fieldIndex === idx;
-                      
-                      return (
-                        <div key={field.id} className="relative">
-                          {isDragOver && !isSectionLocked && (
-                            <div className="absolute -left-3 -top-3 bottom-0 w-1.5 bg-orange-500 rounded-full z-20 shadow-[0_0_8px_rgba(249,115,22,0.6)] animate-pulse"></div>
-                          )}
-                          <div 
-                            draggable={!isSectionLocked}
-                            onDragStart={(e) => {
-                              if (isSectionLocked) return;
-                              setDraggedFieldContext({ sectionId: section.id, fieldIndex: idx });
-                              e.dataTransfer.effectAllowed = "move";
-                              e.dataTransfer.setData("text/plain", `field_${field.id}`);
-                            }}
-                            onDragEnd={() => {
-                              if (isSectionLocked) return;
-                              setDraggedFieldContext(null);
-                              setDragOverTarget(null);
-                            }}
-                            onDragOver={(e) => {
-                              if (isSectionLocked) return;
-                              e.preventDefault();
-                              e.stopPropagation();
-                              e.dataTransfer.dropEffect = draggedNewFieldType ? "copy" : "move";
-                              setDragOverTarget({ sectionId: section.id, fieldIndex: idx });
-                            }}
-                            onDrop={(e) => {
-                              if (isSectionLocked) return;
-                              e.stopPropagation();
-                              handleDrop(e, section.id, idx);
-                            }}
-                            onClick={(e) => { 
-                              if (isSectionLocked) return;
-                              e.stopPropagation(); 
-                              setSelectedFieldId(field.id); 
-                            }}
-                            className={`relative transition-all group/field rounded-2xl p-3 -m-3 ${
-                              isSectionLocked ? '' : 'cursor-grab active:cursor-grabbing'
-                            } ${
-                              isSelected 
-                                ? 'bg-orange-50/50 outline outline-2 outline-orange-500 z-10' 
-                                : isSectionLocked ? '' : 'hover:bg-slate-100/50 hover:outline hover:outline-1 hover:outline-gray-200'
-                            }`}
-                          >
-                            {/* Realistic Label */}
-                            {field.type !== 'CHECKBOX' && (
-                              <label className="text-[0.7rem] font-bold text-slate-600 uppercase tracking-wider mb-2 block truncate cursor-grab active:cursor-grabbing">
-                                {field.name || 'Untitled Field'} {field.mandatory && <span className="text-red-500">*</span>}
-                              </label>
-                            )}
-                            
-                            {/* Realistic Input Field */}
-                            {field.type === 'CHECKBOX' ? (
-                              <div className="w-full h-[52px] bg-white border border-gray-200 rounded-xl flex items-center px-4 shadow-sm pointer-events-none gap-3">
-                                <div className="w-5 h-5 rounded border-2 border-gray-300 bg-white flex shrink-0"></div>
-                                <span className="text-[0.95rem] text-slate-600 font-semibold truncate">{field.name || 'Untitled Field'}</span>
-                              </div>
-                            ) : (
-                              <div className="w-full h-[52px] bg-white border border-gray-200 rounded-xl flex items-center justify-between px-4 shadow-sm pointer-events-none">
-                                <span className="text-[0.95rem] text-slate-400 truncate">
-                                  {field.placeholder || (field.type === 'PICK_LIST' || field.type === 'DATE' ? `Select ${field.name.toLowerCase()}...` : `e.g. Enter ${field.name.toLowerCase()}...`)}
-                                </span>
-                                <i className={`ph ${typeDef?.icon || 'ph-text-t'} text-slate-400 text-lg`}></i>
-                              </div>
-                            )}
-
-                            {/* Floating Action Menu (Delete) */}
-                            {!isSectionLocked && (
-                              <div className={`absolute -right-2 -top-2 bg-white border border-gray-200 rounded-full shadow-sm flex items-center transition-opacity z-20 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/field:opacity-100'}`}>
-                                <button 
-                                  onClick={(e) => removeField(section.id, field.id, e)}
-                                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-600 rounded-full hover:bg-slate-50"
-                                  title="Delete Field"
-                                >
-                                  <i className="ph-bold ph-trash"></i>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                    
-                  {/* Inline Add Field Area (Drop Zone) */}
-                  {!isSectionLocked && (
-                    <button
-                      onClick={() => addFieldToSection(section.id)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setDragOverTarget({ sectionId: section.id, fieldIndex: section.fields.length });
-                      }}
-                      onDrop={(e) => {
-                        e.stopPropagation();
-                        handleDrop(e, section.id, section.fields.length);
-                      }}
-                      className={`mt-8 w-full py-3.5 border border-dashed rounded-xl text-[0.85rem] font-bold transition-colors flex items-center justify-center gap-2 ${
-                        dragOverTarget?.sectionId === section.id && dragOverTarget?.fieldIndex === section.fields.length
-                          ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm outline outline-2 outline-orange-200'
-                          : 'border-gray-300 text-slate-500 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50/50'
-                      }`}
-                    >
-                      <i className="ph-bold ph-plus"></i> Add Field Here
-                    </button>
-                  )}
-                </div>
                 );
               })
             )}
@@ -866,7 +886,7 @@ export default function LayoutsFieldsBuilder() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                
+
                 {/* Field Label */}
                 <div>
                   <label className="text-[0.75rem] font-bold text-slate-600 mb-1.5 flex items-center gap-1">
@@ -874,7 +894,7 @@ export default function LayoutsFieldsBuilder() {
                   </label>
                   <input
                     type="text"
-                    value={selectedField.name}
+                    value={selectedField.name ?? ''}
                     onChange={(e) => updateSelectedField({ name: e.target.value })}
                     className="w-full text-sm font-semibold text-slate-800 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
                   />
@@ -882,13 +902,45 @@ export default function LayoutsFieldsBuilder() {
 
                 {/* Mandatory Toggle */}
                 <div className="pt-2">
-                  <label className="flex items-center gap-3 cursor-pointer group">
+                  <label
+                    className="flex items-center gap-3 cursor-pointer group"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      updateSelectedField({ mandatory: !selectedField.mandatory });
+                    }}
+                  >
                     <div className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${selectedField.mandatory ? 'bg-orange-500' : 'bg-slate-300'}`}>
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${selectedField.mandatory ? 'translate-x-5' : 'translate-x-0'}`}></span>
                     </div>
                     <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Mandatory Field</span>
                   </label>
                 </div>
+
+                {/* Include in Repeatable Sub-Section */}
+                {(() => {
+                  const parentSection = activeLayout?.schema.sections.find(s => s.id === selectedSectionId);
+                  if (parentSection?.isRepeatable) {
+                    return (
+                      <div className="pt-2 border-t border-gray-100">
+                        <label
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            // Default to true if undefined
+                            const currentVal = selectedField.isRepeatableField !== false;
+                            updateSelectedField({ isRepeatableField: !currentVal });
+                          }}
+                        >
+                          <div className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${selectedField.isRepeatableField !== false ? 'bg-orange-500' : 'bg-slate-300'}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${selectedField.isRepeatableField !== false ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                          </div>
+                          <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Include in Add Entry block</span>
+                        </label>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {/* Record Date Toggle (DATE only) */}
                 {selectedField.type === "DATE" && (() => {
@@ -902,11 +954,11 @@ export default function LayoutsFieldsBuilder() {
                       });
                     });
                   }
-                  
+
                   return (
                     <div className="pt-2">
                       <label className="flex items-center gap-3 cursor-pointer group">
-                        <div 
+                        <div
                           onClick={(e) => {
                             e.preventDefault();
                             if (existingRecordDateField) {
@@ -937,11 +989,11 @@ export default function LayoutsFieldsBuilder() {
                         Pick List Values <span className="text-red-500">*</span>
                       </label>
                     </div>
-                    
+
                     <div className="bg-slate-50 border border-gray-200 rounded-xl p-2 space-y-2">
                       {(selectedField.options || []).map((opt, idx) => (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           draggable
                           onDragStart={(e) => {
                             setDraggedOptionIdx(idx);
@@ -968,7 +1020,7 @@ export default function LayoutsFieldsBuilder() {
                           </div>
                           <input
                             type="text"
-                            value={opt}
+                            value={opt ?? ''}
                             onChange={(e) => {
                               const newOpts = [...(selectedField?.options || [])];
                               newOpts[idx] = e.target.value;
@@ -985,7 +1037,7 @@ export default function LayoutsFieldsBuilder() {
                           </button>
                         </div>
                       ))}
-                      
+
                       <button
                         onClick={() => {
                           const newOpts = [...(selectedField?.options || []), "New Option"];
@@ -998,7 +1050,7 @@ export default function LayoutsFieldsBuilder() {
                     </div>
                   </div>
                 )}
-                
+
                 {selectedField.type === "STATUS_PICKER" && (
                   <div className="pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between mb-3">
@@ -1006,11 +1058,11 @@ export default function LayoutsFieldsBuilder() {
                         Status Options <span className="text-red-500">*</span>
                       </label>
                     </div>
-                    
+
                     <div className="flex flex-col gap-1.5">
                       {(selectedField.statusOptions || []).map((opt, idx) => (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           draggable
                           onDragStart={(e) => {
                             setDraggedOptionIdx(idx);
@@ -1033,22 +1085,22 @@ export default function LayoutsFieldsBuilder() {
                           className={`flex items-center gap-1.5 bg-white p-1 rounded-lg border border-gray-200 transition-opacity shadow-sm ${draggedOptionIdx === idx ? 'opacity-50' : ''}`}
                         >
                           <i className="ph-bold ph-dots-six-vertical text-slate-400 cursor-grab active:cursor-grabbing text-[0.95rem] hover:text-slate-600 transition-colors ml-1"></i>
-                          
+
                           <div className="relative shrink-0 flex items-center justify-center">
-                             <ColorPicker 
-                               className="!w-5 !h-5 border-2"
-                               color={opt.color || '#cbd5e1'} 
-                               onChange={(newColor) => {
-                                 const newOpts = [...(selectedField.statusOptions || [])];
-                                 newOpts[idx].color = newColor;
-                                 updateSelectedField({ statusOptions: newOpts });
-                               }}
-                             />
+                            <ColorPicker
+                              className="!w-5 !h-5 border-2"
+                              color={opt.color || '#cbd5e1'}
+                              onChange={(newColor) => {
+                                const newOpts = [...(selectedField.statusOptions || [])];
+                                newOpts[idx].color = newColor;
+                                updateSelectedField({ statusOptions: newOpts });
+                              }}
+                            />
                           </div>
 
-                          <input 
-                            type="text" 
-                            value={opt.label} 
+                          <input
+                            type="text"
+                            value={opt.label ?? ''}
                             onChange={(e) => {
                               const newOpts = [...(selectedField.statusOptions || [])];
                               newOpts[idx].label = e.target.value;
@@ -1057,8 +1109,8 @@ export default function LayoutsFieldsBuilder() {
                             className="flex-1 bg-transparent px-1.5 py-0.5 outline-none focus:border-orange-500 focus:ring-0 text-[0.8rem] font-bold text-slate-700 transition-all"
                             placeholder={`Status ${idx + 1}`}
                           />
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => {
                               const newOpts = (selectedField.statusOptions || []).filter((_, i) => i !== idx);
                               updateSelectedField({ statusOptions: newOpts });
@@ -1069,9 +1121,9 @@ export default function LayoutsFieldsBuilder() {
                           </button>
                         </div>
                       ))}
-                      
-                      <button 
-                        type="button" 
+
+                      <button
+                        type="button"
                         onClick={() => {
                           const newOpts = [...(selectedField.statusOptions || []), { label: "New Status", color: "bg-slate-500" }];
                           updateSelectedField({ statusOptions: newOpts });
@@ -1108,7 +1160,7 @@ export default function LayoutsFieldsBuilder() {
                           </h4>
                         </div>
                       </div>
-                      <div 
+                      <div
                         onClick={() => {
                           const currentEnabled = !!selectedField.restrictFutureDate;
                           updateSelectedField({
@@ -1147,7 +1199,7 @@ export default function LayoutsFieldsBuilder() {
                           </h4>
                         </div>
                       </div>
-                      <div 
+                      <div
                         onClick={() => {
                           const currentEnabled = !!selectedField.futureDateRestriction?.enabled;
                           updateSelectedField({
@@ -1170,8 +1222,8 @@ export default function LayoutsFieldsBuilder() {
                           <label className="text-[0.75rem] font-bold text-slate-600 flex items-center gap-1 mb-2">
                             Based on date field:
                           </label>
-                          <Select 
-                            value={selectedField.futureDateRestriction.dateFieldId} 
+                          <Select
+                            value={selectedField.futureDateRestriction.dateFieldId}
                             onValueChange={(val) => updateSelectedField({
                               futureDateRestriction: {
                                 ...selectedField.futureDateRestriction!,
@@ -1206,16 +1258,16 @@ export default function LayoutsFieldsBuilder() {
                                   <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isRestricted ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300 bg-white text-transparent group-hover:border-blue-400'}`}>
                                     <i className="ph-bold ph-check text-[0.6rem]"></i>
                                   </div>
-                                  <input 
-                                    type="checkbox" 
+                                  <input
+                                    type="checkbox"
                                     className="hidden"
                                     checked={isRestricted}
                                     onChange={(e) => {
                                       const currentStatuses = selectedField.futureDateRestriction?.restrictedStatuses || [];
-                                      const newStatuses = e.target.checked 
+                                      const newStatuses = e.target.checked
                                         ? [...currentStatuses, opt.label]
                                         : currentStatuses.filter(s => s !== opt.label);
-                                        
+
                                       updateSelectedField({
                                         futureDateRestriction: {
                                           ...selectedField.futureDateRestriction!,
@@ -1241,29 +1293,29 @@ export default function LayoutsFieldsBuilder() {
                     </label>
                     <div className="flex gap-4 mb-4">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="upConfigMode" className="accent-orange-500 w-4 h-4" checked={!selectedField.userPicklistConfig || selectedField.userPicklistConfig.mode === 'ALL'} onChange={() => updateSelectedField({ userPicklistConfig: { mode: 'ALL', roles: [], userIds: [] }})} />
+                        <input type="radio" name="upConfigMode" className="accent-orange-500 w-4 h-4" checked={!selectedField.userPicklistConfig || selectedField.userPicklistConfig.mode === 'ALL'} onChange={() => updateSelectedField({ userPicklistConfig: { mode: 'ALL', roles: [], userIds: [] } })} />
                         <span className="text-sm font-semibold text-slate-700">All Users</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="upConfigMode" className="accent-orange-500 w-4 h-4" checked={selectedField.userPicklistConfig?.mode === 'ROLES'} onChange={() => updateSelectedField({ userPicklistConfig: { mode: 'ROLES', roles: selectedField?.userPicklistConfig?.roles || [], userIds: [] }})} />
+                        <input type="radio" name="upConfigMode" className="accent-orange-500 w-4 h-4" checked={selectedField.userPicklistConfig?.mode === 'ROLES'} onChange={() => updateSelectedField({ userPicklistConfig: { mode: 'ROLES', roles: selectedField?.userPicklistConfig?.roles || [], userIds: [] } })} />
                         <span className="text-sm font-semibold text-slate-700">Select Roles</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="upConfigMode" className="accent-orange-500 w-4 h-4" checked={selectedField.userPicklistConfig?.mode === 'USERS'} onChange={() => updateSelectedField({ userPicklistConfig: { mode: 'USERS', roles: [], userIds: selectedField?.userPicklistConfig?.userIds || [] }})} />
+                        <input type="radio" name="upConfigMode" className="accent-orange-500 w-4 h-4" checked={selectedField.userPicklistConfig?.mode === 'USERS'} onChange={() => updateSelectedField({ userPicklistConfig: { mode: 'USERS', roles: [], userIds: selectedField?.userPicklistConfig?.userIds || [] } })} />
                         <span className="text-sm font-semibold text-slate-700">Select Users</span>
                       </label>
                     </div>
 
                     <div className="flex items-center justify-between py-3 border-y border-gray-100 mb-4">
                       <span className="text-[0.8rem] font-bold text-slate-700">Show User Availability</span>
-                      <div 
+                      <div
                         onClick={() => {
                           const currentConfig = selectedField.userPicklistConfig || { mode: 'ALL', roles: [], userIds: [] };
-                          updateSelectedField({ 
-                            userPicklistConfig: { 
-                              ...currentConfig, 
-                              showAvailability: !currentConfig.showAvailability 
-                            } 
+                          updateSelectedField({
+                            userPicklistConfig: {
+                              ...currentConfig,
+                              showAvailability: !currentConfig.showAvailability
+                            }
                           });
                         }}
                         className={`relative w-10 h-5 rounded-full transition-colors duration-200 cursor-pointer ${selectedField.userPicklistConfig?.showAvailability ? 'bg-orange-500' : 'bg-slate-300'}`}
@@ -1282,9 +1334,9 @@ export default function LayoutsFieldsBuilder() {
                       <div className="bg-slate-50 border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
                         {['ADMIN', 'STAFF', 'PHOTOGRAPHER'].map(role => (
                           <label key={role} className="flex items-center gap-2 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              className="accent-orange-500 w-4 h-4 rounded" 
+                            <input
+                              type="checkbox"
+                              className="accent-orange-500 w-4 h-4 rounded"
                               checked={selectedField.userPicklistConfig?.roles?.includes(role) || false}
                               onChange={(e) => {
                                 const currentRoles = selectedField?.userPicklistConfig?.roles || [];
@@ -1300,12 +1352,12 @@ export default function LayoutsFieldsBuilder() {
 
                     {selectedField.userPicklistConfig?.mode === 'USERS' && (
                       <div className="bg-slate-50 border border-gray-200 rounded-xl p-4 max-h-[200px] overflow-y-auto flex flex-col gap-3">
-                        {allUsers.length === 0 && <span className="text-sm text-slate-400">Loading users...</span>}
+                        {(!allUsers || allUsers.length === 0) && <span className="text-sm text-slate-400">Loading users...</span>}
                         {allUsers.map(user => (
                           <label key={user.id} className="flex items-center gap-2 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              className="accent-orange-500 w-4 h-4 rounded" 
+                            <input
+                              type="checkbox"
+                              className="accent-orange-500 w-4 h-4 rounded"
                               checked={selectedField.userPicklistConfig?.userIds?.includes(user.id) || false}
                               onChange={(e) => {
                                 const currentUserIds = selectedField?.userPicklistConfig?.userIds || [];
@@ -1323,7 +1375,7 @@ export default function LayoutsFieldsBuilder() {
                     )}
                   </div>
                 )}
-                
+
                 {/* Conditional Visibility Rule */}
                 <div className="pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between mb-3">
@@ -1332,7 +1384,7 @@ export default function LayoutsFieldsBuilder() {
                     </label>
                   </div>
                   <div className="flex items-center gap-3 cursor-pointer group mb-3">
-                    <div 
+                    <div
                       onClick={() => {
                         if (selectedField.visibilityRule) {
                           const { visibilityRule, ...rest } = selectedField;
@@ -1358,7 +1410,7 @@ export default function LayoutsFieldsBuilder() {
                         >
                           <SelectTrigger className="w-full text-sm font-semibold text-slate-800 bg-white border border-gray-300 rounded-lg h-[40px] px-3 outline-none focus:border-orange-500 transition-all">
                             <span className="truncate flex-1 text-left">
-                              {selectedField.visibilityRule?.fieldId 
+                              {selectedField.visibilityRule?.fieldId
                                 ? activeLayout.schema.sections.flatMap(s => s.fields).find(f => f.id === selectedField.visibilityRule!.fieldId)?.name || selectedField.visibilityRule.fieldId
                                 : "-- Select Field --"}
                             </span>
@@ -1379,9 +1431,9 @@ export default function LayoutsFieldsBuilder() {
                           >
                             <SelectTrigger className="w-full text-sm font-semibold text-slate-800 bg-white border border-gray-300 rounded-lg h-[40px] px-3 outline-none focus:border-orange-500 transition-all">
                               <span className="truncate flex-1 text-left">
-                                {selectedField.visibilityRule?.operator === 'EQUALS' ? 'Is any of' : 
-                                 selectedField.visibilityRule?.operator === 'NOT_EQUALS' ? 'Is not' : 
-                                 selectedField.visibilityRule?.operator === 'CONTAINS' ? 'Contains' : 'Operator'}
+                                {selectedField.visibilityRule?.operator === 'EQUALS' ? 'Is any of' :
+                                  selectedField.visibilityRule?.operator === 'NOT_EQUALS' ? 'Is not' :
+                                    selectedField.visibilityRule?.operator === 'CONTAINS' ? 'Contains' : 'Operator'}
                               </span>
                             </SelectTrigger>
                             <SelectContent>
@@ -1406,14 +1458,14 @@ export default function LayoutsFieldsBuilder() {
                                 />
                               );
                             }
-                            
+
                             const textValues = selectedField.visibilityRule?.values?.join(', ') || (selectedField.visibilityRule as any)?.value || '';
                             return (
                               <input
                                 type="text"
                                 value={textValues}
                                 onChange={(e) => updateSelectedField({ visibilityRule: { ...selectedField.visibilityRule!, values: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
-                                placeholder="e.g. Wedding, Event"
+                                placeholder="e.g. Flex Printing, Event"
                                 className="w-full text-sm font-semibold text-slate-800 bg-white border border-gray-300 rounded-lg h-[40px] px-3 outline-none focus:border-orange-500 transition-all"
                               />
                             );
@@ -1447,7 +1499,7 @@ export default function LayoutsFieldsBuilder() {
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">Value in Use</h3>
             <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-              The value <strong className="text-slate-800">"{usageModalData.oldValue}"</strong> is currently used in <strong className="text-orange-600">{usageModalData.inUseCount} record(s)</strong>. 
+              The value <strong className="text-slate-800">"{usageModalData.oldValue}"</strong> is currently used in <strong className="text-orange-600">{usageModalData.inUseCount} record(s)</strong>.
               Before you can delete this option, please select a replacement value to migrate the existing records to.
             </p>
             <div className="space-y-4 mb-6">
@@ -1466,16 +1518,16 @@ export default function LayoutsFieldsBuilder() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button 
-                onClick={() => setUsageModalData(null)} 
+              <button
+                onClick={() => setUsageModalData(null)}
                 disabled={migrating}
                 className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
-              <button 
-                onClick={handleMigrateOption} 
-                disabled={!migrationValue || migrating} 
+              <button
+                onClick={handleMigrateOption}
+                disabled={!migrationValue || migrating}
                 className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {migrating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Migrate & Delete"}

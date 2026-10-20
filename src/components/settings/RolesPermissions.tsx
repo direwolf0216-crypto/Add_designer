@@ -11,21 +11,20 @@ interface RolePermission {
 }
 
 const PERMISSION_LABELS: Record<string, { label: string; description: string; icon: string }> = {
-  manage_bookings: { label: "Manage Bookings", description: "Create, edit, and delete bookings", icon: "ph-calendar-blank" },
+  manage_jobs: { label: "Manage Jobs", description: "Create, edit, and delete jobs", icon: "ph-calendar-blank" },
   view_transactions: { label: "View Transactions", description: "View financial transaction history", icon: "ph-eye" },
   manage_transactions: { label: "Manage Transactions", description: "Create, edit, and delete transactions", icon: "ph-file-text" },
   view_analytics: { label: "View Analytics", description: "Access analytics and reports", icon: "ph-chart-bar" },
   manage_users: { label: "Manage Users", description: "Invite, edit, and remove team members", icon: "ph-users-three" },
-  view_galleries: { label: "View Galleries", description: "View client photo galleries", icon: "ph-images" },
-  manage_galleries: { label: "Manage Galleries", description: "Upload and manage gallery content", icon: "ph-image" },
+  view_galleries: { label: "View Designs", description: "View design deliverables", icon: "ph-images" },
+  manage_galleries: { label: "Manage Designs", description: "Upload and manage design content", icon: "ph-image" },
 };
 
-const ROLES = ["ADMIN", "STAFF", "PHOTOGRAPHER"] as const;
+const ROLES = ["ADMIN", "STAFF"] as const;
 
 const ROLE_DISPLAY: Record<string, { label: string; color: string; bg: string }> = {
   ADMIN: { label: "Admin", color: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
   STAFF: { label: "Staff", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
-  PHOTOGRAPHER: { label: "Photographer", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
 };
 
 export default function RolesPermissions() {

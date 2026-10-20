@@ -4,16 +4,16 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface GlobalFormContextType {
-  isBookingFormOpen: boolean;
-  bookingToEditId: string | null;
-  bookingInitialDate: string | null;
-  openBookingForm: (bookingId?: string, initialDate?: string) => void;
-  closeBookingForm: () => void;
+  isJobFormOpen: boolean;
+  jobToEditId: string | null;
+  jobInitialDate: string | null;
+  openJobForm: (jobId?: string, initialDate?: string) => void;
+  closeJobForm: () => void;
   
-  isBookingDetailsOpen: boolean;
-  bookingDetailsId: string | null;
-  openBookingDetails: (bookingId: string) => void;
-  closeBookingDetails: () => void;
+  isJobDetailsOpen: boolean;
+  jobDetailsId: string | null;
+  openJobDetails: (jobId: string) => void;
+  closeJobDetails: () => void;
   
   isTransactionFormOpen: boolean;
   transactionToEditId: string | null;
@@ -26,22 +26,19 @@ interface GlobalFormContextType {
   openTransactionDetails: (transactionId: string) => void;
   closeTransactionDetails: () => void;
   
-  isGiftOrderDetailsOpen: boolean;
-  giftOrderDetailsId: string | null;
-  openGiftOrderDetails: (orderId: string) => void;
-  closeGiftOrderDetails: () => void;
+
 }
 
 const GlobalFormContext = createContext<GlobalFormContextType | undefined>(undefined);
 
 export function GlobalFormProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [bookingToEditId, setBookingToEditId] = useState<string | null>(null);
-  const [bookingInitialDate, setBookingInitialDate] = useState<string | null>(null);
+  const [isJobFormOpen, setIsJobFormOpen] = useState(false);
+  const [jobToEditId, setJobToEditId] = useState<string | null>(null);
+  const [jobInitialDate, setJobInitialDate] = useState<string | null>(null);
 
-  const [isBookingDetailsOpen, setIsBookingDetailsOpen] = useState(false);
-  const [bookingDetailsId, setBookingDetailsId] = useState<string | null>(null);
+  const [isJobDetailsOpen, setIsJobDetailsOpen] = useState(false);
+  const [jobDetailsId, setJobDetailsId] = useState<string | null>(null);
 
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [transactionToEditId, setTransactionToEditId] = useState<string | null>(null);
@@ -50,28 +47,27 @@ export function GlobalFormProvider({ children }: { children: ReactNode }) {
   const [isTransactionDetailsOpen, setIsTransactionDetailsOpen] = useState(false);
   const [transactionDetailsId, setTransactionDetailsId] = useState<string | null>(null);
 
-  const [isGiftOrderDetailsOpen, setIsGiftOrderDetailsOpen] = useState(false);
-  const [giftOrderDetailsId, setGiftOrderDetailsId] = useState<string | null>(null);
 
-  const openBookingForm = (bookingId?: string, initialDate?: string) => {
-    setBookingToEditId(bookingId || null);
-    setBookingInitialDate(initialDate || null);
-    setIsBookingFormOpen(true);
+
+  const openJobForm = (jobId?: string, initialDate?: string) => {
+    setJobToEditId(jobId || null);
+    setJobInitialDate(initialDate || null);
+    setIsJobFormOpen(true);
   };
 
-  const closeBookingForm = () => {
-    setIsBookingFormOpen(false);
+  const closeJobForm = () => {
+    setIsJobFormOpen(false);
     setTimeout(() => {
-      setBookingToEditId(null);
-      setBookingInitialDate(null);
+      setJobToEditId(null);
+      setJobInitialDate(null);
     }, 300);
   };
 
-  const openBookingDetails = (bookingId: string) => {
-    router.push(`/bookings/details/${bookingId}`);
+  const openJobDetails = (jobId: string) => {
+    router.push(`/jobs/details/${jobId}`);
   };
 
-  const closeBookingDetails = () => {
+  const closeJobDetails = () => {
     router.back();
   };
 
@@ -99,23 +95,14 @@ export function GlobalFormProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setTransactionDetailsId(null), 300);
   };
 
-  const openGiftOrderDetails = (orderId: string) => {
-    setGiftOrderDetailsId(orderId);
-    setIsGiftOrderDetailsOpen(true);
-  };
 
-  const closeGiftOrderDetails = () => {
-    setIsGiftOrderDetailsOpen(false);
-    setTimeout(() => setGiftOrderDetailsId(null), 300);
-  };
 
   return (
     <GlobalFormContext.Provider value={{
-      isBookingFormOpen, bookingToEditId, bookingInitialDate, openBookingForm, closeBookingForm,
-      isBookingDetailsOpen, bookingDetailsId, openBookingDetails, closeBookingDetails,
+      isJobFormOpen, jobToEditId, jobInitialDate, openJobForm, closeJobForm,
+      isJobDetailsOpen, jobDetailsId, openJobDetails, closeJobDetails,
       isTransactionFormOpen, transactionToEditId, transactionInitialData, openTransactionForm, closeTransactionForm,
-      isTransactionDetailsOpen, transactionDetailsId, openTransactionDetails, closeTransactionDetails,
-      isGiftOrderDetailsOpen, giftOrderDetailsId, openGiftOrderDetails, closeGiftOrderDetails
+      isTransactionDetailsOpen, transactionDetailsId, openTransactionDetails, closeTransactionDetails
     }}>
       {children}
     </GlobalFormContext.Provider>

@@ -30,21 +30,22 @@ export async function GET(req: Request) {
     const endOfDay = new Date(endDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const twoWeeksAgo = new Date(today);
-    twoWeeksAgo.setDate(today.getDate() - 14);
+    const ninetyDaysFromNow = new Date(today);
+    ninetyDaysFromNow.setDate(today.getDate() + 90);
 
     const [
-      totalBookings,
+      totalJobs,
       upcomingShoots,
       pendingRetouch,
       activeOrders,
       totalActiveOrders,
-      unconfirmedBookingsCount
+      unconfirmedJobsCount,
+      prefsDoc
     ] = await Promise.all([
-      prisma.booking.count({
-        where: { deletedAt: null, status: { not: 'Cancelled' }, date: { gte: startOfDay, lte: endOfDay } }
+      prisma.job.count({
+        where: { deletedAt: null, status: { notIn: ['Cancelled', 'cancelled'] }, date: { gte: startOfDay, lte: endOfDay } }
       }),
-      prisma.booking.findMany({
+      prisma.job.findMany({
         where: { deletedAt: null, date: { gte: today } },
         select: {
           id: true,
@@ -77,12 +78,15 @@ export async function GET(req: Request) {
       prisma.productOrder.count({
         where: { status: { not: 'DELIVERED' } }
       }),
-      prisma.booking.count({
-        where: { deletedAt: null, status: 'Pending', date: { gte: startOfDay, lte: endOfDay } }
+      prisma.job.count({
+        where: { deletedAt: null, status: { in: ['Pending', 'pending'] }, date: { gte: startOfDay, lte: endOfDay } }
+      }),
+      prisma.systemSetting.findUnique({
+        where: { key: 'UI_PREFERENCES' }
       })
     ]);
 
-    const [transactions, allPeriodTransactions, typeAgg, bookingsForChart] = await Promise.all([
+    const [transactions, allPeriodTransactions, typeAgg, jobsForChart, upcomingAllJobs] = await Promise.all([
       prisma.transaction.findMany({
         where: { date: { gte: startOfDay, lte: endOfDay }, deletedAt: null },
         orderBy: { date: 'desc' },
@@ -98,9 +102,16 @@ export async function GET(req: Request) {
         _sum: { amount: true },
         where: { date: { gte: startOfDay, lte: endOfDay }, deletedAt: null }
       }),
-      prisma.booking.findMany({
-        where: { deletedAt: null },
+      prisma.job.findMany({
+        where: { 
+          deletedAt: null,
+          status: { notIn: ['Delivered', 'delivered', 'Cancelled', 'cancelled'] }
+        },
         select: { id: true, date: true, status: true, category: true, customData: true, client: { select: { name: true } } }
+      }),
+      prisma.job.findMany({
+        where: { deletedAt: null, date: { gte: today, lte: ninetyDaysFromNow } },
+        select: { date: true, order: { select: { package: true } } }
       })
     ]);
 
@@ -128,7 +139,7 @@ export async function GET(req: Request) {
     const revenueChartData = Object.values(dailyDataMap).sort((a, b) => a.date.localeCompare(b.date));
 
     const pendingAlbumsRaw: any[] = [];
-    bookingsForChart.forEach(b => {
+    jobsForChart.forEach(b => {
       let cd: any = {};
       if (b.customData) {
         cd = typeof b.customData === 'string' ? JSON.parse(b.customData) : b.customData;
@@ -156,21 +167,13 @@ export async function GET(req: Request) {
     });
 
     pendingAlbumsRaw.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const bookingBreakdownData = pendingAlbumsRaw.slice(0, 5);
+    const jobBreakdownData = pendingAlbumsRaw.slice(0, 5);
 
-    const prefsDoc = await prisma.systemSetting.findUnique({
-      where: { key: 'UI_PREFERENCES' }
-    });
     const prefs = prefsDoc?.value as any || {};
     const hotDateBenchmark = prefs.hotDateBenchmark ?? prefs.hotDateThreshold ?? 50000;
 
-    const upcomingAllBookings = await prisma.booking.findMany({
-      where: { deletedAt: null, date: { gte: today } },
-      select: { date: true, order: { select: { package: true } } }
-    });
-
     const dateSums: Record<string, number> = {};
-    for (const b of upcomingAllBookings) {
+    for (const b of upcomingAllJobs) {
       if (!b.date) continue;
       const dateStr = b.date.toISOString().split('T')[0];
       dateSums[dateStr] = (dateSums[dateStr] || 0) + (b.order?.package || 0);
@@ -178,7 +181,7 @@ export async function GET(req: Request) {
     const hotDatesCount = Object.values(dateSums).filter(sum => sum >= hotDateBenchmark).length;
 
     return NextResponse.json({
-      totalBookings,
+      totalJobs,
       upcomingShoots,
       pendingRetouch,
       topOrder: activeOrders[0] || null,
@@ -189,8 +192,8 @@ export async function GET(req: Request) {
       periodNet: periodIncome - periodExpense,
       hotDatesCount,
       revenueChartData,
-      bookingBreakdownData,
-      unconfirmedBookingsCount
+      jobBreakdownData,
+      unconfirmedJobsCount
     });
 
   } catch (error) {

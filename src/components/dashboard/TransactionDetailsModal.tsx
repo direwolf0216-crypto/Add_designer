@@ -26,15 +26,14 @@ type TransactionDetailResponse = {
     description?: string | null;
     status: string;
     attachmentUrl?: string | null;
-    bookingId?: string | null;
-    booking?: {
+    jobId?: string | null;
+    job?: {
       id: string;
-      bookingNumber?: string | null;
+      jobNumber?: string | null;
       category: string;
       client: { name: string };
     } | null;
     user?: { id: string; name?: string | null; email?: string | null } | null;
-    productOrder?: { id: string; orderNumber?: string | null } | null;
     customFields: CustomField[];
   };
   impact: {
@@ -95,7 +94,7 @@ const fieldIcon = (type: string, label: string) => {
 
 export default function TransactionDetailsModal() {
   const router = useRouter();
-  const { isTransactionDetailsOpen, transactionDetailsId, closeTransactionDetails, openTransactionForm, openBookingDetails, openGiftOrderDetails } = useGlobalForm();
+  const { isTransactionDetailsOpen, transactionDetailsId, closeTransactionDetails, openTransactionForm, openJobDetails } = useGlobalForm();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { data, error, isLoading } = useSWR<TransactionDetailResponse>(
@@ -108,21 +107,14 @@ export default function TransactionDetailsModal() {
 
   };
 
-  const handleNavigateToBooking = (bookingId?: string) => {
-    if (!bookingId) return;
+  const handleNavigateToJob = (jobId?: string) => {
+    if (!jobId) return;
     closeTransactionDetails();
     setTimeout(() => {
-      openBookingDetails(bookingId);
+      openJobDetails(jobId);
     }, 150);
   };
 
-  const handleNavigateToOrder = (orderId?: string) => {
-    if (!orderId) return;
-    closeTransactionDetails();
-    setTimeout(() => {
-      openGiftOrderDetails(orderId);
-    }, 150);
-  };
 
   const receipt = useMemo(() => {
     const url = data?.transaction.attachmentUrl;
@@ -147,8 +139,7 @@ export default function TransactionDetailsModal() {
       await mutate(
         (key) => typeof key === "string" && (
           key.startsWith("/api/transactions") || 
-          key.startsWith("/api/gifts/orders") || 
-          key.startsWith("/api/bookings")
+          key.startsWith("/api/jobs")
         ),
         undefined,
         { revalidate: true }
@@ -265,32 +256,20 @@ export default function TransactionDetailsModal() {
                     {transaction.description && (
                       <DetailRow icon="ph-note" label="Notes" value={transaction.description} multiline />
                     )}
-                    {transaction.booking && (
+                    {transaction.job && (
                       <button
                         type="button"
-                        onClick={() => handleNavigateToBooking(transaction.booking?.id)}
+                        onClick={() => handleNavigateToJob(transaction.job?.id)}
                         className="grid w-full grid-cols-[24px_110px_minmax(0,1fr)] items-start gap-2 text-left text-sm sm:grid-cols-[28px_120px_minmax(0,1fr)] mt-1"
                       >
                         <i className="ph-bold ph-calendar-check mt-0.5 text-lg text-slate-400" />
-                        <span className="font-semibold text-slate-400">Booking</span>
+                        <span className="font-semibold text-slate-400">Job</span>
                         <span className="text-right font-bold text-indigo-600 hover:underline truncate">
-                          {transaction.booking.bookingNumber || transaction.booking.client.name}
+                          {transaction.job.jobNumber || transaction.job.client.name}
                         </span>
                       </button>
                     )}
-                    {transaction.productOrder && (
-                      <button
-                        type="button"
-                        onClick={() => handleNavigateToOrder(transaction.productOrder?.id)}
-                        className="grid w-full grid-cols-[24px_110px_minmax(0,1fr)] items-start gap-2 text-left text-sm sm:grid-cols-[28px_120px_minmax(0,1fr)] mt-1"
-                      >
-                        <i className="ph-bold ph-package mt-0.5 text-lg text-slate-400" />
-                        <span className="font-semibold text-slate-400">Gift Order</span>
-                        <span className="text-right font-bold text-indigo-600 hover:underline truncate">
-                          {transaction.productOrder.orderNumber || transaction.productOrder.id}
-                        </span>
-                      </button>
-                    )}
+
                     {transaction.customFields.map((field) => (
                       <DetailRow
                         key={field.id}

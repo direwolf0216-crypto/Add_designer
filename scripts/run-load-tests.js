@@ -41,7 +41,7 @@ async function runLoadTests() {
   await new Promise((resolve) => {
     stressTest.on('done', (result) => {
       console.log('\\n--- Stress Test Results ---');
-      console.log(`Total Bookings Created: ${result.requests.total}`);
+      console.log(`Total Jobs Created: ${result.requests.total}`);
       console.log(`Average Latency: ${result.latency.average} ms`);
       console.log(`P99 Latency: ${result.latency.p99} ms`);
       console.log(`Errors: ${result.errors}`);

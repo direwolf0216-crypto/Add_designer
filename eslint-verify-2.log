@@ -11,7 +11,7 @@
   453:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   490:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/(main)/bookings/album-status/AlbumStatusClient.tsx
+/Users/nithya-22218/Kanakkupulla/src/app/(main)/jobs/album-status/AlbumStatusClient.tsx
    12:11   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
    13:15   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
    30:140  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
@@ -28,22 +28,22 @@
   377:28   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
   382:21   error  'statusLabel' is never reassigned. Use 'const' instead  prefer-const
 
-/Users/nithya-22218/Kanakkupulla/src/app/(main)/bookings/album-status/page.tsx
+/Users/nithya-22218/Kanakkupulla/src/app/(main)/jobs/album-status/page.tsx
   40:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   41:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   42:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   57:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/(main)/bookings/allBookings/page.tsx
+/Users/nithya-22218/Kanakkupulla/src/app/(main)/jobs/allJobs/page.tsx
   18:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   57:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   58:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/(main)/bookings/details/[id]/page.tsx
+/Users/nithya-22218/Kanakkupulla/src/app/(main)/jobs/details/[id]/page.tsx
   29:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   30:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/(main)/bookings/layout.tsx
+/Users/nithya-22218/Kanakkupulla/src/app/(main)/jobs/layout.tsx
    38:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    48:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    48:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -52,7 +52,7 @@
    92:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   107:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/(main)/bookings/upcoming/page.tsx
+/Users/nithya-22218/Kanakkupulla/src/app/(main)/jobs/upcoming/page.tsx
   35:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 /Users/nithya-22218/Kanakkupulla/src/app/(main)/dashboard/overview/page.tsx
@@ -165,7 +165,7 @@ Reassigning `curIncPct` after render has completed can cause inconsistent behavi
   91:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   92:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/api/bookings/[id]/route.ts
+/Users/nithya-22218/Kanakkupulla/src/app/api/jobs/[id]/route.ts
    71:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    71:91  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    79:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -175,14 +175,14 @@ Reassigning `curIncPct` after render has completed can cause inconsistent behavi
   145:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   153:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/api/bookings/[id]/status/route.ts
+/Users/nithya-22218/Kanakkupulla/src/app/api/jobs/[id]/status/route.ts
   22:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   22:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   25:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   39:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   45:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/api/bookings/overview/route.ts
+/Users/nithya-22218/Kanakkupulla/src/app/api/jobs/overview/route.ts
     6:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    14:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
    67:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -193,7 +193,7 @@ Reassigning `curIncPct` after render has completed can cause inconsistent behavi
   122:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   124:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/app/api/bookings/route.ts
+/Users/nithya-22218/Kanakkupulla/src/app/api/jobs/route.ts
   21:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   77:20  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
   91:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
@@ -394,24 +394,24 @@ Reassigning `curIncPct` after render has completed can cause inconsistent behavi
   14:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
   38:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/components/bookings/OverdueBookingBanners.tsx
+/Users/nithya-22218/Kanakkupulla/src/components/jobs/OverdueJobBanners.tsx
    47:48  error  Error: Cannot call impure function during render
 
 `Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
 
-/Users/nithya-22218/Kanakkupulla/src/components/bookings/OverdueBookingBanners.tsx:47:48
+/Users/nithya-22218/Kanakkupulla/src/components/jobs/OverdueJobBanners.tsx:47:48
   45 |
   46 |   const handleDismiss = (id: string) => {
 > 47 |     const newDismissed = { ...dismissed, [id]: Date.now() };
      |                                                ^^^^^^^^^^ Cannot call impure function
   48 |     setDismissed(newDismissed);
   49 |     if (typeof window !== 'undefined') {
-  50 |       window.localStorage.setItem("dismissed_bookings", JSON.stringify(newDismissed));  react-hooks/purity
+  50 |       window.localStorage.setItem("dismissed_jobs", JSON.stringify(newDismissed));  react-hooks/purity
    75:52  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
    83:38  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
   101:42  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        react/no-unescaped-entities
 
-/Users/nithya-22218/Kanakkupulla/src/components/dashboard/BookingDetailsModal.tsx
+/Users/nithya-22218/Kanakkupulla/src/components/dashboard/JobDetailsModal.tsx
     35:30   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
     97:52   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
     98:46   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
@@ -423,7 +423,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/nithya-22218/Kanakkupulla/src/components/dashboard/BookingDetailsModal.tsx:104:28
+/Users/nithya-22218/Kanakkupulla/src/components/dashboard/JobDetailsModal.tsx:104:28
   102 |
   103 |   useEffect(() => {
 > 104 |     if (layoutRes?.schema) setLayoutSchema(layoutRes.schema);
@@ -474,7 +474,7 @@ Calling setState synchronously within an effect body causes cascading renders th
    887:79   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
   1002:63   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
 
-/Users/nithya-22218/Kanakkupulla/src/components/dashboard/BookingFilterModal.tsx
+/Users/nithya-22218/Kanakkupulla/src/components/dashboard/JobFilterModal.tsx
   22:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
 
 Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
@@ -483,7 +483,7 @@ Effects are intended to synchronize state between React and external systems suc
 
 Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
 
-/Users/nithya-22218/Kanakkupulla/src/components/dashboard/BookingFilterModal.tsx:22:7
+/Users/nithya-22218/Kanakkupulla/src/components/dashboard/JobFilterModal.tsx:22:7
   20 |   useEffect(() => {
   21 |     if (isFilterModalOpen) {
 > 22 |       setFilterState(filters);
@@ -492,7 +492,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   24 |   }, [isFilterModalOpen, filters]);
   25 |  react-hooks/set-state-in-effect
 
-/Users/nithya-22218/Kanakkupulla/src/components/dashboard/BookingFormModal.tsx
+/Users/nithya-22218/Kanakkupulla/src/components/dashboard/JobFormModal.tsx
    64:52   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
    66:50   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
    90:52   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
@@ -506,7 +506,7 @@ Calling setState synchronously within an effect body causes cascading renders th
   167:52   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
   167:60   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
   167:134  error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
-  185:6    error  React Hook useEffect has a missing dependency: 'booking'. Either include it or remove the dependency array                                react-hooks/exhaustive-deps
+  185:6    error  React Hook useEffect has a missing dependency: 'job'. Either include it or remove the dependency array                                react-hooks/exhaustive-deps
   191:28   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
   198:59   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
   198:86   error  Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any

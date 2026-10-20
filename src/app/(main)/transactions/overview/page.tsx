@@ -16,7 +16,7 @@ const categoryColors: Record<string, { bg: string, stroke: string }> = {
   "Travel": { bg: "bg-sky-500", stroke: "#0ea5e9" },
   "Marketing": { bg: "bg-rose-500", stroke: "#f43f5e" },
   "Misc": { bg: "bg-slate-300", stroke: "#cbd5e1" },
-  "Booking Advance": { bg: "bg-blue-500", stroke: "#3b82f6" },
+  "Job Advance": { bg: "bg-blue-500", stroke: "#3b82f6" },
   "Passport Photo": { bg: "bg-pink-500", stroke: "#ec4899" },
   "Frame Sales": { bg: "bg-orange-500", stroke: "#f97316" },
   "Editing Charges": { bg: "bg-amber-700", stroke: "#b45309" },
@@ -39,7 +39,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Travel": "ph-airplane",
   "Marketing": "ph-megaphone",
   "Misc": "ph-dots-three-circle",
-  "Booking Advance": "ph-calendar-check",
+  "Job Advance": "ph-calendar-check",
   "Passport Photo": "ph-user",
   "Frame Sales": "ph-frame-corners",
   "Editing Charges": "ph-pencil-circle",
@@ -329,7 +329,7 @@ export default function OverviewPage() {
   const baseCategories = dynamicCategories.length > 0 ? dynamicCategories : Object.keys(CATEGORY_ICONS);
 
   const allCategoriesList = baseCategories.map(cat => {
-    const isIncome = ["Photography Session", "Booking Advance", "Passport Photo", "Frame Sales", "Editing Charges", "Album Payment", "PP", "Xerox", "Printout", "E-Sevai", "Others"].includes(cat);
+    const isIncome = ["Photography Session", "Job Advance", "Passport Photo", "Frame Sales", "Editing Charges", "Album Payment", "PP", "Xerox", "Printout", "E-Sevai", "Others"].includes(cat);
 
     const definedBg = categoryColors[cat]?.bg;
     const colorName = definedBg ? definedBg.split('-')[1] : undefined;
@@ -830,15 +830,7 @@ export default function OverviewPage() {
                       <div className="flex items-center gap-2">
                         {(() => {
                           let title = txn.category;
-                          const isGifts = txn.category === 'GIFTS_AND_FRAMES';
-                          let isAdvance = false;
-                          let isDue = false;
-                          if (isGifts && txn.description) {
-                            const match = txn.description.match(/\(([^)]+)\)$/);
-                            if (match) title = match[1];
-                            if (txn.description.startsWith('Advance')) isAdvance = true;
-                            if (txn.description.startsWith('Due')) isDue = true;
-                          }
+
                           return (
                             <>
                               <span className="text-white font-bold text-[0.9rem] leading-tight">{title}</span>
@@ -846,23 +838,7 @@ export default function OverviewPage() {
                                   ? 'bg-emerald-500/15 text-emerald-400'
                                   : 'bg-red-500/15 text-red-400'
                                 }`}>{txn.type}</span>
-                              {isGifts && (
-                                <>
-                                  <span className="px-2 py-0.5 rounded-md text-[0.55rem] font-extrabold uppercase tracking-[0.5px] bg-orange-500/15 text-orange-400">
-                                    GIFTS & FRAMES
-                                  </span>
-                                  {isAdvance && (
-                                    <span className="px-2 py-0.5 rounded-md text-[0.55rem] font-extrabold uppercase tracking-[0.5px] bg-blue-500/15 text-blue-400">
-                                      ADV
-                                    </span>
-                                  )}
-                                  {isDue && (
-                                    <span className="px-2 py-0.5 rounded-md text-[0.55rem] font-extrabold uppercase tracking-[0.5px] bg-red-500/15 text-red-400">
-                                      DUE
-                                    </span>
-                                  )}
-                                </>
-                              )}
+
                             </>
                           );
                         })()}
@@ -925,7 +901,7 @@ export default function OverviewPage() {
                         </div>
                       ) : (
                         <>
-                          <div className={`flex items-center gap-1 w-[64px] justify-end ${txn.productOrderId || txn.bookingId ? 'invisible' : 'visible'}`}>
+                          <div className={`flex items-center gap-1 w-[64px] justify-end ${txn.productOrderId || txn.jobId ? 'invisible' : 'visible'}`}>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

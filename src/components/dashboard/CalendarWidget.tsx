@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import MonthYearPicker from "../ui/MonthYearPicker";
 import WeekPicker from "../ui/WeekPicker";
 import DayPicker from "../ui/DayPicker";
-import { Booking } from "@/types";
+import { Job } from "@/types";
 import { useSystem } from "@/components/providers/SystemProvider";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import useSWR from "swr";
@@ -18,7 +18,7 @@ function CalendarWidgetInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { preferences } = useSystem();
-  const { openBookingForm, openBookingDetails } = useGlobalForm();
+  const { openJobForm, openJobDetails } = useGlobalForm();
   
   const [currentDate, setCurrentDate] = useState(() => {
     const d = searchParams.get('date');
@@ -60,11 +60,14 @@ function CalendarWidgetInner() {
   const startDateStr = startDate.toISOString().split('T')[0];
   const endDateStr = endDate.toISOString().split('T')[0];
 
-  const { data: dbBookings, isLoading } = useSWR(`/api/bookings?startDate=${startDateStr}&endDate=${endDateStr}`, fetcher);
+  const { data: dbJobs, isLoading } = useSWR(`/api/jobs?startDate=${startDateStr}&endDate=${endDateStr}`, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30000,
+  });
 
-  const bookings: Booking[] = (dbBookings?.items || []).map((b: any) => ({
+  const jobs: Job[] = (dbJobs?.items || []).map((b: any) => ({
     id: b.id,
-    bookingNumber: b.bookingNumber,
+    jobNumber: b.jobNumber,
     title: b.client?.name || 'Unknown',
     category: b.category,
     date: new Date(b.date).toISOString().split('T')[0],
@@ -129,11 +132,11 @@ function CalendarWidgetInner() {
       const paddedDay = String(i).padStart(2, '0');
       const dateString = `${year}-${paddedMonth}-${paddedDay}`;
       
-      const dayBookings = bookings.filter((b: Booking) => b.date === dateString);
+      const dayJobs = jobs.filter((b: Job) => b.date === dateString);
       const isToday = i === today.getDate() && month === today.getMonth() && year === today.getFullYear();
       
       const handleCellClick = () => {
-        openBookingForm(undefined, dateString);
+        openJobForm(undefined, dateString);
       };
 
       cells.push(
@@ -141,25 +144,25 @@ function CalendarWidgetInner() {
           {isToday ? (
             <div className="calendar-date" style={{ color: "var(--brand-orange)", fontWeight: 800 }}>{i} <span style={{ fontSize: "0.7rem", marginLeft: "5px" }}>Today</span></div>
           ) : (
-            <div className="calendar-date" style={{ fontWeight: dayBookings.length > 0 ? 800 : 400 }}>{i}</div>
+            <div className="calendar-date" style={{ fontWeight: dayJobs.length > 0 ? 800 : 400 }}>{i}</div>
           )}
           
-          {dayBookings.slice(0, 2).map((b: Booking) => {
+          {dayJobs.slice(0, 2).map((b: Job) => {
             const styles = getTierStyles(b.package);
             return (
-              <div key={b.id} className="calendar-event" style={{ backgroundColor: styles.bg, color: styles.color, border: 'none', marginBottom: '2px', padding: '3px 6px', fontSize: '0.65rem', borderRadius: '6px' }} onClick={(e) => { e.stopPropagation(); openBookingDetails(b.id); }}>
+              <div key={b.id} className="calendar-event" style={{ backgroundColor: styles.bg, color: styles.color, border: 'none', marginBottom: '2px', padding: '3px 6px', fontSize: '0.65rem', borderRadius: '6px' }} onClick={(e) => { e.stopPropagation(); openJobDetails(b.id); }}>
                 <i className="ph-fill ph-calendar-star"></i> {b.title.substring(0, 10)}...
               </div>
             );
           })}
 
-          {dayBookings.length > 2 && (
+          {dayJobs.length > 2 && (
             <div 
               className="calendar-event-more" 
               style={{ fontSize: '0.6rem', color: '#94a3b8', textAlign: 'center', cursor: 'pointer', fontWeight: 800, padding: '2px', borderRadius: '4px', background: 'transparent', margin: '2px 0 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}
               onClick={(e) => { e.stopPropagation(); setPopupDate(popupDate === dateString ? null : dateString); }}
             >
-              +{dayBookings.length - 2} more <i className="ph-bold ph-caret-down text-[0.5rem]"></i>
+              +{dayJobs.length - 2} more <i className="ph-bold ph-caret-down text-[0.5rem]"></i>
             </div>
           )}
 
@@ -175,12 +178,12 @@ function CalendarWidgetInner() {
                 </div>
               </div>
               <div className="flex flex-col gap-1.5 max-h-[180px] overflow-y-auto no-scrollbar">
-                {dayBookings.map((b: Booking) => {
+                {dayJobs.map((b: Job) => {
                   return (
                     <div 
                       key={b.id} 
                       className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden" 
-                      onClick={(e) => { e.stopPropagation(); openBookingDetails(b.id); setPopupDate(null); }}
+                      onClick={(e) => { e.stopPropagation(); openJobDetails(b.id); setPopupDate(null); }}
                     >
                       <i className="ph-fill ph-calendar-star mr-1"></i> {b.title}
                     </div>
@@ -198,8 +201,8 @@ function CalendarWidgetInner() {
 
   // Vertical layout logic
   const getVerticalEvents = (dateString: string) => {
-    const dayBookings = bookings.filter((b: Booking) => b.date === dateString);
-    return dayBookings.map((b: Booking) => {
+    const dayJobs = jobs.filter((b: Job) => b.date === dateString);
+    return dayJobs.map((b: Job) => {
       let startHour = 10;
       if (b.time) {
         const match = b.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -215,7 +218,7 @@ function CalendarWidgetInner() {
         const styles = getTierStyles(b.package);
 
         return (
-          <div key={b.id} className="event-block" style={{ top: topOffset, height: 50, backgroundColor: styles.bg, color: styles.color, border: 'none', borderLeft: '3px solid rgba(0,0,0,0.1)' }} onClick={(e) => { e.stopPropagation(); openBookingDetails(b.id); }}>
+          <div key={b.id} className="event-block" style={{ top: topOffset, height: 50, backgroundColor: styles.bg, color: styles.color, border: 'none', borderLeft: '3px solid rgba(0,0,0,0.1)' }} onClick={(e) => { e.stopPropagation(); openJobDetails(b.id); }}>
             <div className="event-title"><i className="ph-fill ph-calendar-star mr-1"></i> {b.title}</div>
             <div className="event-block-time" style={{ opacity: 0.9 }}>{b.time}</div>
           </div>
@@ -245,7 +248,7 @@ function CalendarWidgetInner() {
       const isToday = loopDate.toDateString() === new Date().toDateString();
 
       const handleColClick = () => {
-        openBookingForm(undefined, dateString);
+        openJobForm(undefined, dateString);
       };
 
       return {
@@ -280,7 +283,7 @@ function CalendarWidgetInner() {
     const isToday = currentDate.toDateString() === new Date().toDateString();
 
     const handleColClick = () => {
-      router.push(`/bookings/new?date=${dateString}`);
+      router.push(`/jobs/new?date=${dateString}`);
     };
 
     return (

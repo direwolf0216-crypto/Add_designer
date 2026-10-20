@@ -20,15 +20,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    if (entry.itemType === "booking") {
+    if (entry.itemType === "job") {
       try {
-        await prisma.transaction.deleteMany({ where: { bookingId: entry.itemId } });
-        await prisma.order.deleteMany({ where: { bookingId: entry.itemId } });
-        await prisma.booking.delete({ where: { id: entry.itemId } });
+        await prisma.transaction.deleteMany({ where: { jobId: entry.itemId } });
+        await prisma.order.deleteMany({ where: { jobId: entry.itemId } });
+        await prisma.job.delete({ where: { id: entry.itemId } });
       } catch (e) {
       }
     }
-    if (entry.itemType === "product-order" || entry.itemType === "gift" || entry.itemType === "frame") {
+    if (entry.itemType === "product-order" || entry.itemType === "frame") {
       // 1. Delete associated Drive files
       if (entry.originalData && typeof entry.originalData === "object") {
         const customData = (entry.originalData as any).customData;
@@ -110,46 +110,7 @@ export async function DELETE(
           await prisma.transaction.delete({ where: { id: entry.itemId } });
         } catch (e) {}
       }
-    } else if (entry.itemType === "PERSONAL_EXPENSE") {
-      // 1. Delete associated Drive files if they exist in attachmentUrl
-      if (entry.originalData && typeof entry.originalData === "object") {
-        const attachmentUrl = (entry.originalData as any).attachmentUrl;
-        if (attachmentUrl && typeof attachmentUrl === "string" && attachmentUrl.includes("drive.google.com")) {
-          // Extract file ID from URL (e.g., /file/d/{id}/view or ?id={id})
-          let driveFileId = "";
-          const match = attachmentUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-          if (match && match[1]) {
-            driveFileId = match[1];
-          } else {
-            const idMatch = attachmentUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-            if (idMatch && idMatch[1]) driveFileId = idMatch[1];
-          }
-
-          if (driveFileId) {
-            try {
-              const accessToken = await getGoogleDriveToken(session);
-              if (accessToken) {
-                const deleteRes = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}`, {
-                  method: "DELETE",
-                  headers: { Authorization: `Bearer ${accessToken}` }
-                });
-                if (!deleteRes.ok) {
-                  console.error(`Failed to delete drive file ${driveFileId}:`, await deleteRes.text());
-                }
-              }
-            } catch (err) {
-              console.error(`Error deleting drive file ${driveFileId}:`, err);
-            }
-          }
-        }
-      }
-
-      // 2. Delete database record
-      try {
-        await prisma.transaction.delete({ where: { id: entry.itemId } });
-      } catch (e) {}
     }
-
     await prisma.recycleBin.delete({ where: { id } });
 
     await prisma.systemLog.create({

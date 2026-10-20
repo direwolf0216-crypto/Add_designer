@@ -23,8 +23,8 @@ async function clearDB() {
     await prisma.productOrder.deleteMany({});
     console.log('Cleared ProductOrders');
     
-    await prisma.booking.deleteMany({});
-    console.log('Cleared Bookings');
+    await prisma.job.deleteMany({});
+    console.log('Cleared Jobs');
     
     await prisma.client.deleteMany({});
     console.log('Cleared Clients');

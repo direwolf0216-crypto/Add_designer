@@ -1,82 +1,137 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
+import { 
+  Layers, 
+  Lightbulb, 
+  Zap, 
+  ScrollText, 
+  Mail, 
+  ContactRound, 
+  Image as ImageIcon, 
+  IdCard, 
+  Printer, 
+  BookOpen, 
+  Trophy, 
+  Grid, 
+  LayoutTemplate, 
+  Tag 
+} from 'lucide-react';
 
-interface StatCardsProps {
-  totalBookings: number;
-  pendingRetouch: number;
-  hotDatesCount: number;
-  totalActiveOrders: number;
-  showHotDates: boolean;
-}
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-export default function StatCards({ totalBookings, pendingRetouch, hotDatesCount, totalActiveOrders, showHotDates }: StatCardsProps) {
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  "Flex Printing": Layers,
+  "Lighting Board": Lightbulb,
+  "LED Lighting Board": Zap,
+  "Vinyl Printing": ScrollText,
+  "Invitations": Mail,
+  "Visiting Cards": ContactRound,
+  "Litho Posters": ImageIcon,
+  "ID Cards": IdCard,
+  "Offset Printing": Printer,
+  "Book Printing": BookOpen,
+  "Trophy & Shields": Trophy,
+  "Screen Printing": Grid,
+  "A3 Color Board Print": LayoutTemplate,
+  "Sticker Print": Tag
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Flex Printing": "bg-blue-50 text-blue-500",
+  "Lighting Board": "bg-yellow-50 text-yellow-500",
+  "LED Lighting Board": "bg-amber-50 text-amber-500",
+  "Vinyl Printing": "bg-purple-50 text-purple-500",
+  "Invitations": "bg-pink-50 text-pink-500",
+  "Visiting Cards": "bg-emerald-50 text-emerald-500",
+  "Litho Posters": "bg-cyan-50 text-cyan-500",
+  "ID Cards": "bg-indigo-50 text-indigo-500",
+  "Offset Printing": "bg-slate-50 text-slate-500",
+  "Book Printing": "bg-orange-50 text-orange-500",
+  "Trophy & Shields": "bg-yellow-100 text-yellow-600",
+  "Screen Printing": "bg-rose-50 text-rose-500",
+  "A3 Color Board Print": "bg-teal-50 text-teal-500",
+  "Sticker Print": "bg-fuchsia-50 text-fuchsia-500"
+};
+
+type CategoryStat = {
+  category: string;
+  activeJobs: number;
+  pendingDelivery: number;
+  monthlyRevenue: number;
+};
+
+export default function StatCards() {
+  const { data: stats, isLoading, error } = useSWR<CategoryStat[]>('/api/dashboard/category-stats', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30000,
+  });
+
+  if (error) {
+    return (
+      <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 mb-6">
+        <h3 className="font-bold mb-1">Failed to load category stats</h3>
+      </div>
+    );
+  }
+
+  if (isLoading || !stats) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="bg-white rounded-2xl p-4 h-[120px] animate-pulse border border-gray-100"></div>
+        ))}
+      </div>
+    );
+  }
+
+  if (stats.length === 0) {
+    return null;
+  }
+
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-${showHotDates ? '4' : '3'} gap-4 mb-6`}>
-      {/* Bookings Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:border-emerald-100 relative group min-h-[110px]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
-            <i className="ph-bold ph-calendar-blank text-[1.1rem]"></i>
-          </div>
-          <span className="text-slate-500 font-semibold text-[0.8rem]">Bookings</span>
-        </div>
-        <div className="mt-2">
-          <span className="text-3xl font-extrabold text-slate-900 tracking-tight">{totalBookings}</span>
-        </div>
-        <Link href="/bookings/allBookings" className="absolute bottom-4 right-4 text-[0.7rem] font-bold text-emerald-500 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-          View all <i className="ph-bold ph-arrow-right"></i>
-        </Link>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {stats.map((stat) => {
+        const Icon = CATEGORY_ICONS[stat.category] || Printer;
+        const colorClass = CATEGORY_COLORS[stat.category] || "bg-gray-50 text-gray-500";
 
-      {/* Deliveries Due Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:border-red-100 relative group min-h-[110px]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
-            <i className="ph-bold ph-package text-[1.1rem]"></i>
-          </div>
-          <span className="text-slate-500 font-semibold text-[0.8rem]">Deliveries Due</span>
-        </div>
-        <div className="mt-2">
-          <span className="text-3xl font-extrabold text-slate-900 tracking-tight">{pendingRetouch}</span>
-        </div>
-        <Link href="/bookings/allBookings" className="absolute bottom-4 right-4 text-[0.7rem] font-bold text-red-500 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-          View all <i className="ph-bold ph-arrow-right"></i>
-        </Link>
-      </div>
-
-      {/* Hot Dates Card */}
-      {showHotDates && (
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:border-orange-100 relative group min-h-[110px]">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center">
-              <i className="ph-bold ph-fire text-[1.1rem]"></i>
+        return (
+          <Link 
+            key={stat.category} 
+            href={`/jobs/allJobs?category=${encodeURIComponent(stat.category)}`}
+            className="dashboard-card p-4 flex flex-col justify-between transition-all hover:shadow-md hover:border-emerald-200 relative group min-h-[110px]"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}>
+                  <Icon size={20} strokeWidth={2.5} />
+                </div>
+                <span className="text-slate-700 font-semibold text-sm">{stat.category}</span>
+              </div>
+              <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                ₹{stat.monthlyRevenue.toLocaleString('en-IN')} this month
+              </div>
             </div>
-            <span className="text-slate-500 font-semibold text-[0.8rem]">Hot Dates</span>
-          </div>
-          <div className="mt-2">
-            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">{hotDatesCount}</span>
-          </div>
-          <Link href="/bookings/allBookings" className="absolute bottom-4 right-4 text-[0.7rem] font-bold text-orange-500 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-            View calendar <i className="ph-bold ph-arrow-right"></i>
-          </Link>
-        </div>
-      )}
+            
+            <div className="mt-4 flex gap-4 text-sm">
+              <div>
+                <span className="text-slate-500">Active: </span>
+                <span className="font-bold text-slate-900">{stat.activeJobs}</span>
+              </div>
+              <div>
+                <span className="text-slate-500">Pending: </span>
+                <span className="font-bold text-slate-900">{stat.pendingDelivery}</span>
+              </div>
+            </div>
 
-      {/* Gift Orders Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:border-blue-100 relative group min-h-[110px]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
-            <i className="ph-bold ph-gift text-[1.1rem]"></i>
-          </div>
-          <span className="text-slate-500 font-semibold text-[0.8rem]">Gift Orders</span>
-        </div>
-        <div className="mt-2">
-          <span className="text-3xl font-extrabold text-slate-900 tracking-tight">{totalActiveOrders}</span>
-        </div>
-        <Link href="/gifts" className="absolute bottom-4 right-4 text-[0.7rem] font-bold text-blue-500 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-          View all <i className="ph-bold ph-arrow-right"></i>
-        </Link>
-      </div>
+            <div className="absolute bottom-4 right-4 text-[0.7rem] font-bold text-emerald-500 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              View Jobs <span className="text-lg leading-none">&rarr;</span>
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }

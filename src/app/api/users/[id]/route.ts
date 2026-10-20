@@ -22,7 +22,7 @@ export async function PUT(
     const body = await request.json();
     const { role, status, name, phone } = body;
 
-    const validRoles = ["ADMIN", "STAFF", "PHOTOGRAPHER"];
+    const validRoles = ["ADMIN", "STAFF"];
     const validStatuses = ["ACTIVE", "PENDING", "INACTIVE"];
     
     const updateData: any = {};

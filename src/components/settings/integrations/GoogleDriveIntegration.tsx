@@ -123,7 +123,7 @@ export default function GoogleDriveIntegration() {
         </div>
 
         <p className="text-[0.9rem] text-slate-600 mb-6 min-h-[40px]">
-          Connect your Google Drive to easily pick and attach files directly to orders and bookings.
+          Connect your Google Drive to easily pick and attach files directly to orders and jobs.
         </p>
 
         <div className="flex flex-col border-t border-gray-200/60 pt-4">

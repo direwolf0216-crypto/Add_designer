@@ -25,7 +25,7 @@ const albumStepMap: Record<string, any> = {
 };
 
 export default function VerticalStatusStepper({ steps, currentStatus, sectionTitle, onStatusChange, isUpdating, updatedAt }: VerticalStatusStepperProps) {
-  const isAlbum = sectionTitle?.toLowerCase().includes('album');
+  const isAlbum = sectionTitle?.toLowerCase().includes('album') || sectionTitle?.toLowerCase().includes('print');
   const stepMap = isAlbum ? albumStepMap : eventStepMap;
   
   const currentIndex = steps.findIndex(s => s.toLowerCase() === currentStatus?.toLowerCase());
@@ -72,7 +72,7 @@ export default function VerticalStatusStepper({ steps, currentStatus, sectionTit
               {/* Step Label */}
               <div className="ml-4 flex flex-col justify-center min-h-[26px]">
                 <div className={cn("font-bold text-[10px] uppercase tracking-wider leading-none", (isActive || isPast) ? "text-slate-800" : "text-slate-400")}>
-                  {step}
+                  {step.toLowerCase() === 'shoot completed' ? 'Job Completed' : step}
                 </div>
                 {updatedAt && (isActive || isPast) && (
                   <div className="text-[9px] text-slate-400 font-medium leading-none mt-1">

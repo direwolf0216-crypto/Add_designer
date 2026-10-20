@@ -21,9 +21,9 @@ export default function GlobalBannerProvider({ children }: { children: React.Rea
   }, []);
 
   const { data, isLoading } = useSWR('/api/banner', fetcher, {
-    revalidateOnFocus: true,
+    revalidateOnFocus: false,
     revalidateOnReconnect: true,
-    refreshInterval: 10000, // Poll every 10 seconds to detect setting changes automatically
+    refreshInterval: 300000, // Refresh every 5 minutes
     suspense: false
   });
 
@@ -127,7 +127,7 @@ export default function GlobalBannerProvider({ children }: { children: React.Rea
             </p>
 
             <Link
-              href={`/bookings/upcoming?date=${tomorrowISO}`}
+              href={`/jobs/upcoming?date=${tomorrowISO}`}
               onClick={handleDismiss}
               className="group relative inline-flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3.5 rounded-full font-bold text-[15px] transition-all hover:-translate-y-0.5 w-fit"
             >
@@ -149,7 +149,7 @@ export default function GlobalBannerProvider({ children }: { children: React.Rea
               />
             </div>
 
-            {/* Booking Cards */}
+            {/* Job Cards */}
             <div className={`relative z-30 w-full grid ${data?.day1?.length > 0 && data?.day2?.length > 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
             {data?.day1?.length > 0 && (
               <div className="flex-1 w-full bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-lg hover:bg-white/[0.15] transition-colors">
@@ -165,7 +165,7 @@ export default function GlobalBannerProvider({ children }: { children: React.Rea
                 <div className="space-y-3">
                   {data.day1.slice(0, 2).map((b: any) => (
                     <Link 
-                      href={`/bookings/details/${b.id}`} 
+                      href={`/jobs/details/${b.id}`} 
                       onClick={handleDismiss}
                       key={b.id} 
                       className="group/item block p-2 -mx-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
@@ -212,7 +212,7 @@ export default function GlobalBannerProvider({ children }: { children: React.Rea
                 <div className="space-y-3">
                   {data.day2.slice(0, 2).map((b: any) => (
                     <Link 
-                      href={`/bookings/details/${b.id}`}
+                      href={`/jobs/details/${b.id}`}
                       onClick={handleDismiss}
                       key={b.id} 
                       className="group/item block p-2 -mx-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"

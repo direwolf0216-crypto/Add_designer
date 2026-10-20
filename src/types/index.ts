@@ -1,6 +1,6 @@
-export interface Booking {
+export interface Job {
   id: string;
-  bookingNumber?: string | null;
+  jobNumber?: string | null;
   title: string;
   category: string;
   date: string;

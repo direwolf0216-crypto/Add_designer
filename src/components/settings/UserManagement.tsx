@@ -12,22 +12,20 @@ interface User {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: "ADMIN" | "STAFF" | "PHOTOGRAPHER";
+  role: "ADMIN" | "STAFF";
   status: "ACTIVE" | "PENDING" | "INACTIVE";
   invitedAt: string | null;
   tempPassword?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Studio Admin",
+  ADMIN: "Admin",
   STAFF: "Staff",
-  PHOTOGRAPHER: "Photographer",
 };
 
 const ROLE_BADGES: Record<string, { bg: string; text: string; icon: string }> = {
   ADMIN: { bg: "bg-orange-50", text: "text-orange-600", icon: "ph-shield-check" },
   STAFF: { bg: "bg-[#eff6ff]", text: "text-blue-600", icon: "ph-users" },
-  PHOTOGRAPHER: { bg: "bg-green-50", text: "text-green-600", icon: "ph-camera" },
 };
 
 const AVATAR_COLORS = [
@@ -106,9 +104,9 @@ export default function UserManagement() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
           <div>
-            <h2 className="text-[1.75rem] font-bold text-slate-900 tracking-tight">Studio Access</h2>
+            <h2 className="text-[1.75rem] font-bold text-slate-900 tracking-tight">System Access</h2>
             <p className="text-slate-500 text-sm mt-1">
-              Control who has access to your studio's financial and settings.
+              Control who has access to your system's financial and settings.
             </p>
           </div>
           <button

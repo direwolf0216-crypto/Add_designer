@@ -5,7 +5,7 @@ import useSWR from "swr";
 
 const DEFAULT_MATRIX: Record<string, Record<string, boolean>> = {
   ADMIN: {
-    manage_bookings: true,
+    manage_jobs: true,
     view_transactions: true,
     manage_transactions: true,
     view_analytics: true,
@@ -15,7 +15,7 @@ const DEFAULT_MATRIX: Record<string, Record<string, boolean>> = {
     view_export_analytics: true,
   },
   STAFF: {
-    manage_bookings: true,
+    manage_jobs: true,
     view_transactions: true,
     manage_transactions: false,
     view_analytics: true,
@@ -25,7 +25,7 @@ const DEFAULT_MATRIX: Record<string, Record<string, boolean>> = {
     view_export_analytics: false,
   },
   PHOTOGRAPHER: {
-    manage_bookings: false,
+    manage_jobs: false,
     view_transactions: false,
     manage_transactions: false,
     view_analytics: false,
@@ -44,7 +44,7 @@ export function usePermissions() {
   const { data: dbPermissions } = useSWR(
     status === "authenticated" ? '/api/permissions' : null,
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
   const checkPermission = (action: string) => {

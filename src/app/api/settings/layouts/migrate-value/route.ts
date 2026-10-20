@@ -19,15 +19,15 @@ export async function POST(req: Request) {
 
     let updatedCount = 0;
 
-    if (formKey === "BOOKING_FORM") {
+    if (formKey === "JOB_FORM") {
       if (fieldId === "fld_b_category") {
-        const res = await prisma.booking.updateMany({
+        const res = await prisma.job.updateMany({
           where: { category: oldValue },
           data: { category: newValue },
         });
         updatedCount = res.count;
       } else if (fieldId === "fld_b_status") {
-        const res = await prisma.booking.updateMany({
+        const res = await prisma.job.updateMany({
           where: { status: oldValue },
           data: { status: newValue },
         });

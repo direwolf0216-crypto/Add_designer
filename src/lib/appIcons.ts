@@ -28,7 +28,7 @@ export const APP_ICONS: AppIcon[] = [
   { id: "print-canvas", className: "ph-bounding-box", label: "Canvas / Board", category: "Albums & Prints" },
 
   // --- Gifts & Merchandise ---
-  { id: "merch-gift", className: "ph-gift", label: "Gift Box", category: "Merchandise" },
+
   { id: "merch-mug", className: "ph-coffee", label: "Mug / Cup", category: "Merchandise" },
   { id: "merch-keychain", className: "ph-key", label: "Key Chain", category: "Merchandise" },
   { id: "merch-badge", className: "ph-seal-check", label: "Badge / Token", category: "Merchandise" },

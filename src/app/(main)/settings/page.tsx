@@ -5,20 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import UserManagement from "@/components/settings/UserManagement";
 import RolesPermissions from "@/components/settings/RolesPermissions";
 import LayoutsFieldsBuilder from "@/components/settings/LayoutsFieldsBuilder";
-import SystemPreferences from "@/components/settings/SystemPreferences";
-import ReminderPreferences from "@/components/settings/ReminderPreferences";
 import RecycleBin from "@/components/settings/RecycleBin";
 import GoogleDriveIntegration from "@/components/settings/integrations/GoogleDriveIntegration";
-import WhatsAppIntegration from "@/components/settings/integrations/WhatsAppIntegration";
 
 const GROUPS = [
-  {
-    label: "General",
-    items: [
-      { id: "system", label: "System Preferences", icon: "ph-gear-fine" },
-      { id: "notifications", label: "Notification Preferences", icon: "ph-bell" },
-    ]
-  },
   {
     label: "Team",
     items: [
@@ -36,7 +26,6 @@ const GROUPS = [
     label: "Integrations",
     items: [
       { id: "google-drive", label: "Google Drive", icon: "ph-google-logo" },
-      { id: "whatsapp-bot", label: "WhatsApp Bot", icon: "ph-whatsapp-logo" },
     ]
   },
   {
@@ -105,7 +94,7 @@ function SettingsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const activeSection = (searchParams.get("section") as SectionId) ?? "system";
+  const activeSection = (searchParams.get("section") as SectionId) ?? "users";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   
@@ -207,9 +196,6 @@ function SettingsPage() {
           {displayedSection === "layouts" && <LayoutsFieldsBuilder />}
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
-          {displayedSection === "whatsapp-bot" && <WhatsAppIntegration />}
-          {displayedSection === "system" && <SystemPreferences />}
-          {displayedSection === "notifications" && <ReminderPreferences />}
         </div>
       </div>
       

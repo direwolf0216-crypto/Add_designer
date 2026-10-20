@@ -20,8 +20,8 @@ export async function POST(request: Request) {
     });
 
     for (const entry of entries) {
-      if (entry.itemType === "booking") {
-        await prisma.booking.update({
+      if (entry.itemType === "job") {
+        await prisma.job.update({
           where: { id: entry.itemId },
           data: { deletedAt: null }
         });
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
             });
           } catch (e) {}
         }
-      } else if (entry.itemType === "product-order" || entry.itemType === "gift" || entry.itemType === "frame") {
+      } else if (entry.itemType === "product-order" || entry.itemType === "frame") {
         const data: any = entry.originalData;
         try {
           await prisma.productOrder.create({
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
                     status: tx.status,
                     attachmentUrl: tx.attachmentUrl,
                     customData: tx.customData,
-                    bookingId: tx.bookingId,
+                    jobId: tx.jobId,
                     productOrderId: entry.itemId,
                     userId: tx.userId,
                     createdAt: tx.createdAt ? new Date(tx.createdAt) : undefined,

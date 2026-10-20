@@ -18,7 +18,7 @@ async function main() {
       date: new Date(),
       category: "Photography",
       paymentMode: "Bank Transfer",
-      description: "Wedding Booking Deposit - Ref: #WP-882",
+      description: "Wedding Job Deposit - Ref: #WP-882",
       status: "SETTLED"
     },
     {

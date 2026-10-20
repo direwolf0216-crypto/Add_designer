@@ -12,7 +12,7 @@ async function runNegativeTests() {
         amount: -500, // Invalid negative amount
         type: 'INCOME',
         date: new Date().toISOString(),
-        category: 'BOOKING',
+        category: 'JOB',
         paymentMode: 'Cash'
       })
     });
@@ -62,7 +62,7 @@ async function runNegativeTests() {
         amount: 500,
         type: 'INCOME',
         date: 'invalid-date', // Invalid date
-        category: 'BOOKING',
+        category: 'JOB',
         paymentMode: 'Cash'
       })
     });

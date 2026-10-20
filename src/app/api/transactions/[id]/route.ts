@@ -24,11 +24,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     
-    // Handle Legacy Advance Transactions (dynamically generated for old bookings)
+    // Handle Legacy Advance Transactions (dynamically generated for old jobs)
     if (id.startsWith("legacy-advance-")) {
-      const bookingId = id.replace("legacy-advance-", "");
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
+      const jobId = id.replace("legacy-advance-", "");
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
         include: { 
           client: { select: { name: true } }, 
           createdBy: { select: { id: true, name: true, email: true } },
@@ -36,14 +36,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         }
       });
       
-      if (!booking) {
-        return NextResponse.json({ error: "Booking not found for legacy transaction" }, { status: 404 });
+      if (!job) {
+        return NextResponse.json({ error: "Job not found for legacy transaction" }, { status: 404 });
       }
       
-      const customData = booking.customData as any;
-      const advanceAmount = Number(booking.order?.advance || customData?.fld_b_advance || 0);
+      const customData = job.customData as any;
+      const advanceAmount = Number(job.order?.advance || customData?.fld_b_advance || 0);
       const paymentMode = customData?.paymentMode || customData?.fld_b_payment_mode || "Cash";
-      const txDate = booking.date || new Date();
+      const txDate = job.date || new Date();
       
       const legacyTransaction = {
         id,
@@ -51,19 +51,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         amount: advanceAmount,
         type: "INCOME",
         date: txDate,
-        category: "BOOKING",
+        category: "JOB",
         paymentMode: paymentMode,
         description: "Advance Payment (Legacy)",
         status: "SETTLED",
         customData: {},
         attachmentUrl: null,
-        booking: {
-          id: booking.id,
-          bookingNumber: booking.bookingNumber,
-          category: booking.category,
-          client: { name: booking.client?.name || "" }
+        job: {
+          id: job.id,
+          jobNumber: job.jobNumber,
+          category: job.category,
+          client: { name: job.client?.name || "" }
         },
-        user: booking.createdBy || null,
+        user: job.createdBy || null,
         productOrder: null,
         customFields: []
       };
@@ -80,10 +80,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const transaction = await prisma.transaction.findUnique({
       where: { id },
       include: {
-        booking: {
+        job: {
           select: {
             id: true,
-            bookingNumber: true,
+            jobNumber: true,
             category: true,
             client: { select: { name: true } },
           },

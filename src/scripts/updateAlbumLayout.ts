@@ -2,7 +2,7 @@ import prisma from '../lib/prisma';
 
 async function main() {
   const layout = await prisma.formLayout.findUnique({
-    where: { formKey: 'BOOKING_FORM' }
+    where: { formKey: 'JOB_FORM' }
   });
 
   if (!layout || !layout.schema) {
@@ -14,7 +14,7 @@ async function main() {
 
   if (schema.sections) {
     for (const section of schema.sections) {
-      if (section.title.toLowerCase().includes('album') || section.id === 'sec_booking_album') {
+      if (section.title.toLowerCase().includes('album') || section.id === 'sec_job_album') {
         albumSectionExists = true;
         // Remove visibility rule
         if (section.visibilityRule) {
@@ -26,7 +26,7 @@ async function main() {
     if (!albumSectionExists) {
       // Add it before Financials or at the end
       const albumSection = {
-        id: "sec_booking_album",
+        id: "sec_job_album",
         title: "Album Details",
         description: "Details regarding the album design and delivery.",
         icon: "ph-book-open",
@@ -41,7 +41,7 @@ async function main() {
         ]
       };
       
-      const finIndex = schema.sections.findIndex((s: any) => s.id === 'sec_booking_financial' || s.title === 'Financials');
+      const finIndex = schema.sections.findIndex((s: any) => s.id === 'sec_job_financial' || s.title === 'Financials');
       if (finIndex !== -1) {
         schema.sections.splice(finIndex, 0, albumSection);
       } else {
@@ -50,7 +50,7 @@ async function main() {
     }
 
     await prisma.formLayout.update({
-      where: { formKey: 'BOOKING_FORM' },
+      where: { formKey: 'JOB_FORM' },
       data: { schema }
     });
 

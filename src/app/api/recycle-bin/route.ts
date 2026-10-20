@@ -23,17 +23,7 @@ export async function GET(request: Request) {
     if (source) whereClause.itemType = source;
     if (trashedBy) whereClause.trashedById = trashedBy;
     
-    if (source === 'PERSONAL_EXPENSE') {
-      if (session.user.email !== 'nithyavishalr@gmail.com') {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      whereClause.trashedById = (session.user as any).id;
-    } else {
-      if (session.user.email !== 'nithyavishalr@gmail.com') {
-        whereClause.itemType = { ...whereClause.itemType, not: 'PERSONAL_EXPENSE' };
-      }
-    }
-    
+
     if (startDate || endDate) {
       whereClause.trashedAt = {};
       if (startDate) whereClause.trashedAt.gte = new Date(startDate);
@@ -57,7 +47,7 @@ export async function GET(request: Request) {
     });
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    const clientIds = [...new Set(items.filter(i => i.itemType === 'booking').map(i => (i.originalData as any)?.clientId).filter(Boolean))];
+    const clientIds = [...new Set(items.filter(i => i.itemType === 'job').map(i => (i.originalData as any)?.clientId).filter(Boolean))];
     const clients = await prisma.client.findMany({
       where: { id: { in: clientIds as string[] } },
       select: { id: true, name: true }
@@ -73,10 +63,10 @@ export async function GET(request: Request) {
       const data: any = item.originalData || {};
       const user = item.trashedById ? userMap.get(item.trashedById) : null;
       
-      if (item.itemType === "booking") {
+      if (item.itemType === "job") {
         const clientName = data.clientId ? clientMap.get(data.clientId) : null;
-        entryName = clientName || data.clientName || data.eventName || `Booking`;
-        transactionId = data.bookingNumber || item.itemId.substring(0, 8);
+        entryName = clientName || data.clientName || data.eventName || `Job`;
+        transactionId = data.jobNumber || item.itemId.substring(0, 8);
       } else if (item.itemType === "transaction") {
         entryName = data.category || "Transaction";
         transactionId = data.transactionId || "-";
@@ -86,15 +76,10 @@ export async function GET(request: Request) {
         entryName = children.map((c: any) => c.category).join(', ') || "Transaction Group";
         transactionId = children.map((c: any) => c.transactionId).join(', ') || "-";
         originalType = children[0]?.type || "TRANSACTION_GROUP";
-      } else if (item.itemType === "gift" || item.itemType === "frame" || item.itemType === "product-order") {
+      } else if (item.itemType === "frame" || item.itemType === "product-order") {
         entryName = data.customData?.clientName || data.clientName || `Order`;
         transactionId = data.orderNumber || data.orderId || item.itemId.substring(0, 8);
-      } else if (item.itemType === "PERSONAL_EXPENSE") {
-        entryName = data.title || "Personal Expense";
-        transactionId = "-";
-        originalType = data.type || "EXPENSE";
       }
-
       return {
         id: item.id,
         itemType: item.itemType,
@@ -133,17 +118,17 @@ export async function DELETE(request: Request) {
     });
 
     for (const entry of entries) {
-      // If booking, we also hard delete the booking itself if we are permanently deleting
-      if (entry.itemType === "booking") {
+      // If job, we also hard delete the job itself if we are permanently deleting
+      if (entry.itemType === "job") {
         try {
-          await prisma.transaction.deleteMany({ where: { bookingId: entry.itemId } });
-          await prisma.order.deleteMany({ where: { bookingId: entry.itemId } });
-          await prisma.booking.delete({ where: { id: entry.itemId } });
+          await prisma.transaction.deleteMany({ where: { jobId: entry.itemId } });
+          await prisma.order.deleteMany({ where: { jobId: entry.itemId } });
+          await prisma.job.delete({ where: { id: entry.itemId } });
         } catch (e) {
         }
       }
       // Product orders if they use deletedAt
-      if (entry.itemType === "product-order" || entry.itemType === "gift" || entry.itemType === "frame") {
+      if (entry.itemType === "product-order" || entry.itemType === "frame") {
         try {
           await prisma.productOrder.delete({ where: { id: entry.itemId } });
         } catch (e) {}
@@ -153,11 +138,7 @@ export async function DELETE(request: Request) {
           await prisma.transaction.deleteMany({ where: { groupId: entry.itemId } });
         } catch (e) {}
       }
-      if (entry.itemType === "PERSONAL_EXPENSE") {
-        try {
-          await prisma.transaction.delete({ where: { id: entry.itemId } });
-        } catch (e) {}
-      }
+
     }
 
     // Now permanently delete the RecycleBin entries (or mark them)

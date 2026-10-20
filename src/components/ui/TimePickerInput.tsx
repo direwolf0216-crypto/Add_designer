@@ -312,12 +312,14 @@ export default function TimePickerInput({ value, onChange, placeholder = "hh:mm 
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         tabIndex={0}
-        className={className || `flex h-[45px] w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-[0.95rem] transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 active:scale-95 ${hasError ? 'border-red-500 ring-2 ring-red-500/20' : isOpen ? 'border-orange-300 ring-2 ring-orange-500/20' : 'border-gray-200'}`}
+        className={`flex h-[45px] w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-[0.95rem] transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-95 ${hasError ? 'border-red-500 ring-2 ring-red-500/20' : isOpen ? 'border-blue-400 ring-2 ring-blue-500/20' : 'border-gray-200'} ${className || ''}`}
       >
         <span className={`flex-1 truncate whitespace-nowrap transition-colors duration-300 ${displayValue ? 'text-slate-900 font-bold' : 'text-slate-400 font-medium'}`}>
           {displayValue || placeholder}
         </span>
-        <Clock size={18} className={`transition-colors duration-300 ${isOpen ? 'text-orange-500' : 'text-slate-400'}`} />
+        {!(className || '').includes('pl-') && (
+          <Clock size={18} className={`transition-colors duration-300 ${isOpen ? 'text-blue-500' : 'text-slate-400'}`} />
+        )}
       </div>
       
       {isOpen && typeof document !== 'undefined' && createPortal(

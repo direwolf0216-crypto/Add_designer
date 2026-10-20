@@ -10,7 +10,7 @@ interface User {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: "ADMIN" | "STAFF" | "PHOTOGRAPHER";
+  role: "ADMIN" | "STAFF";
   status: "ACTIVE" | "PENDING" | "INACTIVE";
 }
 
@@ -22,9 +22,8 @@ interface EditUserModalProps {
 }
 
 const ROLE_LABELS = {
-  ADMIN: "Studio Admin",
+  ADMIN: "Admin",
   STAFF: "Staff",
-  PHOTOGRAPHER: "Photographer",
 };
 
 const STATUS_LABELS = {

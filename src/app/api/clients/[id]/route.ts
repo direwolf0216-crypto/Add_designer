@@ -16,7 +16,7 @@ export async function GET(
     const id = (await params).id;
     const client = await prisma.client.findUnique({
       where: { id },
-      include: { bookings: true },
+      include: { jobs: true },
     });
 
     if (!client) {

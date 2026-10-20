@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface DeleteUserModalProps {
   user: {
@@ -14,9 +15,8 @@ interface DeleteUserModalProps {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Studio Admin",
+  ADMIN: "Admin",
   STAFF: "Staff",
-  PHOTOGRAPHER: "Photographer",
 };
 
 export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalProps) {
@@ -37,7 +37,12 @@ export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUser
         .slice(0, 2)
     : "??";
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
@@ -97,6 +102,7 @@ export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUser
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

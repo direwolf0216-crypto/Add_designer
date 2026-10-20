@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         type: {
           in: [
             'ORDER_STATUS_STALE',
-            'BOOKING_STATUS_STALE',
+            'JOB_STATUS_STALE',
             'PAYMENT_DUE_REMINDER',
             'ADVANCE_NOT_COLLECTED',
             'GALLERY_NOT_DELIVERED',
@@ -89,7 +89,7 @@ export async function GET(request: Request) {
         message,
         actionUrl,
         entityId,
-        entityType: type.startsWith('ORDER') ? 'order' : 'booking',
+        entityType: type.startsWith('ORDER') ? 'order' : 'job',
         priority: 'HIGH',
       }));
 
@@ -99,53 +99,12 @@ export async function GET(request: Request) {
       }
     };
 
-    // 2. Orders in PENDING/IN_PRODUCTION for > X days
-    const staleOrderDate = new Date();
-    staleOrderDate.setDate(staleOrderDate.getDate() - thresholds.orderStale);
-    
-    const staleOrders = await prisma.productOrder.findMany({
-      where: {
-        status: { in: ['PENDING', 'PROCESSING'] },
-        updatedAt: { lt: staleOrderDate }
-      }
-    });
 
-    for (const order of staleOrders) {
-      await createReminders(
-        'ORDER_STATUS_STALE',
-        order.id,
-        `Stale Order: ${order.orderNumber || 'Unknown'}`,
-        `Order for ${order.clientName} has been ${order.status} for ${thresholds.orderStale}+ days.`,
-        `/gifts`
-      );
-    }
-
-    // 3. Orders READY_FOR_PICKUP > X days
-    const readyOrderDate = new Date();
-    readyOrderDate.setDate(readyOrderDate.getDate() - thresholds.orderReady);
-
-    const readyOrders = await prisma.productOrder.findMany({
-      where: {
-        status: 'READY',
-        updatedAt: { lt: readyOrderDate }
-      }
-    });
-
-    for (const order of readyOrders) {
-      await createReminders(
-        'ORDER_STATUS_STALE',
-        order.id,
-        `Order Ready for Pickup`,
-        `Order for ${order.clientName} ready but not collected for ${thresholds.orderReady}+ days.`,
-        `/gifts`
-      );
-    }
-
-    // 4. Bookings missing advance payments (event < 7 days)
+    // 4. Jobs missing advance payments (event < 7 days)
     const upcomingEventDate = new Date();
     upcomingEventDate.setDate(upcomingEventDate.getDate() + thresholds.advance);
 
-    const advanceMissingBookings = await prisma.booking.findMany({
+    const advanceMissingJobs = await prisma.job.findMany({
       where: {
         date: { gte: now, lte: upcomingEventDate },
         deletedAt: null,
@@ -157,21 +116,21 @@ export async function GET(request: Request) {
       include: { client: true }
     });
 
-    for (const booking of advanceMissingBookings) {
+    for (const job of advanceMissingJobs) {
       await createReminders(
         'ADVANCE_NOT_COLLECTED',
-        booking.id,
+        job.id,
         `Advance Missing`,
-        `No advance collected for ${booking.client?.name} shoot on ${booking.date.toISOString().split('T')[0]}.`,
-        `/bookings/details/${booking.id}`
+        `No advance collected for ${job.client?.name} shoot on ${job.date.toISOString().split('T')[0]}.`,
+        `/jobs/details/${job.id}`
       );
     }
 
-    // 5. Bookings COMPLETED with galleryDelivered = false > 14 days
+    // 5. Jobs COMPLETED with galleryDelivered = false > 14 days
     const galleryDate = new Date();
     galleryDate.setDate(galleryDate.getDate() - thresholds.gallery);
 
-    const galleryPendingBookingsRaw = await prisma.booking.findMany({
+    const galleryPendingJobsRaw = await prisma.job.findMany({
       where: {
         date: { lt: galleryDate },
         deletedAt: null,
@@ -179,27 +138,27 @@ export async function GET(request: Request) {
       include: { client: true }
     });
 
-    const galleryPendingBookings = galleryPendingBookingsRaw.filter(b => {
+    const galleryPendingJobs = galleryPendingJobsRaw.filter(b => {
       let cd: any = {};
       try { cd = typeof b.customData === 'string' ? JSON.parse(b.customData) : (b.customData || {}); } catch(e) {}
       return cd.fld_b_album_status !== 'Delivered';
     });
 
-    for (const booking of galleryPendingBookings) {
+    for (const job of galleryPendingJobs) {
       await createReminders(
         'GALLERY_NOT_DELIVERED',
-        booking.id,
+        job.id,
         `Gallery Pending`,
-        `Gallery not delivered for ${booking.client?.name} (event was ${thresholds.gallery}+ days ago).`,
-        `/bookings/details/${booking.id}`
+        `Gallery not delivered for ${job.client?.name} (event was ${thresholds.gallery}+ days ago).`,
+        `/jobs/details/${job.id}`
       );
     }
 
-    // 6. Bookings with album status PENDING > 30 days
+    // 6. Jobs with album status PENDING > 30 days
     const albumDate = new Date();
     albumDate.setDate(albumDate.getDate() - thresholds.album);
 
-    const albumPendingBookingsRaw = await prisma.booking.findMany({
+    const albumPendingJobsRaw = await prisma.job.findMany({
       where: {
         date: { lt: albumDate },
         deletedAt: null,
@@ -207,28 +166,28 @@ export async function GET(request: Request) {
       include: { client: true }
     });
 
-    const albumPendingBookings = albumPendingBookingsRaw.filter(b => {
+    const albumPendingJobs = albumPendingJobsRaw.filter(b => {
       let cd: any = {};
       try { cd = typeof b.customData === 'string' ? JSON.parse(b.customData) : (b.customData || {}); } catch(e) {}
       return cd.fld_b_album_status === 'Pending';
     });
 
-    for (const booking of albumPendingBookings) {
+    for (const job of albumPendingJobs) {
       await createReminders(
         'ALBUM_PENDING_REMINDER',
-        booking.id,
+        job.id,
         `Album Pending`,
-        `Album status still PENDING for ${booking.client?.name} (event was ${thresholds.album}+ days ago).`,
-        `/bookings/details/${booking.id}`
+        `Album status still PENDING for ${job.client?.name} (event was ${thresholds.album}+ days ago).`,
+        `/jobs/details/${job.id}`
       );
     }
 
     // 7. Payment dues approaching (Due < 3 days with dueAmount > 0)
-    // For Bookings
+    // For Jobs
     const paymentDueDate = new Date();
     paymentDueDate.setDate(paymentDueDate.getDate() + thresholds.paymentDue);
 
-    const dueBookings = await prisma.booking.findMany({
+    const dueJobs = await prisma.job.findMany({
       where: {
         date: { gte: now, lte: paymentDueDate },
         deletedAt: null,
@@ -239,43 +198,17 @@ export async function GET(request: Request) {
       include: { client: true, order: true }
     });
 
-    for (const booking of dueBookings) {
+    for (const job of dueJobs) {
       await createReminders(
         'PAYMENT_DUE_REMINDER',
-        booking.id,
+        job.id,
         `Payment Due Soon`,
-        `₹${booking.order?.due} due for ${booking.client?.name}'s shoot on ${booking.date.toISOString().split('T')[0]}.`,
-        `/bookings/details/${booking.id}`
+        `₹${job.order?.due} due for ${job.client?.name}'s shoot on ${job.date.toISOString().split('T')[0]}.`,
+        `/jobs/details/${job.id}`
       );
     }
 
-    // For Product Orders
-    const dueOrders = await prisma.productOrder.findMany({
-      where: {
-        dueDate: { gte: now, lte: paymentDueDate },
-        // assuming ProductOrder doesn't have `dueAmount` field easily queriable?
-        // Let's just alert if they have a dueDate in that range and status isn't DELIVERED
-        status: { not: 'DELIVERED' }
-      }
-    });
 
-    for (const order of dueOrders) {
-      // calculate due amount from transactions if possible, or just alert generally
-      const txs = await prisma.transaction.findMany({ where: { productOrderId: order.id } });
-      let paid = 0;
-      txs.forEach(t => paid += t.amount);
-      
-      // If we don't know total amount, we just remind. 
-      // ProductOrder currently doesn't store total amount directly as a float? 
-      // Let's just remind generally.
-      await createReminders(
-        'PAYMENT_DUE_REMINDER',
-        order.id,
-        `Order Payment Due`,
-        `Payment/Pickup due for ${order.clientName}'s order by ${order.dueDate?.toISOString().split('T')[0]}.`,
-        `/gifts`
-      );
-    }
 
     return NextResponse.json({ success: true, notificationsCreated });
   } catch (error: any) {

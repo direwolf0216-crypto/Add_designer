@@ -55,68 +55,77 @@ function ResetPasswordForm() {
       }
     } catch (err) {
       setError("An unexpected error occurred.");
-    } finally {
+    } font-medium; finally {
       setLoading(false);
     }
   };
 
   if (!token) {
     return (
-      <div className="bg-white w-full rounded-[2rem] shadow-2xl border border-slate-100 p-8 text-center">
-        <h2 className="text-xl font-bold text-red-500 mb-4">Invalid Link</h2>
-        <p className="text-slate-500 mb-6">Your password reset link is invalid or has expired.</p>
-        <Link href="/login" className="text-orange-500 font-bold hover:underline">
-          Return to Login
+      <div className="bg-white/95 backdrop-blur-2xl w-full rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 text-center">
+        <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 mx-auto mb-4 border border-rose-200">
+          <i className="ph-bold ph-warning-circle text-3xl"></i>
+        </div>
+        <h2 className="text-xl font-extrabold text-slate-900 mb-2">Invalid Reset Link</h2>
+        <p className="text-slate-500 text-sm mb-6">Your password reset token is invalid or has expired.</p>
+        <Link href="/login" className="inline-flex items-center gap-2 text-amber-600 font-bold hover:underline">
+          <i className="ph-bold ph-arrow-left"></i>
+          <span>Return to Login</span>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="bg-white w-full rounded-[2rem] shadow-2xl border border-slate-100 p-8 pt-6 pb-10 relative">
-      <div className="flex justify-center mb-4">
-        <Image src="/assets/logo.png" alt="Kanakkupulla Logo" width={360} height={100} className="w-[360px] object-contain drop-shadow-sm" />
+    <div className="bg-white/95 backdrop-blur-2xl w-full rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 sm:p-10 relative overflow-hidden">
+      <div className="flex justify-center mb-6">
+        <div className="bg-slate-50/80 p-3 px-6 rounded-2xl border border-slate-100/80 shadow-sm flex items-center justify-center">
+          <Image unoptimized src="/assets/logo.png?v=2" alt="Add Designer Logo" width={340} height={90} className="w-[280px] sm:w-[320px] object-contain drop-shadow-sm" />
+        </div>
       </div>
 
       <div className="text-center mb-8">
-        <h1 className="text-[1.3rem] font-extrabold text-slate-900 tracking-tight">Create New Password</h1>
+        <h1 className="text-[1.4rem] font-extrabold text-slate-900 tracking-tight">Create New Password</h1>
+        <p className="text-xs text-slate-500 font-medium mt-1">Set a strong password for your studio account</p>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-500 text-sm p-3 rounded-xl mb-6 text-center border border-red-100 font-medium">
-          {error}
+        <div className="bg-rose-50/90 text-rose-600 text-xs sm:text-sm p-3.5 rounded-2xl mb-6 text-center border border-rose-200 font-semibold flex items-center justify-center gap-2">
+          <i className="ph-bold ph-warning-circle text-base"></i>
+          <span>{error}</span>
         </div>
       )}
 
       <form onSubmit={resetPassword} className="flex flex-col gap-5">
-        <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-            <i className="ph ph-lock-key text-[1.1rem]"></i>
+        <div className="group relative">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors">
+            <i className="ph ph-lock-key text-[1.2rem]"></i>
           </div>
           <input 
             type={showPassword ? "text" : "password"}
             placeholder="New Password"
-            className="w-full h-[50px] pl-11 pr-11 bg-white border border-slate-200 rounded-full text-[0.95rem] focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400"
+            className="w-full h-[52px] pl-11 pr-11 bg-slate-50/70 border border-slate-200 rounded-2xl text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/15 transition-all"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <div 
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer hover:text-slate-600"
+          <button 
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
             onClick={() => setShowPassword(!showPassword)}
           >
-            <i className={`ph ${showPassword ? 'ph-eye' : 'ph-eye-slash'} text-[1.1rem]`}></i>
-          </div>
+            <i className={`ph ${showPassword ? 'ph-eye' : 'ph-eye-slash'} text-[1.2rem]`}></i>
+          </button>
         </div>
 
-        <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-            <i className="ph ph-lock-key text-[1.1rem]"></i>
+        <div className="group relative">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors">
+            <i className="ph ph-lock-key-open text-[1.2rem]"></i>
           </div>
           <input 
             type={showPassword ? "text" : "password"}
-            placeholder="Confirm New Password"
-            className="w-full h-[50px] pl-11 pr-4 bg-white border border-slate-200 rounded-full text-[0.95rem] focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400"
+            placeholder="Confirm Password"
+            className="w-full h-[52px] pl-11 pr-4 bg-slate-50/70 border border-slate-200 rounded-2xl text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/15 transition-all"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
@@ -126,24 +135,22 @@ function ResetPasswordForm() {
         <button 
           type="submit" 
           disabled={loading}
-          className="w-full h-[50px] bg-[#f89d2a] hover:bg-[#e0891d] text-white font-bold rounded-full text-[1rem] shadow-md transition-all flex justify-center items-center gap-2 mt-2 disabled:opacity-70"
+          className="w-full h-[52px] bg-gradient-to-r from-[#f89d2a] via-[#ff8f00] to-[#e07d00] hover:from-[#e0891d] hover:to-[#c66900] text-white font-extrabold rounded-2xl text-[1rem] shadow-[0_10px_25px_-5px_rgba(248,157,42,0.5)] transition-all flex justify-center items-center gap-2 disabled:opacity-75"
         >
-          {loading ? "Updating..." : "Reset Password"}
+          {loading ? "Updating Password..." : "Update Password"}
         </button>
       </form>
-      
-      <div className="mt-6 text-center">
-        <Link href="/login" className="text-[0.85rem] text-slate-500 font-medium hover:text-slate-800 transition-colors">
-          Back to Login
-        </Link>
-      </div>
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="text-white text-center">Loading...</div>}>
+    <Suspense fallback={
+      <div className="bg-white/95 backdrop-blur-2xl w-full rounded-[2.5rem] p-8 text-center text-slate-500 font-medium">
+        Loading form...
+      </div>
+    }>
       <ResetPasswordForm />
     </Suspense>
   );

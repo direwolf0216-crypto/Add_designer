@@ -66,7 +66,7 @@ function TransactionModalInner() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusDropdownOpen, setStatusDropdownOpen] = useState<string | null>(null);
   
-  const { data: driveStatus } = useSWR("/api/integrations/google", fetcher);
+  const { data: driveStatus } = useSWR(isOpen ? "/api/integrations/google" : null, fetcher);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -81,7 +81,7 @@ function TransactionModalInner() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [statusDropdownOpen]);
 
-  const { data: layoutRes } = useSWR("/api/settings/layouts/TRANSACTION_FORM", fetcher);
+  const { data: layoutRes } = useSWR(isOpen ? "/api/settings/layouts/TRANSACTION_FORM" : null, fetcher);
   const layoutSchema = layoutRes?.schema;
 
   const isEditMode = !!editTransaction;

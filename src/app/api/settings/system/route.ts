@@ -32,11 +32,20 @@ const DEFAULT_SETTINGS = {
   }
 };
 
+let systemSettingsCache: { value: Record<string, any>; timestamp: number } | null = null;
+const CACHE_TTL = 300000; // 5 minutes
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  if (systemSettingsCache && Date.now() - systemSettingsCache.timestamp < CACHE_TTL) {
+    console.log("[Cache HIT] /api/settings/system");
+    return NextResponse.json(systemSettingsCache.value);
+  }
+  console.log("[Cache MISS] /api/settings/system");
 
   try {
     const settings = await prisma.systemSetting.findMany();
@@ -58,6 +67,7 @@ export async function GET(request: Request) {
       }
     }
 
+    systemSettingsCache = { value: settingsMap, timestamp: Date.now() };
     return NextResponse.json(settingsMap);
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
@@ -88,6 +98,7 @@ export async function PUT(request: Request) {
       create: { key, value }
     });
 
+    systemSettingsCache = null; // Invalidate cache on write
     return NextResponse.json(updatedSetting);
   } catch (error) {
     return NextResponse.json({ error: "Failed to update setting" }, { status: 500 });

@@ -45,3 +45,29 @@ next-env.d.ts
 # whatsapp session data
 .wwebjs_auth/
 nextauth-*.log
+
+# local tooling / editor
+.idea/
+.idx/
+.kilo/
+.vscode/
+.mcp.json
+.claude/settings.local.json
+
+# logs, scratch and test output
+*.log
+*.rej
+*.orig
+diff.txt
+test-results/
+playwright-report/
+load-test-results.json
+stress-test-results.json
+*.zip
+test_invoice.pdf
+
+# whatsapp session cache
+.wwebjs_cache/
+
+# local sqlite leftovers
+prisma/*.db

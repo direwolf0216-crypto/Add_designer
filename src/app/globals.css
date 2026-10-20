@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Alex+Brush&family=Montserrat:wght@300;400;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,18 +7,23 @@
 @tailwind utilities;
 
 :root {
-  /* Color Palette based on reference */
+  /* Modern SaaS Color Tokens */
   --bg-main: #f8fafc;
+  --bg-dark-mesh: #0b0f19;
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
   --bg-card-dark: #111827;
+
+  --bg-card-glass: rgba(255, 255, 255, 0.85);
+  --border-glass: rgba(15, 23, 42, 0.04);
 
   --text-primary: #1f2937;
   --text-secondary: #6b7280;
   --text-dark-card: #f9fafb;
   --text-dark-card-muted: #9ca3af;
 
-  --brand-orange: #ff9f1c;
+  --brand-orange: #f89d2a;
+  --brand-orange-hover: #e08719;
   --brand-orange-light: #fff3e0;
   --brand-green: #10b981;
   --brand-green-light: #d1fae5;
@@ -29,19 +34,59 @@
 
   --border-color: #e5e7eb;
 
-  /* Shadows */
+  /* Premium Shadows & Glows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-hover: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.1); /* Enhanced for 3D feel */
+  --shadow-hover: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-orange-glow: 0 10px 30px -5px rgba(248, 157, 42, 0.4);
+  --shadow-glass: 0 20px 50px rgba(0, 0, 0, 0.25);
 
   /* Layout */
   --sidebar-width: 200px;
   --topbar-height: 80px;
 
   /* Transitions */
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1); /* Snappier transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom UI Utility Styles */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.glow-orange-button {
+  box-shadow: 0 8px 25px -4px rgba(248, 157, 42, 0.45);
+  transition: all 0.25s ease;
+}
+.glow-orange-button:hover {
+  box-shadow: 0 12px 35px -2px rgba(248, 157, 42, 0.65);
+  transform: translateY(-1px);
+}
+.glow-orange-button:active {
+  transform: translateY(1px);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 6s ease-in-out infinite;
 }
 
 
@@ -310,6 +355,22 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dashboard-card {
+  background-color: var(--bg-card-glass, rgba(255, 255, 255, 0.85));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid var(--border-glass, rgba(15, 23, 42, 0.04));
+  box-shadow: var(--shadow-ambient, 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06));
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .dashboard-card {
+    background-color: rgba(255, 255, 255, 0.95);
+  }
 }
 
 .card.interactive:hover {

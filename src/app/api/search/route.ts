@@ -19,12 +19,12 @@ export async function GET(request: Request) {
 
     const results: any[] = [];
 
-    // Search Bookings (and associated Client)
-    const bookings = await prisma.booking.findMany({
+    // Search Jobs (and associated Client)
+    const jobs = await prisma.job.findMany({
       where: {
         deletedAt: null,
         OR: [
-          { bookingNumber: { contains: query, mode: "insensitive" } },
+          { jobNumber: { contains: query, mode: "insensitive" } },
           { location: { contains: query, mode: "insensitive" } },
           { client: { name: { contains: query, mode: "insensitive" } } },
           { client: { email: { contains: query, mode: "insensitive" } } },
@@ -37,13 +37,13 @@ export async function GET(request: Request) {
       take: 5
     });
 
-    bookings.forEach(b => {
+    jobs.forEach(b => {
       results.push({
         id: b.id,
-        type: "BOOKING",
+        type: "JOB",
         title: `${b.client.name} - ${b.category}`,
-        subtitle: `Booking No: ${b.bookingNumber || 'N/A'} • ${b.date.toISOString().split('T')[0]}`,
-        link: `/bookings/details/${b.id}`,
+        subtitle: `Job No: ${b.jobNumber || 'N/A'} • ${b.date.toISOString().split('T')[0]}`,
+        link: `/jobs/details/${b.id}`,
         icon: "ph-calendar-star",
         color: "blue"
       });

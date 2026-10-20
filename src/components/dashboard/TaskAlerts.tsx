@@ -6,9 +6,15 @@ import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function TaskAlerts() {
-  const { data: rawAlerts } = useSWR('/api/dashboard/alerts', fetcher);
-  const { data: overviewData } = useSWR('/api/dashboard/overview', fetcher);
+interface TaskAlertsProps {
+  unconfirmedCount?: number;
+  pendingRetouch?: number;
+}
+
+export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingRetouch: propRetouch }: TaskAlertsProps = {}) {
+  const { data: rawAlerts } = useSWR('/api/dashboard/alerts', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
+  const shouldFetchOverview = propUnconfirmed === undefined && propRetouch === undefined;
+  const { data: overviewData } = useSWR(shouldFetchOverview ? '/api/dashboard/overview' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
 
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -37,8 +43,8 @@ export default function TaskAlerts() {
   }, []);
 
   const alerts = (rawAlerts || []).filter((a: any) => !dismissedAlerts.includes(a.id));
-  const unconfirmedCount = overviewData?.unconfirmedBookingsCount || 0;
-  const pendingRetouch = overviewData?.pendingRetouch || 0;
+  const unconfirmedCount = propUnconfirmed ?? (overviewData?.unconfirmedJobsCount || 0);
+  const pendingRetouch = propRetouch ?? (overviewData?.pendingRetouch || 0);
 
   const handleDismiss = (id: string) => {
     localStorage.setItem(`dismissed_alert_${id}`, Date.now().toString());
@@ -68,7 +74,7 @@ export default function TaskAlerts() {
                 <p className="text-[0.8rem] font-medium text-slate-500">{pendingRetouch} gallery deliveries are pending</p>
               </div>
             </div>
-            <Link href="/bookings/allBookings" className="shrink-0 px-4 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-[0.75rem] font-bold hover:bg-orange-50 transition-colors">
+            <Link href="/jobs/allJobs" className="shrink-0 px-4 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-[0.75rem] font-bold hover:bg-orange-50 transition-colors">
               View All
             </Link>
           </div>
@@ -81,11 +87,11 @@ export default function TaskAlerts() {
                 <i className="ph-bold ph-info text-lg"></i>
               </div>
               <div>
-                <p className="text-[0.95rem] font-bold text-slate-900">Pending Bookings</p>
-                <p className="text-[0.8rem] font-medium text-slate-500">{unconfirmedCount} bookings awaiting confirmation</p>
+                <p className="text-[0.95rem] font-bold text-slate-900">Pending Jobs</p>
+                <p className="text-[0.8rem] font-medium text-slate-500">{unconfirmedCount} jobs awaiting confirmation</p>
               </div>
             </div>
-            <Link href="/bookings/allBookings" className="shrink-0 px-4 py-1.5 rounded-lg border border-blue-200 text-blue-500 text-[0.75rem] font-bold hover:bg-blue-50 transition-colors">
+            <Link href="/jobs/allJobs" className="shrink-0 px-4 py-1.5 rounded-lg border border-blue-200 text-blue-500 text-[0.75rem] font-bold hover:bg-blue-50 transition-colors">
               View All
             </Link>
           </div>

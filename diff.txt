@@ -1,11 +1,11 @@
-diff --git a/src/components/dashboard/BookingDetailsModal.tsx b/src/components/dashboard/BookingDetailsModal.tsx
+diff --git a/src/components/dashboard/JobDetailsModal.tsx b/src/components/dashboard/JobDetailsModal.tsx
 index b01b82f..abe7803 100644
---- a/src/components/dashboard/BookingDetailsModal.tsx
-+++ b/src/components/dashboard/BookingDetailsModal.tsx
+--- a/src/components/dashboard/JobDetailsModal.tsx
++++ b/src/components/dashboard/JobDetailsModal.tsx
 @@ -1,55 +1,40 @@
  "use client";
  
--import { useBookings } from "../providers/BookingProvider";
+-import { useJobs } from "../providers/JobProvider";
 -import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 +import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,7 +42,7 @@ index b01b82f..abe7803 100644
 +import { motion, AnimatePresence } from "framer-motion";
  import { useRouter } from "next/navigation";
 -import Link from "next/link";
--import { Booking } from "@/types";
+-import { Job } from "@/types";
 -import { useState, useEffect, useRef } from "react";
 +import { useState, useEffect } from "react";
  import useSWR from "swr";
@@ -50,8 +50,8 @@ index b01b82f..abe7803 100644
 -import "flatpickr/dist/flatpickr.min.css";
 -import DatePickerInput from "../ui/DatePickerInput";
 -import MultiUserPicklist from "../ui/MultiUserPicklist";
--import { deleteBookingAction, updateBookingStatusAction, saveBookingAction } from "@/app/actions";
-+import { deleteBookingAction, updateBookingStatusAction } from "@/app/actions";
+-import { deleteJobAction, updateJobStatusAction, saveJobAction } from "@/app/actions";
++import { deleteJobAction, updateJobStatusAction } from "@/app/actions";
  import { toast } from "sonner";
 -import GooglePicker from "@/components/shared/GooglePicker";
  import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
@@ -81,10 +81,10 @@ index b01b82f..abe7803 100644
 +  return <Info className="w-4 h-4 text-slate-400" />;
 +};
 +
- export default function BookingDetailsModal() {
+ export default function JobDetailsModal() {
    const router = useRouter();
-   const { openBookingForm, isBookingDetailsOpen, bookingDetailsId, closeBookingDetails } = useGlobalForm();
-@@ -69,280 +54,11 @@ export default function BookingDetailsModal() {
+   const { openJobForm, isJobDetailsOpen, jobDetailsId, closeJobDetails } = useGlobalForm();
+@@ -69,280 +54,11 @@ export default function JobDetailsModal() {
    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
    const [isDeleting, setIsDeleting] = useState(false);
    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -128,7 +128,7 @@ index b01b82f..abe7803 100644
 -  }, [isStatusDropdownOpen, isExportMenuOpen]);
 -
 -  const handleExport = async (format: 'csv' | 'pdf') => {
--    if (!booking) return;
+-    if (!job) return;
 -    setIsExportMenuOpen(false);
 -    try {
 -      if (format === 'csv') {
@@ -139,29 +139,29 @@ index b01b82f..abe7803 100644
 -        };
 -        const headers = ['ID', 'Client', 'Phone', 'Email', 'Category', 'Date', 'Time', 'Location', 'Status', 'Package Amount', 'Advance', 'Due', 'Installments', 'Inclusions', 'Notes', 'Custom Data'];
 -        const rows = [[
--          escapeCsv(booking.bookingNumber || booking.id.substring(0, 8)),
--          escapeCsv(booking.title),
--          escapeCsv(booking.phone || booking.customData?.fld_b_phone),
--          escapeCsv(booking.email || booking.customData?.fld_b_email),
--          escapeCsv(booking.category),
--          escapeCsv(booking.date ? new Date(booking.date).toLocaleDateString() : ''),
--          escapeCsv(booking.time),
--          escapeCsv(booking.location),
--          escapeCsv(booking.status),
--          escapeCsv(booking.package || (booking as any).order?.package || booking.customData?.fld_b_package),
--          escapeCsv(booking.advance || (booking as any).order?.advance || booking.customData?.fld_b_advance),
--          escapeCsv(booking.due || (booking as any).order?.due),
--          escapeCsv((booking as any).order?.installments),
--          escapeCsv(booking.inclusions),
--          escapeCsv(booking.notes),
--          escapeCsv(booking.customData)
+-          escapeCsv(job.jobNumber || job.id.substring(0, 8)),
+-          escapeCsv(job.title),
+-          escapeCsv(job.phone || job.customData?.fld_b_phone),
+-          escapeCsv(job.email || job.customData?.fld_b_email),
+-          escapeCsv(job.category),
+-          escapeCsv(job.date ? new Date(job.date).toLocaleDateString() : ''),
+-          escapeCsv(job.time),
+-          escapeCsv(job.location),
+-          escapeCsv(job.status),
+-          escapeCsv(job.package || (job as any).order?.package || job.customData?.fld_b_package),
+-          escapeCsv(job.advance || (job as any).order?.advance || job.customData?.fld_b_advance),
+-          escapeCsv(job.due || (job as any).order?.due),
+-          escapeCsv((job as any).order?.installments),
+-          escapeCsv(job.inclusions),
+-          escapeCsv(job.notes),
+-          escapeCsv(job.customData)
 -        ]];
 -        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 -        const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
 -        const url = URL.createObjectURL(blob);
 -        const link = document.createElement('a');
 -        link.href = url;
--        link.setAttribute('download', `booking-${booking.bookingNumber || booking.id.substring(0, 8)}.csv`);
+-        link.setAttribute('download', `job-${job.jobNumber || job.id.substring(0, 8)}.csv`);
 -        document.body.appendChild(link);
 -        link.click();
 -        document.body.removeChild(link);
@@ -184,7 +184,7 @@ index b01b82f..abe7803 100644
 -        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 -        
 -        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
--        pdf.save(`booking-${booking.bookingNumber || booking.id.substring(0, 8)}.pdf`);
+-        pdf.save(`job-${job.jobNumber || job.id.substring(0, 8)}.pdf`);
 -      }
 -      toast.success("Export successful!");
 -    } catch (e) {
@@ -210,7 +210,7 @@ index b01b82f..abe7803 100644
 -        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 -        
 -        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
--        pdf.save(`invoice-${booking?.bookingNumber || booking?.id?.substring(0, 8)}.pdf`);
+-        pdf.save(`invoice-${job?.jobNumber || job?.id?.substring(0, 8)}.pdf`);
 -        toast.success("Invoice generated successfully!");
 -      } catch (error) {
 -        toast.error("Failed to generate invoice");
@@ -241,7 +241,7 @@ index b01b82f..abe7803 100644
 -        const ruleValues: string[] = rule.values || (rule.value ? [rule.value] : []);
 -
 -        if (rule.dependsOn || rule.fieldId) {
--          console.log(`[BookingDetailsModal] visibility check: dependsOn='${dependsOnKey}', formDataValue='${depValue}', expectedValues=`, ruleValues);
+-          console.log(`[JobDetailsModal] visibility check: dependsOn='${dependsOnKey}', formDataValue='${depValue}', expectedValues=`, ruleValues);
 -        }
 -
 -        if (rule.operator === 'EQUALS') {
@@ -287,7 +287,7 @@ index b01b82f..abe7803 100644
 -    setFormErrors({});
 -
 -      const formData = new FormData();
--      formData.append("id", booking?.id || "");
+-      formData.append("id", job?.id || "");
 -      Object.entries(editData).forEach(([k, v]) => {
 -        if (k === 'inclusions') {
 -          // parse comma separated string to JSON string array for inclusions
@@ -305,15 +305,15 @@ index b01b82f..abe7803 100644
 -        finalInstallments = [{ amount: editData.advance.toString(), date: new Date().toISOString().split('T')[0] }];
 -      }
 -      formData.append("installments", JSON.stringify(finalInstallments));
--      const res = await saveBookingAction(formData);
+-      const res = await saveJobAction(formData);
 -      if (res.success) {
--        toast.success("Booking saved successfully!");
+-        toast.success("Job saved successfully!");
 -        setIsEditing(false);
--        refreshBooking();
--        mutate('/api/bookings');
+-        refreshJob();
+-        mutate('/api/jobs');
 -        mutate('/api/dashboard/overview');
 -      } else {
--        toast.error("Failed to update booking. Check inputs.");
+-        toast.error("Failed to update job. Check inputs.");
 -        console.error(res.errors);
 -      }
 -    } catch (e) {
@@ -325,27 +325,27 @@ index b01b82f..abe7803 100644
 -
 -  useEffect(() => {
 -    setIsClosing(false);
--  }, [booking]);
+-  }, [job]);
 -
--  const updateBookingAPI = async (data: any) => {
+-  const updateJobAPI = async (data: any) => {
 -    try {
 -      setIsLoading(true);
--      const res = await fetch(`/api/bookings/${booking?.id}`, {
+-      const res = await fetch(`/api/jobs/${job?.id}`, {
 -        method: 'PUT',
 -        headers: { 'Content-Type': 'application/json' },
 -        body: JSON.stringify(data),
 -      });
--      if (res.ok && refreshBooking) {
+-      if (res.ok && refreshJob) {
 -        toast.success("Updated successfully!");
--        refreshBooking();
+-        refreshJob();
 -      } else if (res.ok) {
 -        toast.success("Updated successfully!");
 -        window.location.reload(); // fallback
 -      } else {
--        toast.error("Failed to update booking");
+-        toast.error("Failed to update job");
 -      }
 -    } catch (e) {
--      console.error("Error updating booking", e);
+-      console.error("Error updating job", e);
 -      toast.error("An unexpected error occurred");
 -    } finally {
 -      setIsLoading(false);
@@ -353,21 +353,21 @@ index b01b82f..abe7803 100644
 -  };
 -
 -  const handleAddNote = () => {
--    if(!booking) return;
--    setNewNote(booking.notes || booking.customData?.notes || "");
+-    if(!job) return;
+-    setNewNote(job.notes || job.customData?.notes || "");
 -    setIsAddNoteOpen(true);
 -  };
 -
 -  const handleAddAttachment = () => {
--    if(!booking) return;
+-    if(!job) return;
 -    setNewAttachmentName("Attachment");
 -    setNewAttachmentUrl("");
 -    setIsAddAttachmentOpen(true);
 -  };
  
-   const { data: layoutRes } = useSWR("/api/settings/layouts/BOOKING_FORM", fetcher);
+   const { data: layoutRes } = useSWR("/api/settings/layouts/JOB_FORM", fetcher);
    const { data: usersRes } = useSWR("/api/users", fetcher);
-@@ -352,109 +68,101 @@ export default function BookingDetailsModal() {
+@@ -352,109 +68,101 @@ export default function JobDetailsModal() {
      if (usersRes) setTeamUsers(usersRes);
    }, [layoutRes, usersRes]);
  
@@ -400,14 +400,14 @@ index b01b82f..abe7803 100644
    const isStatusPicker = statusField?.type === 'STATUS_PICKER';
    const statusOptions = isStatusPicker ? (statusField.statusOptions || []) : [];
    
-   const currentOpt = isStatusPicker ? statusOptions.find((o: any) => o.label === booking?.status) : null;
--  const statusColor = currentOpt ? currentOpt.color : (booking?.status === 'Confirmed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : booking?.status === 'Pending' ? 'bg-red-500' : 'bg-orange-500');
+   const currentOpt = isStatusPicker ? statusOptions.find((o: any) => o.label === job?.status) : null;
+-  const statusColor = currentOpt ? currentOpt.color : (job?.status === 'Confirmed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : job?.status === 'Pending' ? 'bg-red-500' : 'bg-orange-500');
 -
 -  // Handle future date restriction
 -  let isRestrictedDate = false;
 -  if (statusField?.futureDateRestriction?.enabled && statusField?.futureDateRestriction?.dateFieldId) {
 -    const dependentDateFieldName = standardFieldMap[statusField.futureDateRestriction.dateFieldId] || statusField.futureDateRestriction.dateFieldId;
--    const dependentDateVal = (booking as any)?.[dependentDateFieldName] || booking?.customData?.[dependentDateFieldName];
+-    const dependentDateVal = (job as any)?.[dependentDateFieldName] || job?.customData?.[dependentDateFieldName];
 -    if (dependentDateVal) {
 -      const dateObj = new Date(dependentDateVal);
 -      dateObj.setHours(0,0,0,0);
@@ -420,15 +420,15 @@ index b01b82f..abe7803 100644
 -  }
  
    const changeStatus = async (newStatus: string) => {
-     if (!booking) return;
+     if (!job) return;
      setIsUpdatingStatus(true);
-     const res = await updateBookingStatusAction(booking.id, newStatus);
+     const res = await updateJobStatusAction(job.id, newStatus);
      setIsUpdatingStatus(false);
 -    
      if (res.success) {
        toast.success(`Status updated to ${newStatus}`);
        setIsStatusDropdownOpen(false);
-+      refreshBooking();
++      refreshJob();
      } else {
        toast.error("Failed to update status");
      }
@@ -439,28 +439,28 @@ index b01b82f..abe7803 100644
 -  };
 -
    const confirmDelete = async () => {
-     if (booking) {
+     if (job) {
        setIsDeleting(true);
--      const res = await deleteBookingAction(booking.id);
+-      const res = await deleteJobAction(job.id);
 -      setIsDeleting(false);
 -      if (res.success) {
--        toast.success("Booking deleted successfully!");
+-        toast.success("Job deleted successfully!");
 -        setIsDeleteConfirmOpen(false);
--        closeBookingDetails();
+-        closeJobDetails();
 -      } else {
--        toast.error("Failed to delete booking.");
+-        toast.error("Failed to delete job.");
 +      try {
-+        const res = await deleteBookingAction(booking.id);
++        const res = await deleteJobAction(job.id);
 +        if (res.success) {
-+          toast.success("Booking deleted successfully!");
++          toast.success("Job deleted successfully!");
 +          setIsDeleteConfirmOpen(false);
-+          closeBookingDetails();
++          closeJobDetails();
 +        } else {
-+          toast.error("Failed to delete booking.");
++          toast.error("Failed to delete job.");
 +        }
 +      } catch (error) {
 +        console.error(error);
-+        toast.error('Failed to delete booking');
++        toast.error('Failed to delete job');
 +      } finally {
 +        setIsDeleting(false);
        }
@@ -476,7 +476,7 @@ index b01b82f..abe7803 100644
 +  const generateInvoice = async () => {
 +    setIsGeneratingInvoice(true);
 +    try {
-+      const element = document.getElementById('booking-details-content');
++      const element = document.getElementById('job-details-content');
 +      if (!element) return;
 +      const html2canvas = (await import("html2canvas")).default;
 +      const { jsPDF } = await import("jspdf");
@@ -486,7 +486,7 @@ index b01b82f..abe7803 100644
 +      const pdfWidth = pdf.internal.pageSize.getWidth();
 +      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 +      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-+      pdf.save(`Invoice_${booking.bookingNumber || booking.id.slice(-6).toUpperCase()}.pdf`);
++      pdf.save(`Invoice_${job.jobNumber || job.id.slice(-6).toUpperCase()}.pdf`);
 +      toast.success("Invoice generated successfully!");
 +    } catch (error) {
 +      toast.error("Failed to generate invoice");
@@ -499,10 +499,10 @@ index b01b82f..abe7803 100644
 -  const albumDesignerId = getDynamicFieldId(['album designer', 'album worker']);
 -  const photographersId = getDynamicFieldId(['photographers', 'photographer']);
 -  const inclusionsId = getDynamicFieldId(['inclusion', 'inclusions']);
-+  const exportBooking = async () => {
++  const exportJob = async () => {
 +    setIsExporting(true);
 +    try {
-+      const element = document.getElementById('booking-details-content');
++      const element = document.getElementById('job-details-content');
 +      if (!element) return;
 +      const html2canvas = (await import("html2canvas")).default;
 +      const { jsPDF } = await import("jspdf");
@@ -512,18 +512,18 @@ index b01b82f..abe7803 100644
 +      const pdfWidth = pdf.internal.pageSize.getWidth();
 +      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 +      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-+      pdf.save(`Booking_Export_${booking.bookingNumber || booking.id.slice(-6).toUpperCase()}.pdf`);
-+      toast.success("Booking exported successfully!");
++      pdf.save(`Job_Export_${job.jobNumber || job.id.slice(-6).toUpperCase()}.pdf`);
++      toast.success("Job exported successfully!");
 +    } catch (error) {
-+      toast.error("Failed to export booking");
++      toast.error("Failed to export job");
 +    } finally {
 +      setIsExporting(false);
 +    }
 +  };
  
--  const albumDesignerVal = albumDesignerId ? booking?.customData?.[albumDesignerId] : null;
--  const photographersVal = photographersId ? booking?.customData?.[photographersId] : (booking?.photographers || booking?.customData?.team || []);
--  const inclusionsVal = inclusionsId ? booking?.customData?.[inclusionsId] : booking?.inclusions;
+-  const albumDesignerVal = albumDesignerId ? job?.customData?.[albumDesignerId] : null;
+-  const photographersVal = photographersId ? job?.customData?.[photographersId] : (job?.photographers || job?.customData?.team || []);
+-  const inclusionsVal = inclusionsId ? job?.customData?.[inclusionsId] : job?.inclusions;
 -    const isFieldVisibleForRender = (rule: any) => {
 +  const isFieldVisibleForRender = (rule: any) => {
      if (!rule) return true;
@@ -532,15 +532,15 @@ index b01b82f..abe7803 100644
      if (!dependsOnKey) return true;
 -    
      const depFieldName = standardFieldMap[dependsOnKey] || dependsOnKey;
-     const standardDepVal = (booking as any)[depFieldName];
+     const standardDepVal = (job as any)[depFieldName];
      const depVal = (standardDepVal !== undefined && standardDepVal !== null && standardDepVal !== '') 
-@@ -462,819 +170,449 @@ export default function BookingDetailsModal() {
-       : booking.customData?.[depFieldName] || booking.customData?.[dependsOnKey];
+@@ -462,819 +170,449 @@ export default function JobDetailsModal() {
+       : job.customData?.[depFieldName] || job.customData?.[dependsOnKey];
  
      const ruleValues: string[] = rule.values || (rule.value ? [rule.value] : []);
 -
 -    if (rule.dependsOn || rule.fieldId) {
--      console.log(`[BookingDetailsModal-Render] visibility check: dependsOn='${dependsOnKey}', formDataValue='${depVal}', expectedValues=`, ruleValues);
+-      console.log(`[JobDetailsModal-Render] visibility check: dependsOn='${dependsOnKey}', formDataValue='${depVal}', expectedValues=`, ruleValues);
 -    }
 -
 -    if (rule.operator === 'EQUALS') {
@@ -581,18 +581,18 @@ index b01b82f..abe7803 100644
 +  };
 +
 +  const albumDesignerId = getDynamicFieldId(['album designer', 'album worker']);
-+  const albumDesignerVal = albumDesignerId ? booking?.customData?.[albumDesignerId] : null;
++  const albumDesignerVal = albumDesignerId ? job?.customData?.[albumDesignerId] : null;
 +
    return (
 -    <>
--      <Dialog open={isBookingDetailsOpen} onOpenChange={(open) => {
+-      <Dialog open={isJobDetailsOpen} onOpenChange={(open) => {
 -        if (!open) {
 -          setIsClosing(true);
--          setTimeout(() => closeBookingDetails(), 200);
+-          setTimeout(() => closeJobDetails(), 200);
 -        }
 -      }}>
 -        <DialogContent className="max-w-[1200px] sm:max-w-[1200px] w-[95vw] p-0 bg-transparent overflow-hidden border-0 shadow-none h-[90vh] md:h-[85vh] flex flex-col">
--          {(!booking || isBookingLoading) ? (
+-          {(!job || isJobLoading) ? (
 -            <div className="flex-1 bg-white rounded-3xl flex items-center justify-center min-h-[400px]">
 -               <div className="w-8 h-8 border-4 border-slate-200 border-t-orange-500 rounded-full animate-spin"></div>
 -            </div>
@@ -604,16 +604,16 @@ index b01b82f..abe7803 100644
 -             
 -             {/* New Revamped Layout Begins Here */}
 -             <div id="pdf-content" className="max-w-[1100px] mx-auto flex flex-col gap-6 p-4">
-+    <Dialog open={isBookingDetailsOpen} onOpenChange={(open) => {
-+      if (!open) closeBookingDetails();
++    <Dialog open={isJobDetailsOpen} onOpenChange={(open) => {
++      if (!open) closeJobDetails();
 +    }}>
 +      <DialogContent className="!max-w-[1300px] w-[95vw] h-[95vh] p-0 bg-[#F5F6F8] border-0 overflow-hidden flex flex-col rounded-[2rem] shadow-2xl">
-+        <DialogTitle className="sr-only">Booking Details</DialogTitle>
++        <DialogTitle className="sr-only">Job Details</DialogTitle>
 +        
-+        {(!booking) ? (
++        {(!job) ? (
 +          <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px]">
 +            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4" />
-+            <p className="text-slate-500 font-medium">Loading booking details...</p>
++            <p className="text-slate-500 font-medium">Loading job details...</p>
 +          </div>
 +        ) : (
 +          <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -623,10 +623,10 @@ index b01b82f..abe7803 100644
 +              <div className="flex flex-col gap-2 w-full md:w-auto">
 +                <div className="flex items-center gap-3">
 +                  <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg tracking-wider">
-+                    {booking.bookingNumber || `#${booking.id.slice(-6).toUpperCase()}`}
++                    {job.jobNumber || `#${job.id.slice(-6).toUpperCase()}`}
 +                  </span>
 +                </div>
-+                <h1 className="text-2xl font-black text-[#0B1E40] tracking-tight">{booking.client?.name || booking.title || booking.customData?.fld_b_client || "Untitled Booking"}</h1>
++                <h1 className="text-2xl font-black text-[#0B1E40] tracking-tight">{job.client?.name || job.title || job.customData?.fld_b_client || "Untitled Job"}</h1>
                  
 -                {/* Header Row */}
 -                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-transparent">
@@ -634,14 +634,14 @@ index b01b82f..abe7803 100644
 -                      <div className="flex items-center gap-3">
 -                         <span className="flex items-center gap-1.5 px-3 py-1 bg-orange-100 text-orange-800 font-bold text-[0.8rem] rounded-full">
 -                           <i className="ph-fill ph-folder text-orange-600"></i>
--                           {booking.bookingNumber || booking.id.substring(0, 8)}
+-                           {job.jobNumber || job.id.substring(0, 8)}
 -                         </span>
 -                      </div>
 -                      {isEditing ? (
 -                        <input className={`text-[2.5rem] font-black text-[#0B1E40] leading-none tracking-tight bg-transparent border-b-2 ${formErrors.title ? "border-red-500" : "border-blue-500"} focus:outline-none w-full mb-2`} value={editData.title} onChange={e => setEditData({...editData, title: e.target.value})} placeholder="Client Name" />
 -                      ) : (
 -                        <h1 className="text-[2.5rem] font-black text-[#0B1E40] leading-none tracking-tight mb-2">
--                           {booking.title || 'Untitled Booking'}
+-                           {job.title || 'Untitled Job'}
 -                        </h1>
 -                      )}
 -                      <div className="flex items-center gap-4 mt-1">
@@ -664,7 +664,7 @@ index b01b82f..abe7803 100644
 -                                    </SelectContent>
 -                                 </Select>
 -                               ) : (
--                                 <span className="text-[#0B1E40] font-bold text-[0.95rem] leading-tight">{booking.category || 'Uncategorized'}</span>
+-                                 <span className="text-[#0B1E40] font-bold text-[0.95rem] leading-tight">{job.category || 'Uncategorized'}</span>
 -                               )}
 -                            </div>
 -                         </div>
@@ -680,7 +680,7 @@ index b01b82f..abe7803 100644
 -                                  className={`w-2.5 h-2.5 rounded-full ${!statusColor?.startsWith('#') ? statusColor : ''}`}
 -                                  style={statusColor?.startsWith('#') ? { backgroundColor: statusColor, boxShadow: `0 0 8px ${statusColor}80` } : {}}
 -                                ></div>
--                                <span className="font-bold text-[0.9rem] text-[#0B1E40]">{booking.status}</span>
+-                                <span className="font-bold text-[0.9rem] text-[#0B1E40]">{job.status}</span>
 -                                <i className={`ph-bold ph-caret-down text-slate-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`}></i>
 -                              </button>
 -                              {isStatusDropdownOpen && (
@@ -696,12 +696,12 @@ index b01b82f..abe7803 100644
 -                                       onClick={() => {
 -                                         if (!isRestrictedOpt) changeStatus(opt.label);
 -                                       }}
--                                       className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-left text-[0.9rem] font-bold transition-colors ${booking.status === opt.label ? 'bg-slate-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'} ${isRestrictedOpt ? 'opacity-50 cursor-not-allowed' : ''}`}
+-                                       className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-left text-[0.9rem] font-bold transition-colors ${job.status === opt.label ? 'bg-slate-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'} ${isRestrictedOpt ? 'opacity-50 cursor-not-allowed' : ''}`}
 -                                     >
 -                                       <div className={`w-2.5 h-2.5 rounded-full ${opt.color} ${isRestrictedOpt ? 'grayscale' : ''}`}></div>
 -                                       <span className="truncate">{opt.label}</span>
 -                                       {isRestrictedOpt && <i className="ph-fill ph-lock-key ml-auto text-slate-400" title="Restricted for future dates"></i>}
--                                       {!isRestrictedOpt && booking.status === opt.label && <i className="ph-bold ph-check ml-auto text-slate-400"></i>}
+-                                       {!isRestrictedOpt && job.status === opt.label && <i className="ph-bold ph-check ml-auto text-slate-400"></i>}
 -                                     </button>
 -                                     );
 -                                   })}
@@ -744,7 +744,7 @@ index b01b82f..abe7803 100644
 +                    </div>
 +                    <div>
 +                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Category</p>
-+                      <p className="text-sm font-semibold text-slate-700">{booking.category || "N/A"}</p>
++                      <p className="text-sm font-semibold text-slate-700">{job.category || "N/A"}</p>
 +                    </div>
 +                  </div>
 +                  
@@ -755,7 +755,7 @@ index b01b82f..abe7803 100644
 +                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${currentOpt?.color || 'bg-white border-slate-200'} transition-all`}
 +                      >
 +                        <div className={`w-2 h-2 rounded-full ${currentOpt?.color ? 'bg-white' : 'bg-slate-400'}`} />
-+                        <span className={`text-sm font-bold ${currentOpt?.color ? 'text-white' : 'text-slate-700'}`}>{booking.status}</span>
++                        <span className={`text-sm font-bold ${currentOpt?.color ? 'text-white' : 'text-slate-700'}`}>{job.status}</span>
                        </button>
 -                   </div>
 +                      {isStatusDropdownOpen && (
@@ -764,7 +764,7 @@ index b01b82f..abe7803 100644
 +                            <button
 +                              key={opt.label}
 +                              onClick={() => changeStatus(opt.label)}
-+                              className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-slate-50 ${booking.status === opt.label ? 'text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
++                              className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-slate-50 ${job.status === opt.label ? 'text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
 +                            >
 +                              {opt.label}
 +                            </button>
@@ -783,8 +783,8 @@ index b01b82f..abe7803 100644
 -                         <i className="ph-fill ph-file-text text-orange-500 text-xl"></i>
 -                      </div>
 -                      <div className="flex flex-col">
--                         <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest">Booking ID</span>
--                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{booking.bookingNumber || booking.id.substring(0, 8)}</span>
+-                         <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest">Job ID</span>
+-                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{job.jobNumber || job.id.substring(0, 8)}</span>
 -                      </div>
 -                   </div>
 -                   <div className="w-full md:w-px h-px md:h-10 bg-gray-100"></div>
@@ -794,8 +794,8 @@ index b01b82f..abe7803 100644
 -                      </div>
 -                      <div className="flex flex-col">
 -                         <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest">Created By</span>
--                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{(booking as any).createdBy?.name || 'System'}</span>
--                         <span className="text-[0.7rem] font-medium text-slate-500">{(booking as any).createdAt ? new Date((booking as any).createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
+-                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{(job as any).createdBy?.name || 'System'}</span>
+-                         <span className="text-[0.7rem] font-medium text-slate-500">{(job as any).createdAt ? new Date((job as any).createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
 -                      </div>
 -                   </div>
 -                   <div className="w-full md:w-px h-px md:h-10 bg-gray-100"></div>
@@ -805,22 +805,22 @@ index b01b82f..abe7803 100644
 -                      </div>
 -                      <div className="flex flex-col">
 -                         <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest">Last Updated By</span>
--                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{(booking as any).updatedBy?.name || 'System'}</span>
--                         <span className="text-[0.7rem] font-medium text-slate-500">{(booking as any).updatedAt ? new Date((booking as any).updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date((booking as any).updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}</span>
+-                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{(job as any).updatedBy?.name || 'System'}</span>
+-                         <span className="text-[0.7rem] font-medium text-slate-500">{(job as any).updatedAt ? new Date((job as any).updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date((job as any).updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}</span>
 -                      </div>
 -                   </div>
 -                   <div className="w-full md:w-px h-px md:h-10 bg-gray-100"></div>
 -                   <div className="flex items-center gap-4 flex-1 min-w-[150px] pt-4 md:pt-0">
 -                      <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0 overflow-hidden">
--                         {(albumDesignerVal || booking.customData?.['ALBUM DESIGNER'] || booking.customData?.['ALBUM WORKER']) ? (
--                             <span className="font-black text-purple-700 text-[0.8rem]">{(teamUsers.find(u => u.id === (albumDesignerVal || booking.customData?.['ALBUM DESIGNER'] || booking.customData?.['ALBUM WORKER']))?.name || 'UN').substring(0,2).toUpperCase()}</span>
+-                         {(albumDesignerVal || job.customData?.['ALBUM DESIGNER'] || job.customData?.['ALBUM WORKER']) ? (
+-                             <span className="font-black text-purple-700 text-[0.8rem]">{(teamUsers.find(u => u.id === (albumDesignerVal || job.customData?.['ALBUM DESIGNER'] || job.customData?.['ALBUM WORKER']))?.name || 'UN').substring(0,2).toUpperCase()}</span>
 -                         ) : (
 -                             <i className="ph-fill ph-user text-purple-500 text-xl"></i>
 -                         )}
 -                      </div>
 -                      <div className="flex flex-col">
 -                         <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest">Album Designer</span>
--                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{(albumDesignerVal || booking.customData?.['ALBUM DESIGNER'] || booking.customData?.['ALBUM WORKER']) ? teamUsers.find(u => u.id === (albumDesignerVal || booking.customData?.['ALBUM DESIGNER'] || booking.customData?.['ALBUM WORKER']))?.name || 'Unknown' : 'Unassigned'}</span>
+-                         <span className="font-bold text-[#0B1E40] text-[0.95rem]">{(albumDesignerVal || job.customData?.['ALBUM DESIGNER'] || job.customData?.['ALBUM WORKER']) ? teamUsers.find(u => u.id === (albumDesignerVal || job.customData?.['ALBUM DESIGNER'] || job.customData?.['ALBUM WORKER']))?.name || 'Unknown' : 'Unassigned'}</span>
 -                      </div>
 -                   </div>
 +              <div className="flex items-center gap-3">
@@ -831,7 +831,7 @@ index b01b82f..abe7803 100644
 +                  <Trash2 className="w-4 h-4" /> Delete
 +                </button>
 +                <button 
-+                  onClick={exportBooking}
++                  onClick={exportJob}
 +                  disabled={isExporting}
 +                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-sm transition-colors shadow-sm disabled:opacity-50"
 +                >
@@ -848,7 +848,7 @@ index b01b82f..abe7803 100644
 +            </header>
 +
 +            {/* Scrollable Content Area */}
-+            <main id="booking-details-content" className="flex-1 overflow-y-auto px-6 py-6">
++            <main id="job-details-content" className="flex-1 overflow-y-auto px-6 py-6">
 +              
 +              {/* Top Info Strip */}
 +              <div className="w-full bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-0 lg:divide-x divide-slate-100">
@@ -857,8 +857,8 @@ index b01b82f..abe7803 100644
 +                    <FileText className="w-5 h-5 text-orange-500" />
 +                  </div>
 +                  <div>
-+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Booking ID</p>
-+                    <p className="font-bold text-slate-800">{booking.bookingNumber || `#${booking.id.slice(-6).toUpperCase()}`}</p>
++                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Job ID</p>
++                    <p className="font-bold text-slate-800">{job.jobNumber || `#${job.id.slice(-6).toUpperCase()}`}</p>
 +                  </div>
                  </div>
 +                <div className="flex items-center gap-4 w-full lg:px-6">
@@ -867,8 +867,8 @@ index b01b82f..abe7803 100644
 +                  </div>
 +                  <div>
 +                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Created By</p>
-+                    <p className="font-bold text-slate-800">{booking.createdByUser?.name || 'Harish'}</p>
-+                    <p className="text-xs text-slate-500">{new Date(booking.createdAt).toLocaleDateString()}</p>
++                    <p className="font-bold text-slate-800">{job.createdByUser?.name || 'Harish'}</p>
++                    <p className="text-xs text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</p>
 +                  </div>
 +                </div>
 +                <div className="flex items-center gap-4 w-full lg:px-6">
@@ -878,7 +878,7 @@ index b01b82f..abe7803 100644
 +                  <div>
 +                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Last Updated By</p>
 +                    <p className="font-bold text-slate-800">System</p>
-+                    <p className="text-xs text-slate-500">{new Date(booking.updatedAt || booking.createdAt).toLocaleString()}</p>
++                    <p className="text-xs text-slate-500">{new Date(job.updatedAt || job.createdAt).toLocaleString()}</p>
 +                  </div>
 +                </div>
 +                <div className="flex items-center gap-4 w-full lg:px-6">
@@ -898,7 +898,7 @@ index b01b82f..abe7803 100644
 -                    if (!isFieldVisibleForRender(section.visibilityRule)) return null;
 -
 -                    // For the Financial section, we skip it here and show it in the dedicated Package & Payment block
--                    if (section.id === 'sec_booking_financial') return null;
+-                    if (section.id === 'sec_job_financial') return null;
 -
 -                    return (
 -                      <div key={section.id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
@@ -930,8 +930,8 @@ index b01b82f..abe7803 100644
 -                            if (!isFieldVisibleForRender(field.visibilityRule)) return null;
 -
 -                            const fieldName = standardFieldMap[field.id] || field.id;
--                            const standardVal = (booking as any)[fieldName];
--                            const val = (standardVal !== undefined && standardVal !== null && standardVal !== '') ? standardVal : booking.customData?.[fieldName];
+-                            const standardVal = (job as any)[fieldName];
+-                            const val = (standardVal !== undefined && standardVal !== null && standardVal !== '') ? standardVal : job.customData?.[fieldName];
 -
 -                            let displayVal: React.ReactNode = val || 'N/A';
 -
@@ -970,7 +970,7 @@ index b01b82f..abe7803 100644
 -                          })}
 +                        <div className="flex-1 min-w-0">
 +                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">Client Name</p>
-+                          <p className="font-bold text-slate-800 text-sm whitespace-pre-wrap break-words">{booking.client?.name || booking.title || booking.customData?.fld_b_client || "N/A"}</p>
++                          <p className="font-bold text-slate-800 text-sm whitespace-pre-wrap break-words">{job.client?.name || job.title || job.customData?.fld_b_client || "N/A"}</p>
                          </div>
                        </div>
 -                    );
@@ -986,13 +986,13 @@ index b01b82f..abe7803 100644
 +                        </div>
 +                        <div className="flex-1 min-w-0">
 +                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">Phone Number</p>
-+                          <p className="font-bold text-slate-800 text-sm whitespace-pre-wrap break-words">{booking.client?.phone || booking.phone || booking.customData?.fld_b_phone || "N/A"}</p>
++                          <p className="font-bold text-slate-800 text-sm whitespace-pre-wrap break-words">{job.client?.phone || job.phone || job.customData?.fld_b_phone || "N/A"}</p>
 +                        </div>
                        </div>
 -                      <div className="flex flex-col relative">
 -                         {(() => {
--                           const activeIndex = statusOptions.findIndex((o: any) => o.label === booking.status);
--                           const isCompleted = activeIndex === statusOptions.length - 1 && booking.status === 'Completed';
+-                           const activeIndex = statusOptions.findIndex((o: any) => o.label === job.status);
+-                           const isCompleted = activeIndex === statusOptions.length - 1 && job.status === 'Completed';
 -                           
 -                           return statusOptions.map((opt: any, idx: number) => {
 -                             const isPast = activeIndex > idx || isCompleted;
@@ -1024,7 +1024,7 @@ index b01b82f..abe7803 100644
 +                        </div>
 +                        <div className="flex-1 min-w-0">
 +                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">Email Address</p>
-+                          <p className="font-bold text-slate-800 text-sm whitespace-pre-wrap break-words">{booking.client?.email || booking.email || booking.customData?.fld_b_email || "N/A"}</p>
++                          <p className="font-bold text-slate-800 text-sm whitespace-pre-wrap break-words">{job.client?.email || job.email || job.customData?.fld_b_email || "N/A"}</p>
 +                        </div>
 +                      </div>
 +                    </div>
@@ -1055,7 +1055,7 @@ index b01b82f..abe7803 100644
 +                      const sectionStatusField = section.fields?.find((f: any) => (f.name||'').toLowerCase().includes('status'));
 +                      let currentSectionStatus = null;
 +                      if (sectionStatusField) {
-+                        currentSectionStatus = standardFieldMap[sectionStatusField.id] ? (booking as any)[standardFieldMap[sectionStatusField.id]] : booking.customData?.[sectionStatusField.id];
++                        currentSectionStatus = standardFieldMap[sectionStatusField.id] ? (job as any)[standardFieldMap[sectionStatusField.id]] : job.customData?.[sectionStatusField.id];
 +                      }
 +
 +                      return (
@@ -1068,7 +1068,7 @@ index b01b82f..abe7803 100644
 +                            <div className="space-y-5 flex-1 min-w-0">
 +                              {visibleFields.map((field: any) => {
 +                                const standardKey = standardFieldMap[field.id];
-+                                let val = standardKey ? (booking as any)[standardKey] : booking.customData?.[field.id];
++                                let val = standardKey ? (job as any)[standardKey] : job.customData?.[field.id];
 +                                
 +                                const fname = (field.name || '').toLowerCase();
 +                                if (val && (field.type === 'USER_PICKLIST' || field.type === 'MULTI_USER_PICKLIST' || fname.includes('photographer') || fname.includes('designer'))) {
@@ -1167,7 +1167,7 @@ index b01b82f..abe7803 100644
 +                      <div className="bg-orange-50/50 rounded-2xl p-4 flex items-center justify-between border border-orange-100">
 +                        <div>
 +                          <p className="text-xs font-bold text-orange-600/70 mb-1">Total Amount</p>
-+                          <p className="text-2xl font-black text-orange-700">₹{booking.order?.package || booking.customData?.fld_b_package || '0'}</p>
++                          <p className="text-2xl font-black text-orange-700">₹{job.order?.package || job.customData?.fld_b_package || '0'}</p>
 +                        </div>
 +                        <Wallet className="w-8 h-8 text-orange-200" />
                        </div>
@@ -1275,7 +1275,7 @@ index b01b82f..abe7803 100644
 +                      <div className="bg-emerald-50/50 rounded-2xl p-4 flex items-center justify-between border border-emerald-100">
 +                        <div>
 +                          <p className="text-xs font-bold text-emerald-600/70 mb-1">Paid</p>
-+                          <p className="text-2xl font-black text-emerald-700">₹{booking.advance || booking.customData?.fld_b_advance || '0'}</p>
++                          <p className="text-2xl font-black text-emerald-700">₹{job.advance || job.customData?.fld_b_advance || '0'}</p>
                          </div>
 -                     </div>
 -                   ) : (
@@ -1284,7 +1284,7 @@ index b01b82f..abe7803 100644
 -                           <div className="flex items-center justify-between p-5 rounded-2xl border border-orange-100/80 bg-orange-50/20">
 -                              <div className="flex flex-col">
 -                                 <span className="text-[0.75rem] font-bold text-slate-500 mb-1">Total Amount</span>
--                                 <span className="font-black text-amber-800 text-[1.8rem] leading-none tracking-tight">₹{parseFloat(booking.package || '0').toLocaleString()}</span>
+-                                 <span className="font-black text-amber-800 text-[1.8rem] leading-none tracking-tight">₹{parseFloat(job.package || '0').toLocaleString()}</span>
 -                              </div>
 -                              <div className="w-11 h-11 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
 -                                 <i className="ph-fill ph-wallet text-orange-500 text-[1.4rem]"></i>
@@ -1294,7 +1294,7 @@ index b01b82f..abe7803 100644
 -                           <div className="flex items-center justify-between p-5 rounded-2xl border border-emerald-100/80 bg-emerald-50/20">
 -                              <div className="flex flex-col">
 -                                 <span className="text-[0.75rem] font-bold text-slate-500 mb-1">Paid</span>
--                                 <span className="font-black text-emerald-600 text-[1.8rem] leading-none tracking-tight">₹{parseFloat(booking.advance || '0').toLocaleString()}</span>
+-                                 <span className="font-black text-emerald-600 text-[1.8rem] leading-none tracking-tight">₹{parseFloat(job.advance || '0').toLocaleString()}</span>
 -                              </div>
 -                              <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
 -                                 <i className="ph-fill ph-shield-check text-emerald-500 text-[1.4rem]"></i>
@@ -1304,7 +1304,7 @@ index b01b82f..abe7803 100644
 -                           <div className="flex items-center justify-between p-5 rounded-2xl border border-red-100/80 bg-red-50/20">
 -                              <div className="flex flex-col">
 -                                 <span className="text-[0.75rem] font-bold text-slate-500 mb-1">Pending Due</span>
--                                 <span className="font-black text-red-500 text-[1.8rem] leading-none tracking-tight">₹{parseFloat(booking.due || '0').toLocaleString()}</span>
+-                                 <span className="font-black text-red-500 text-[1.8rem] leading-none tracking-tight">₹{parseFloat(job.due || '0').toLocaleString()}</span>
 -                              </div>
 -                              <div className="w-11 h-11 rounded-full bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
 -                                 <i className="ph-fill ph-receipt text-red-500 text-[1.4rem]"></i>
@@ -1316,15 +1316,15 @@ index b01b82f..abe7803 100644
 +                        <div>
 +                          <p className="text-xs font-bold text-rose-600/70 mb-1">Pending Due</p>
 +                          <p className="text-2xl font-black text-rose-700">
-+                            ₹{(Number(booking.order?.package || booking.customData?.fld_b_package || 0) - Number(booking.order?.advance || booking.customData?.fld_b_advance || 0))}
++                            ₹{(Number(job.order?.package || job.customData?.fld_b_package || 0) - Number(job.order?.advance || job.customData?.fld_b_advance || 0))}
 +                          </p>
                          </div>
 -                     </div>
 -                   )}
 -
 -                    {(() => {
--                       const advance = parseFloat(isEditing ? editData.advance : booking.advance || '0');
--                       const total = parseFloat(isEditing ? editData.package : booking.package || '0');
+-                       const advance = parseFloat(isEditing ? editData.advance : job.advance || '0');
+-                       const total = parseFloat(isEditing ? editData.package : job.package || '0');
 -                       const divisor = total > 0 ? total : 1;
 -                       const percentage = Math.round(Math.min(100, (advance / divisor) * 100));
 -                       return (
@@ -1351,7 +1351,7 @@ index b01b82f..abe7803 100644
 +                        <Receipt className="w-8 h-8 text-rose-200" />
                        </div>
 -                      <div className="flex items-center justify-between mt-auto">
--                         <span className="text-slate-400 text-[0.85rem] font-medium">{booking.notes || booking.customData?.notes ? '1 note added' : 'No notes added'}</span>
+-                         <span className="text-slate-400 text-[0.85rem] font-medium">{job.notes || job.customData?.notes ? '1 note added' : 'No notes added'}</span>
 -                         <button 
 -                            onClick={handleAddNote}
 -                            disabled={isLoading}
@@ -1364,7 +1364,7 @@ index b01b82f..abe7803 100644
 +                      <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
 +                        <div 
 +                          className="h-full bg-emerald-500 rounded-full"
-+                          style={{ width: `${Math.min(100, (Number(booking.order?.advance || booking.customData?.fld_b_advance || 0) / Math.max(1, Number(booking.order?.package || booking.customData?.fld_b_package || 1))) * 100)}%` }}
++                          style={{ width: `${Math.min(100, (Number(job.order?.advance || job.customData?.fld_b_advance || 0) / Math.max(1, Number(job.order?.package || job.customData?.fld_b_package || 1))) * 100)}%` }}
 +                        />
                        </div>
 -                   </div>
@@ -1372,9 +1372,9 @@ index b01b82f..abe7803 100644
 -                   <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
 -                      <div className="flex items-center gap-2 mb-4">
 -                         <i className="ph-fill ph-paperclip text-blue-500 text-lg"></i>
--                         <h3 className="text-[0.95rem] font-black text-[#0B1E40]">Attachments {(booking.attachments || booking.customData?.attachments)?.length ? `(${(booking.attachments || booking.customData?.attachments).length})` : '(0)'}</h3>
+-                         <h3 className="text-[0.95rem] font-black text-[#0B1E40]">Attachments {(job.attachments || job.customData?.attachments)?.length ? `(${(job.attachments || job.customData?.attachments).length})` : '(0)'}</h3>
 +                      <p className="text-xs font-bold text-slate-600 w-16 text-right">
-+                        {Math.round((Number(booking.order?.advance || booking.customData?.fld_b_advance || 0) / Math.max(1, Number(booking.order?.package || booking.customData?.fld_b_package || 1))) * 100)}% Paid
++                        {Math.round((Number(job.order?.advance || job.customData?.fld_b_advance || 0) / Math.max(1, Number(job.order?.package || job.customData?.fld_b_package || 1))) * 100)}% Paid
 +                      </p>
 +                    </div>
 +                  </div>
@@ -1387,7 +1387,7 @@ index b01b82f..abe7803 100644
 +                        <h3 className="font-bold text-[#0B1E40]">Notes</h3>
                        </div>
 -                      <div className="flex items-center justify-between mt-auto">
--                         <span className="text-slate-400 text-[0.85rem] font-medium">{(booking.attachments || booking.customData?.attachments)?.length ? `${(booking.attachments || booking.customData?.attachments).length} files uploaded` : 'No files uploaded yet'}</span>
+-                         <span className="text-slate-400 text-[0.85rem] font-medium">{(job.attachments || job.customData?.attachments)?.length ? `${(job.attachments || job.customData?.attachments).length} files uploaded` : 'No files uploaded yet'}</span>
 -                         <button 
 -                            onClick={handleAddAttachment}
 -                            disabled={isLoading}
@@ -1406,7 +1406,7 @@ index b01b82f..abe7803 100644
 -                </div>
 -
 -                {/* Client References */}
--                {(booking as any).galleryUrl && (
+-                {(job as any).galleryUrl && (
 -                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mt-2 mb-8">
 -                   <div className="flex justify-between items-center mb-5">
 -                      <div className="flex items-center gap-2">
@@ -1419,11 +1419,11 @@ index b01b82f..abe7803 100644
 +                        <LinkIcon className="w-5 h-5 text-blue-500" />
 +                        <h3 className="font-bold text-[#0B1E40]">Attachments (0)</h3>
                        </div>
--                      <a href={(booking as any).galleryUrl} target="_blank" rel="noreferrer" className="text-blue-600 font-bold text-[0.85rem] cursor-pointer hover:underline">View Link</a>
+-                      <a href={(job as any).galleryUrl} target="_blank" rel="noreferrer" className="text-blue-600 font-bold text-[0.85rem] cursor-pointer hover:underline">View Link</a>
 -                   </div>
 -                   <div className="w-full bg-gray-50 rounded-xl p-4 border border-gray-100 flex items-center gap-3">
 -                     <i className="ph-bold ph-link text-slate-400 text-lg"></i>
--                     <a href={(booking as any).galleryUrl} target="_blank" rel="noreferrer" className="text-blue-500 font-bold text-[0.9rem] hover:underline truncate">{(booking as any).galleryUrl}</a>
+-                     <a href={(job as any).galleryUrl} target="_blank" rel="noreferrer" className="text-blue-500 font-bold text-[0.9rem] hover:underline truncate">{(job as any).galleryUrl}</a>
 -                   </div>
 -                </div>
 -                )}
@@ -1448,7 +1448,7 @@ index b01b82f..abe7803 100644
 -         <div className="shrink-0 bg-white border-t border-gray-100 px-6 py-4 flex flex-col md:flex-row justify-between items-center z-50">
 -            <div className="flex items-center gap-3">
 -               <span className="text-[0.75rem] font-black text-slate-400 uppercase tracking-widest">Action Center</span>
--               <span className="font-bold text-[#0B1E40] text-[0.95rem]">Viewing: {booking.bookingNumber || booking.id.substring(0,8)}</span>
+-               <span className="font-bold text-[#0B1E40] text-[0.95rem]">Viewing: {job.jobNumber || job.id.substring(0,8)}</span>
 -            </div>
 -            <div className="flex items-center gap-6 mt-4 md:mt-0">
 -               {isEditing ? (
@@ -1463,13 +1463,13 @@ index b01b82f..abe7803 100644
 -               ) : (
 -                 <>
 -                   <button onClick={() => {
--                        openBookingForm(booking.id);
--                        closeBookingDetails();
+-                        openJobForm(job.id);
+-                        closeJobDetails();
 -                    }} className="text-[#0B1E40] text-[0.95rem] font-bold hover:text-blue-600 transition-colors flex items-center gap-2">
--                      <i className="ph-bold ph-pencil-simple text-lg"></i> Edit Booking
+-                      <i className="ph-bold ph-pencil-simple text-lg"></i> Edit Job
 -                    </button>
 -                   <button onClick={() => {
--                     closeBookingDetails();
+-                     closeJobDetails();
 -                   }} className="px-8 py-2.5 bg-[#0B1E40] text-[0.95rem] text-white font-bold rounded-xl hover:bg-[#152a52] transition-colors ml-2">
 -                     Close
 -                   </button>
@@ -1484,14 +1484,14 @@ index b01b82f..abe7803 100644
 -
 -      {/* Delete Confirmation Modal */}
 -      <Dialog open={isDeleteConfirmOpen} onOpenChange={(open) => !open && setIsDeleteConfirmOpen(false)}>
--        {booking && (
+-        {job && (
 -        <DialogContent className="max-w-[400px] p-8 text-center bg-white rounded-3xl border-0 shadow-2xl !rounded-3xl">
 -          <div className="w-16 h-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-3xl mx-auto mb-5">
 -            <i className="ph-fill ph-trash"></i>
 -          </div>
--          <DialogTitle className="text-xl font-extrabold text-slate-900 mb-2">Delete Booking</DialogTitle>
+-          <DialogTitle className="text-xl font-extrabold text-slate-900 mb-2">Delete Job</DialogTitle>
 -          <p className="text-slate-500 text-[0.95rem] leading-relaxed mb-8">
--            Are you sure you want to delete the booking for <strong className="text-slate-900">{booking.title}</strong>? This action cannot be undone.
+-            Are you sure you want to delete the job for <strong className="text-slate-900">{job.title}</strong>? This action cannot be undone.
 -          </p>
 -          <div className="flex gap-3 justify-center">
 -            <button className="flex-1 px-5 py-2.5 rounded-full font-bold text-[0.95rem] text-slate-700 bg-white border border-gray-200 hover:bg-slate-50 transition-colors" onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeleting}>Cancel</button>
@@ -1510,14 +1510,14 @@ index b01b82f..abe7803 100644
 -           <DialogTitle className="text-xl font-extrabold text-[#0B1E40] mb-4">Add Note</DialogTitle>
 -           <textarea 
 -             className="w-full min-h-[120px] p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-[0.9rem]"
--             placeholder="Enter note for this booking..."
+-             placeholder="Enter note for this job..."
 -             value={newNote}
 -             onChange={(e) => setNewNote(e.target.value)}
 -           ></textarea>
 -           <div className="flex gap-3 mt-6">
 -             <button className="flex-1 px-5 py-2.5 rounded-xl font-bold text-slate-500 bg-gray-50 hover:bg-gray-100 transition-colors" onClick={() => setIsAddNoteOpen(false)} disabled={isLoading}>Cancel</button>
 -             <button className="flex-1 px-5 py-2.5 rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" onClick={() => {
--                updateBookingAPI({ notes: newNote });
+-                updateJobAPI({ notes: newNote });
 -                setIsAddNoteOpen(false);
 -             }} disabled={isLoading}>Save Note</button>
 -           </div>
@@ -1571,10 +1571,10 @@ index b01b82f..abe7803 100644
 -              <button className="flex-1 px-5 py-2.5 rounded-xl font-bold text-slate-500 bg-gray-50 hover:bg-gray-100 transition-colors" onClick={() => setIsAddAttachmentOpen(false)} disabled={isLoading}>Cancel</button>
 -             <button className="flex-1 px-5 py-2.5 rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" onClick={() => {
 -                if(!newAttachmentUrl || !newAttachmentName) return;
--                const existingAttachments = Array.isArray(booking?.attachments) ? booking?.attachments : 
--                             (Array.isArray(booking?.customData?.attachments) ? booking?.customData?.attachments : []);
+-                const existingAttachments = Array.isArray(job?.attachments) ? job?.attachments : 
+-                             (Array.isArray(job?.customData?.attachments) ? job?.customData?.attachments : []);
 -                const newAttachments = [...existingAttachments, { name: newAttachmentName, url: newAttachmentUrl, addedAt: new Date().toISOString() }];
--                updateBookingAPI({ attachments: newAttachments });
+-                updateJobAPI({ attachments: newAttachments });
 -                setIsAddAttachmentOpen(false);
 -             }} disabled={isLoading || !newAttachmentName || !newAttachmentUrl}>Upload File</button>
 -           </div>
@@ -1592,14 +1592,14 @@ index b01b82f..abe7803 100644
 -               </div>
 -               <div className="border-l-[3px] border-gray-300 pl-5 pt-1">
 -                  <h1 className="text-[2.2rem] font-black text-[#1F2937] tracking-[0.1em] uppercase leading-none">Invoice</h1>
--                  <p className="text-[#B66D42] font-bold mt-3 text-sm">Booking {booking?.bookingNumber?.startsWith('#') ? '' : '#'}{booking?.bookingNumber || booking?.id?.substring(0, 8)}</p>
+-                  <p className="text-[#B66D42] font-bold mt-3 text-sm">Job {job?.jobNumber?.startsWith('#') ? '' : '#'}{job?.jobNumber || job?.id?.substring(0, 8)}</p>
 -               </div>
 -            </div>
 -
 -            <div className="grid grid-cols-4 gap-4 mt-12 border-t border-gray-200 pt-6">
 -              <div className="flex flex-col border-r border-gray-200">
 -                <span className="text-[0.65rem] font-bold text-gray-500 tracking-widest uppercase mb-2">Invoice No.</span>
--                <span className="font-bold text-[#1F2937] text-[0.95rem]">{booking?.bookingNumber || booking?.id?.substring(0, 8)}-INV</span>
+-                <span className="font-bold text-[#1F2937] text-[0.95rem]">{job?.jobNumber || job?.id?.substring(0, 8)}-INV</span>
 -              </div>
 -              <div className="flex flex-col border-r border-gray-200 pl-4">
 -                <span className="text-[0.65rem] font-bold text-gray-500 tracking-widest uppercase mb-2">Invoice Date</span>
@@ -1608,23 +1608,23 @@ index b01b82f..abe7803 100644
 +            <div className="shrink-0 h-20 bg-white border-t border-slate-200/60 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] px-6 flex items-center justify-between z-40 rounded-b-[2rem]">
 +              <div className="flex items-center gap-3">
 +                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Action Center</p>
-+                <p className="text-sm font-bold text-slate-800 border-l border-slate-200 pl-3">Viewing: {booking.bookingNumber || `#${booking.id.slice(-6).toUpperCase()}`}</p>
++                <p className="text-sm font-bold text-slate-800 border-l border-slate-200 pl-3">Viewing: {job.jobNumber || `#${job.id.slice(-6).toUpperCase()}`}</p>
                </div>
 -              <div className="flex flex-col border-r border-gray-200 pl-4">
 -                <span className="text-[0.65rem] font-bold text-gray-500 tracking-widest uppercase mb-2">Event Date</span>
--                <span className="font-bold text-[#1F2937] text-[0.95rem]">{booking?.date ? new Date(booking.date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : 'TBD'}</span>
+-                <span className="font-bold text-[#1F2937] text-[0.95rem]">{job?.date ? new Date(job.date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : 'TBD'}</span>
 +              <div className="flex items-center gap-4">
 +                <button 
 +                  onClick={() => {
-+                    openBookingForm(booking.id, undefined);
-+                    closeBookingDetails();
++                    openJobForm(job.id, undefined);
++                    closeJobDetails();
 +                  }}
 +                  className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-sm transition-colors"
 +                >
-+                  Edit Booking
++                  Edit Job
 +                </button>
 +                <button 
-+                  onClick={() => closeBookingDetails()}
++                  onClick={() => closeJobDetails()}
 +                  className="px-8 py-2.5 bg-[#0B1E40] text-white hover:bg-[#152a55] rounded-xl font-bold text-sm transition-colors shadow-lg shadow-blue-900/20"
 +                >
 +                  Close
@@ -1632,24 +1632,24 @@ index b01b82f..abe7803 100644
                </div>
 -              <div className="flex flex-col pl-4">
 -                <span className="text-[0.65rem] font-bold text-gray-500 tracking-widest uppercase mb-2">Status</span>
--                <span className="font-bold text-[#1F2937] text-[0.95rem] uppercase">{Number(booking?.due || 0) > 0 ? 'DRAFT' : 'PAID'}</span>
+-                <span className="font-bold text-[#1F2937] text-[0.95rem] uppercase">{Number(job?.due || 0) > 0 ? 'DRAFT' : 'PAID'}</span>
 -              </div>
 -            </div>
 -
 -            <div className="grid grid-cols-2 mt-8 bg-[#F8F9FA] border-y border-gray-200">
 -              <div className="p-5 pr-6 flex flex-col gap-2">
 -                <span className="text-[0.65rem] font-bold text-gray-500 tracking-widest uppercase mb-1">Billed To</span>
--                <span className="text-[0.9rem] text-[#1F2937]">{booking?.title || 'Client Name'}</span>
--                <span className="text-[0.9rem] text-[#1F2937]">Phone: {booking?.phone || booking?.customData?.fld_b_phone || 'N/A'}</span>
--                <span className="text-[0.9rem] text-[#1F2937]">Email: {booking?.email || booking?.customData?.fld_b_email || 'N/A'}</span>
--                <span className="text-[0.9rem] text-[#1F2937]">Event: {booking?.category || 'Event'} — {booking?.location || 'Location'}</span>
+-                <span className="text-[0.9rem] text-[#1F2937]">{job?.title || 'Client Name'}</span>
+-                <span className="text-[0.9rem] text-[#1F2937]">Phone: {job?.phone || job?.customData?.fld_b_phone || 'N/A'}</span>
+-                <span className="text-[0.9rem] text-[#1F2937]">Email: {job?.email || job?.customData?.fld_b_email || 'N/A'}</span>
+-                <span className="text-[0.9rem] text-[#1F2937]">Event: {job?.category || 'Event'} — {job?.location || 'Location'}</span>
 -              </div>
 -              <div className="p-5 pl-6 flex flex-col gap-2 border-l border-gray-200">
 -                <span className="text-[0.65rem] font-bold text-gray-500 tracking-widest uppercase mb-1">From</span>
 -                <span className="text-[0.9rem] text-[#1F2937]">Moondot Studio</span>
 -                <span className="text-[0.9rem] text-[#1F2937]">Photography & Videography</span>
--                <span className="text-[0.9rem] text-[#1F2937]">Chennai, Tamil Nadu, India</span>
--                <span className="text-[0.9rem] text-[#1F2937]">Email: hello@moondotstudio.in</span>
+-                <span className="text-[0.9rem] text-[#1F2937]">Mela bazar,Ayikudi,Tenkasi,Tamil Nadu,627852</span>
+-                <span className="text-[0.9rem] text-[#1F2937]">Email: moondotstudio@gmail.com</span>
 -              </div>
 -            </div>
 -
@@ -1666,21 +1666,21 @@ index b01b82f..abe7803 100644
 -                  </tr>
 -                </thead>
 -                <tbody>
--                  {Array.isArray(booking?.inclusions) && booking!.inclusions.length > 0 ? booking!.inclusions.map((item: string, idx: number) => (
+-                  {Array.isArray(job?.inclusions) && job!.inclusions.length > 0 ? job!.inclusions.map((item: string, idx: number) => (
 -                    <tr key={idx} className="border-b border-gray-100">
 -                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{idx + 1}</td>
 -                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{item}</td>
 -                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">1</td>
--                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{idx === 0 ? Number(booking?.package || 0).toFixed(2) : "0.00"}</td>
--                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{idx === 0 ? Number(booking?.package || 0).toFixed(2) : "0.00"}</td>
+-                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{idx === 0 ? Number(job?.package || 0).toFixed(2) : "0.00"}</td>
+-                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{idx === 0 ? Number(job?.package || 0).toFixed(2) : "0.00"}</td>
 -                    </tr>
 -                  )) : (
 -                    <tr className="border-b border-gray-100">
 -                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">1</td>
--                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{booking?.category || 'Standard'} Package</td>
+-                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{job?.category || 'Standard'} Package</td>
 -                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">1</td>
--                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{Number(booking?.package || 0).toFixed(2)}</td>
--                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{Number(booking?.package || 0).toFixed(2)}</td>
+-                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{Number(job?.package || 0).toFixed(2)}</td>
+-                      <td className="py-3 px-4 text-[0.85rem] text-[#1F2937]">{Number(job?.package || 0).toFixed(2)}</td>
 -                    </tr>
 -                  )}
 -                </tbody>
@@ -1691,7 +1691,7 @@ index b01b82f..abe7803 100644
 -              <div className="w-[320px] flex flex-col">
 -                <div className="flex justify-between py-2.5 border-b border-gray-200 text-[0.85rem] text-gray-500">
 -                  <span>Subtotal</span>
--                  <span>₹{Number(booking?.package || 0).toFixed(2)}</span>
+-                  <span>₹{Number(job?.package || 0).toFixed(2)}</span>
 -                </div>
 -                <div className="flex justify-between py-2.5 border-b border-gray-200 text-[0.85rem] text-gray-500">
 -                  <span>Tax / GST (0%)</span>
@@ -1699,18 +1699,18 @@ index b01b82f..abe7803 100644
 -                </div>
 -                <div className="flex justify-between py-2.5 border-b border-gray-200 text-[0.95rem] font-bold">
 -                  <span className="text-[#1F2937]">Total Amount</span>
--                  <span className="text-[#B66D42]">₹{Number(booking?.package || 0).toFixed(2)}</span>
+-                  <span className="text-[#B66D42]">₹{Number(job?.package || 0).toFixed(2)}</span>
 -                </div>
 -                <div className="flex justify-between py-2.5 border-b border-gray-200 text-[0.85rem] text-gray-500">
 -                  <span>Paid</span>
--                  <span>₹{Number(booking?.advance || 0).toFixed(2)}</span>
+-                  <span>₹{Number(job?.advance || 0).toFixed(2)}</span>
 -                </div>
 -                <div className="flex justify-between py-2.5 border-b border-gray-200 text-[0.95rem] font-bold">
 -                  <span className="text-[#1F2937]">Balance Due</span>
--                  <span className="text-[#B66D42]">₹{Number(booking?.due || 0).toFixed(2)}</span>
+-                  <span className="text-[#B66D42]">₹{Number(job?.due || 0).toFixed(2)}</span>
 -                </div>
 -                <div className="flex justify-end pt-3 text-[0.65rem] font-bold text-[#B66D42] tracking-wider uppercase">
--                  PAYMENT PROGRESS: <span className="ml-2">{Math.round(((Number(booking?.advance || 0)) / (Number(booking?.package || 1) || 1)) * 100)}% Paid</span>
+-                  PAYMENT PROGRESS: <span className="ml-2">{Math.round(((Number(job?.advance || 0)) / (Number(job?.package || 1) || 1)) * 100)}% Paid</span>
 -                </div>
 -              </div>
 +          </div>
@@ -1728,14 +1728,14 @@ index b01b82f..abe7803 100644
 -            <div className="mt-16">
 -              <h3 className="text-[0.7rem] font-black text-[#1F2937] tracking-[0.15em] uppercase mb-4 text-right">Terms & Notes</h3>
 -              <div className="text-[0.85rem] text-[#1F2937] space-y-2.5">
--                <p className="flex items-start gap-2"><span className="text-[#B66D42] font-bold">—</span> A 50% advance is required to confirm the booking; the balance is due on or before the event date.</p>
+-                <p className="flex items-start gap-2"><span className="text-[#B66D42] font-bold">—</span> A 50% advance is required to confirm the job; the balance is due on or before the event date.</p>
 -                <p className="flex items-start gap-2"><span className="text-[#B66D42] font-bold">—</span> Edited photos and the highlight film will be delivered within 6–8 weeks of the event.</p>
 -                <p className="flex items-start gap-2"><span className="text-[#B66D42] font-bold">—</span> Final printed album delivery timelines depend on the album size and design revisions chosen.</p>
 -                <p className="flex items-start gap-2"><span className="text-[#B66D42] font-bold">—</span> Cancellations within 15 days of the event date are non-refundable.</p>
 -              </div>
 -              <p className="text-[#B66D42] italic text-[0.95rem] mt-6" style={{ fontFamily: 'Georgia, serif' }}>Thank you for choosing Moondot Studio to capture your celebration.</p>
-+            <h3 className="text-2xl font-black text-slate-900 mb-2">Delete Booking?</h3>
-+            <p className="text-slate-500 mb-8 font-medium">This action cannot be undone. This will permanently remove the booking and all related data.</p>
++            <h3 className="text-2xl font-black text-slate-900 mb-2">Delete Job?</h3>
++            <p className="text-slate-500 mb-8 font-medium">This action cannot be undone. This will permanently remove the job and all related data.</p>
 +            <div className="flex items-center gap-3 w-full">
 +              <button 
 +                onClick={() => setIsDeleteConfirmOpen(false)}

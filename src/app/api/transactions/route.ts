@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     const userId = (session.user as any).id as string;
 
     const body = await request.json();
-    const { amount, type, date, category, paymentMode, description, status, productOrderId, bookingId, recordDate, ...restBody } = body;
+    const { amount, type, date, category, paymentMode, description, status, productOrderId, jobId, recordDate, ...restBody } = body;
 
     const customData: Record<string, any> = {};
     for (const [key, value] of Object.entries(restBody)) {
@@ -176,7 +176,7 @@ export async function POST(request: Request) {
         description: description?.trim() || null,
         status: status || "SETTLED",
         ...(productOrderId ? { productOrder: { connect: { id: productOrderId } } } : {}),
-        bookingId: bookingId || undefined,
+        jobId: jobId || undefined,
         customData: Object.keys(customData).length > 0 ? customData : undefined,
         ...(userId ? { user: { connect: { id: userId } } } : {}),
       },

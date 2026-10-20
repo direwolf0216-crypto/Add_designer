@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
     const reminderTypes = [
       'ORDER_STATUS_STALE',
-      'BOOKING_STATUS_STALE',
+      'JOB_STATUS_STALE',
       'PAYMENT_DUE_REMINDER',
       'ADVANCE_NOT_COLLECTED',
       'GALLERY_NOT_DELIVERED',

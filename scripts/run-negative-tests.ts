@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_9yer3vJADMhO@ep-lucky-wildflower-aoouw89k.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('DATABASE_URL is not set');
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -46,7 +47,7 @@ async function runNegativeTests() {
         amount: -500, // Invalid negative amount
         type: 'INCOME',
         date: new Date().toISOString(),
-        category: 'BOOKING',
+        category: 'JOB',
         paymentMode: 'Cash'
       })
     });
@@ -96,7 +97,7 @@ async function runNegativeTests() {
         amount: 500,
         type: 'INCOME',
         date: 'invalid-date', // Invalid date
-        category: 'BOOKING',
+        category: 'JOB',
         paymentMode: 'Cash'
       })
     });
