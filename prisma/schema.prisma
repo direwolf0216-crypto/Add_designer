@@ -7,27 +7,27 @@ datasource db {
 }
 
 model Client {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   phone     String
   email     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  jobs  Job[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  jobs      Job[]
 
   @@index([createdAt])
 }
 
 model Order {
   id           String   @id @default(cuid())
-  jobId    String   @unique
+  jobId        String   @unique
   package      Float    @default(0)
   advance      Float    @default(0)
   due          Float    @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   installments Json?
-  job      Job  @relation(fields: [jobId], references: [id])
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
 }
@@ -45,7 +45,7 @@ model Job {
   contractUrl      String?
   galleryUrl       String?
   attachments      Json?
-  jobNumber    String?       @unique
+  jobNumber        String?       @unique
   createdById      String?
   customData       Json?
   deletedAt        DateTime?
@@ -63,9 +63,7 @@ model Job {
   invoice          Invoice?
   transactions     Transaction[]
 
-  @@index([date])
   @@index([clientId])
-  @@index([deletedAt])
   @@index([status])
   @@index([deletedAt, date])
   @@index([clientId, date])
@@ -83,27 +81,27 @@ model SystemLog {
 }
 
 model Transaction {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   amount         Float
-  type           String
+  type           TransactionType
   date           DateTime
   category       String
   paymentMode    String
   description    String?
-  status         String        @default("SETTLED")
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  status         String          @default("SETTLED")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   attachmentUrl  String?
-  jobId      String?
+  jobId          String?
   customData     Json?
-  transactionId  String?       @unique
+  transactionId  String?         @unique
   userId         String?
   productOrderId String?
   deletedAt      DateTime?
   groupId        String?
-  job        Job?      @relation(fields: [jobId], references: [id])
-  productOrder   ProductOrder? @relation(fields: [productOrderId], references: [id])
-  user           User?         @relation(fields: [userId], references: [id])
+  job            Job?            @relation(fields: [jobId], references: [id])
+  productOrder   ProductOrder?   @relation(fields: [productOrderId], references: [id])
+  user           User?           @relation(fields: [userId], references: [id])
 
   @@index([date])
   @@index([category])
@@ -112,7 +110,8 @@ model Transaction {
   @@index([userId])
   @@index([date, type])
   @@index([userId, date])
-  @@index([transactionId])
+  @@index([deletedAt, date])
+  @@index([jobId])
   @@index([productOrderId])
   @@index([groupId])
 }
@@ -163,8 +162,8 @@ model User {
   whatsappNotifs     Boolean            @default(false)
   notificationPrefs  Json?
   accounts           Account[]
-  createdJobs    Job[]          @relation("JobCreatedBy")
-  updatedJobs    Job[]          @relation("JobUpdatedBy")
+  createdJobs        Job[]              @relation("JobCreatedBy")
+  updatedJobs        Job[]              @relation("JobUpdatedBy")
   categoryBudgets    CategoryBudget[]
   notifications      Notification[]
   pushSubscriptions  PushSubscription[]
@@ -213,6 +212,30 @@ model PasswordResetToken {
   expires DateTime
 
   @@unique([email, token])
+  @@index([email])
+}
+
+/// Fixed-window counters for rate limiting (login, password reset). Shared across instances.
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@index([windowStart])
+}
+
+/// Monotonic named sequences (e.g. invoice numbers). Incremented atomically.
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+/// One row per reminder actually sent, so cron retries and daily runs never re-notify.
+model ReminderLog {
+  key       String   @id
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Product {
@@ -229,21 +252,21 @@ model Product {
 }
 
 model ProductOrder {
-  id           String        @id @default(cuid())
-  productId    String
-  quantity     Int           @default(1)
-  status       String        @default("PENDING")
-  clientName   String
-  clientPhone  String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  customData   Json?
-  orderNumber  String?       @unique
-  dueDate      DateTime?
+  id             String        @id @default(cuid())
+  productId      String
+  quantity       Int           @default(1)
+  status         String        @default("PENDING")
+  clientName     String
+  clientPhone    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  customData     Json?
+  orderNumber    String?       @unique
+  dueDate        DateTime?
   discountAmount Float         @default(0)
-  date         DateTime      @default(now())
-  product      Product       @relation(fields: [productId], references: [id])
-  transactions Transaction[]
+  date           DateTime      @default(now())
+  product        Product       @relation(fields: [productId], references: [id])
+  transactions   Transaction[]
 
   @@index([productId])
   @@index([status])
@@ -270,24 +293,24 @@ model SystemSetting {
 }
 
 model Notification {
-  id           String           @id @default(cuid())
+  id           String               @id @default(cuid())
   userId       String
   title        String
   message      String
-  isRead       Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  isRead       Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   actionUrl    String?
   entityId     String?
   entityType   String?
   type         NotificationType
   link         String?
-  priority     String           @default("NORMAL")
+  priority     NotificationPriority @default(NORMAL)
   snoozedUntil DateTime?
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([isRead])
+  @@index([userId, isRead, createdAt])
+  @@index([type, entityId, createdAt])
   @@index([createdAt])
 }
 
@@ -324,7 +347,7 @@ model CategoryBudget {
   userId       String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([category, month, year, userId])
   @@index([userId])
@@ -368,6 +391,11 @@ enum NotificationType {
   BUDGET_EXCEEDED
 }
 
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
 enum NotificationPriority {
   HIGH
   NORMAL
@@ -375,18 +403,17 @@ enum NotificationPriority {
 }
 
 model Invoice {
-  id            String            @id @default(cuid())
-  invoiceNumber String            @unique
-  jobId     String            @unique
-  discount      Float             @default(0)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  jobId         String    @unique
+  discount      Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  job       Job           @relation(fields: [jobId], references: [id])
-  lineItems     InvoiceLineItem[]
+  job       Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  lineItems InvoiceLineItem[]
 
-  @@index([jobId])
   @@index([createdAt])
   @@index([deletedAt])
 }
@@ -401,7 +428,7 @@ model InvoiceLineItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
 }

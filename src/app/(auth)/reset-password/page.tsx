@@ -1,15 +1,34 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useSyncExternalStore, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
 
+const noopSubscribe = () => () => {};
+const readStoredReset = () => {
+  try {
+    return sessionStorage.getItem("pwreset");
+  } catch {
+    return null;
+  }
+};
+
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  // The login page stores { email, token } in sessionStorage; older links may still carry them in the URL.
+  const stored = useSyncExternalStore(noopSubscribe, readStoredReset, () => null);
+  const parsed = (() => {
+    try {
+      return stored ? (JSON.parse(stored) as { email?: string; token?: string }) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const token = parsed?.token ?? searchParams.get("token");
+  const email = parsed?.email ?? searchParams.get("email");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,8 +40,8 @@ function ResetPasswordForm() {
     e.preventDefault();
     setError(null);
 
-    if (!token) {
-      setError("Invalid or missing token.");
+    if (!token || !email) {
+      setError("Invalid or missing token. Please sign in again with your temporary password.");
       return;
     }
 
@@ -31,8 +50,8 @@ function ResetPasswordForm() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -42,12 +61,15 @@ function ResetPasswordForm() {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ email, token, password }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
+        try {
+          sessionStorage.removeItem("pwreset");
+        } catch {}
         toast.success(data.message || "Password updated successfully!");
         router.push("/login");
       } else {

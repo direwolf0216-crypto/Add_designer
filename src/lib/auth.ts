@@ -1,46 +1,67 @@
-import { NextAuthOptions } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import prisma from "@/lib/prisma";
+import prisma, { prismaBase } from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import AppleProvider from "next-auth/providers/apple";
+import { decode } from "next-auth/jwt";
+import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { timingSafeEqual } from "crypto";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
+import { isRole } from "@/lib/permissions";
+
+const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
+const RECHECK_INTERVAL_MS = 60 * 1000; // re-read role/status from the DB at most once a minute
+// bcrypt hash of a random string, compared against when the user doesn't exist so that
+// response timing does not reveal which emails have accounts.
+const DUMMY_HASH = "$2b$10$Yer419NerdphrIcCqIjFZOXrWl8QHxkqq2KfidYTU91EkRLmKkx/q";
+
+function safeEqual(a: string, b: string) {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
+/** The id of the user whose session cookie accompanies the current request, if any. */
+async function currentSessionUserId(): Promise<string | null> {
+  const store = await cookies();
+  const raw =
+    store.get("__Secure-next-auth.session-token")?.value ?? store.get("next-auth.session-token")?.value;
+  if (!raw) return null;
+  const token = await decode({ token: raw, secret: process.env.NEXTAUTH_SECRET as string });
+  return token?.revoked ? null : (token?.sub ?? null);
+}
+
+function emailFromIdToken(idToken: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(idToken.split(".")[1], "base64url").toString("utf8"));
+    return typeof payload.email === "string" ? payload.email : null;
+  } catch {
+    return null;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prismaBase),
   secret: process.env.NEXTAUTH_SECRET as string,
   session: {
     strategy: "jwt",
+    maxAge: SESSION_MAX_AGE,
   },
   pages: {
     signIn: "/login",
   },
-  debug: true,
-  logger: {
-    error(code, metadata) {
-      try {
-        require("fs").appendFileSync("nextauth-error.log", JSON.stringify({ code, metadata }) + "\\n");
-      } catch (e) {}
-    },
-    debug(code, metadata) {
-      try {
-        require("fs").appendFileSync("nextauth-debug.log", JSON.stringify({ code, metadata }) + "\\n");
-      } catch (e) {}
-    }
-  },
+  debug: process.env.NODE_ENV === "development" && process.env.NEXTAUTH_DEBUG === "true",
   providers: [
+    // Google is only used to link a Drive account to an already signed-in user, never to sign in.
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
-        GoogleProvider({
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        }),
         GoogleProvider({
           id: "google-drive",
           name: "Google Drive",
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          checks: ["none"],
+          checks: ["pkce", "state"],
           authorization: {
             params: {
               scope: "openid email profile https://www.googleapis.com/auth/drive.file",
@@ -49,15 +70,6 @@ export const authOptions: NextAuthOptions = {
               response_type: "code",
             },
           },
-          allowDangerousEmailAccountLinking: true,
-        }),
-      ]
-      : []),
-    ...(process.env.APPLE_ID && process.env.APPLE_SECRET
-      ? [
-        AppleProvider({
-          clientId: process.env.APPLE_ID,
-          clientSecret: process.env.APPLE_SECRET,
         }),
       ]
       : []),
@@ -67,147 +79,156 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+      async authorize(credentials, req) {
+        const email = credentials?.email?.trim().toLowerCase();
+        const password = credentials?.password ?? "";
+        if (!email || !password) {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email.toLowerCase(),
-          },
-        });
+        const ip = clientIp(req?.headers as Record<string, string> | undefined);
+        const allowed =
+          (await rateLimit(`login:email:${email}`, 10, 15 * 60 * 1000)) &&
+          (await rateLimit(`login:ip:${ip}`, 50, 15 * 60 * 1000));
+        if (!allowed) {
+          throw new Error("Too many attempts. Please wait a few minutes and try again.");
+        }
 
-        if (!user || !user?.password) {
+        const user = await prisma.user.findUnique({ where: { email } });
+        const isCorrectPassword = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
+
+        if (!user || !user.password) {
           throw new Error("Invalid credentials");
         }
 
+        if (!isCorrectPassword) {
+          // Admin-issued temporary passwords (invites / forgot-password) are single-use reset tokens
+          // bound to this email; signing in with one sends the user to set a real password.
+          const tempTokens = await prisma.passwordResetToken.findMany({
+            where: { email, expires: { gt: new Date() } },
+          });
+          const match = tempTokens.find((t) => safeEqual(t.token, password));
+          if (match) {
+            throw new Error(`TEMPORARY_PASSWORD:${match.token}`);
+          }
+          throw new Error("Invalid credentials");
+        }
+
+        // Status is only revealed once the password is proven, so it can't be used to probe accounts.
         if (user.status === "INACTIVE") {
           throw new Error("Account deactivated");
         }
 
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isCorrectPassword) {
-          const tempToken = await prisma.passwordResetToken.findUnique({
-            where: { token: credentials.password },
-          });
-
-          if (tempToken && tempToken.email.toLowerCase() === credentials.email.toLowerCase()) {
-            const hasExpired = new Date(tempToken.expires) < new Date();
-            if (!hasExpired) {
-              throw new Error(`TEMPORARY_PASSWORD:${tempToken.token}`);
-            }
-          }
-          throw new Error("Invalid credentials");
-        }
-
-        return user;
+        return { id: user.id, name: user.name, email: user.email, image: user.image, role: user.role };
       },
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider === "google-drive") {
-        try {
-          if (!account.providerAccountId) return false;
-          
-          if (!profile?.email) {
-             return `/settings?error=DriveIntegrationFailed&details=Google did not return an email address.`;
-          }
+    async signIn({ account }) {
+      if (account?.provider !== "google-drive") return true;
 
-          // 1. Find the Kanakkupulla user by the Google profile email
-          const dbUser = await prisma.user.findUnique({ 
-            where: { email: profile.email } 
-          });
-          
-          if (!dbUser) {
-            return `/settings?error=DriveEmailMismatch&details=No Kanakkupulla account found for the email ${profile.email}. Please use the Google account that matches your Kanakkupulla login.`;
-          }
-          const userId = dbUser.id;
+      try {
+        if (!account.providerAccountId) return false;
 
-          // 2. Check if this integration already belongs to someone else (optional but safe)
-          const integration = await prisma.userIntegration.findUnique({
-            where: { userId_provider: { userId, provider: "google-drive" } }
-          });
-          
-          if (integration && integration.connectedEmail && profile.email !== integration.connectedEmail) {
-             // Technically they are using a different Google email than before, which we could reject, 
-             // but since we match by profile.email above, it means their Kanakkupulla email ALSO changed.
-             // We'll allow the upsert to update it.
-          }
-
-          // 3. Upsert the Account manually
-          await prisma.account.upsert({
-            where: { 
-              provider_providerAccountId: { 
-                provider: 'google-drive', 
-                providerAccountId: account.providerAccountId 
-              } 
-            },
-            create: {
-              userId: userId,
-              type: account.type || 'oauth',
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-              access_token: account.access_token,
-              refresh_token: account.refresh_token,
-              expires_at: account.expires_at,
-              token_type: account.token_type,
-              scope: account.scope,
-              id_token: account.id_token,
-              session_state: account.session_state as string | undefined,
-            },
-            update: {
-              access_token: account.access_token,
-              refresh_token: account.refresh_token ?? undefined,
-              expires_at: account.expires_at,
-              scope: account.scope,
-              id_token: account.id_token,
-            }
-          });
-
-          // 4. Upsert the UserIntegration manually
-          await prisma.userIntegration.upsert({
-            where: { userId_provider: { userId, provider: 'google-drive' } },
-            create: { userId, provider: 'google-drive', connectedEmail: profile.email },
-            update: { connectedEmail: profile.email }
-          });
-
-          // 5. Return a URL to bypass NextAuth's fragile account linking and redirect immediately
-          return '/settings?section=google-drive&success=DriveConnected';
-        } catch (error: any) {
-          try {
-            require("fs").writeFileSync("last-auth-error.txt", String(error.stack || error));
-          } catch (e) {}
-          return `/settings?error=DriveIntegrationFailed&details=${encodeURIComponent(error.message || "Unknown error")}`;
+        // Link Drive to whoever is signed in right now, never to an account looked up by email.
+        const userId = await currentSessionUserId();
+        if (!userId) {
+          return "/login?error=SessionRequired";
         }
-      }
-      return true;
-    },
+        const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+        if (!dbUser || dbUser.status === "INACTIVE") {
+          return "/login?error=SessionRequired";
+        }
 
-    async session({ session, token }) {
-      if (token && session.user) {
-        (session.user as any).id = token.sub as string;
-        (session.user as any).role = token.role as string;
+        const existingLink = await prisma.account.findUnique({
+          where: { provider_providerAccountId: { provider: "google-drive", providerAccountId: account.providerAccountId } },
+        });
+        if (existingLink && existingLink.userId !== userId) {
+          return `/settings?section=google-drive&error=DriveIntegrationFailed&details=${encodeURIComponent(
+            "This Google account is already linked to another user."
+          )}`;
+        }
+
+        await prisma.account.upsert({
+          where: {
+            provider_providerAccountId: { provider: "google-drive", providerAccountId: account.providerAccountId },
+          },
+          create: {
+            userId,
+            type: account.type || "oauth",
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            access_token: account.access_token,
+            refresh_token: account.refresh_token,
+            expires_at: account.expires_at,
+            token_type: account.token_type,
+            scope: account.scope,
+            id_token: account.id_token,
+            session_state: account.session_state as string | undefined,
+          },
+          update: {
+            access_token: account.access_token,
+            refresh_token: account.refresh_token ?? undefined,
+            expires_at: account.expires_at,
+            scope: account.scope,
+            id_token: account.id_token,
+          },
+        });
+
+        const connectedEmail = account.id_token ? emailFromIdToken(account.id_token) : null;
+        await prisma.userIntegration.upsert({
+          where: { userId_provider: { userId, provider: "google-drive" } },
+          create: { userId, provider: "google-drive", connectedEmail },
+          update: { connectedEmail },
+        });
+
+        // Returning a URL redirects straight back and stops NextAuth replacing the current session.
+        return "/settings?section=google-drive&success=DriveConnected";
+      } catch (error) {
+        console.error("[auth] Drive linking failed", error);
+        return "/settings?section=google-drive&error=DriveIntegrationFailed";
       }
-      return session;
     },
 
     async jwt({ token, user, account }) {
-      // Return token as-is for Google Drive to preserve existing session
       if (account?.provider === "google-drive") {
         return token;
       }
 
       if (user) {
         token.sub = user.id;
-        token.role = (user as any).role || "STAFF";
+        token.role = isRole(user.role) ? user.role : "STAFF";
+        token.checkedAt = Date.now();
+        token.revoked = false;
+        return token;
+      }
+
+      // Pick up role changes and deactivation/deletion without waiting for the session to expire.
+      if (token.sub && !token.revoked && Date.now() - (token.checkedAt ?? 0) > RECHECK_INTERVAL_MS) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { role: true, status: true },
+        });
+        if (!dbUser || dbUser.status === "INACTIVE") {
+          token.revoked = true;
+        } else {
+          token.role = dbUser.role;
+        }
+        token.checkedAt = Date.now();
       }
       return token;
+    },
+
+    async session({ session, token }) {
+      if (token.revoked || !token.sub) {
+        // Treated as signed out by every server check (getSessionUser requires user.id).
+        return { ...session, user: undefined } as unknown as typeof session;
+      }
+      if (session.user) {
+        session.user.id = token.sub;
+        session.user.role = isRole(token.role) ? token.role : "STAFF";
+      }
+      return session;
     },
   },
 };

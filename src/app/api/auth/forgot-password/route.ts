@@ -1,49 +1,36 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
-import crypto from "crypto";
+import { parseJson, route } from "@/lib/api/http";
+import { clientIp, enforceRateLimit } from "@/lib/rateLimit";
+import { generateTempPassword } from "@/lib/auth/tempPassword";
 
-export async function POST(req: Request) {
-  try {
-    const { email } = await req.json();
+const bodySchema = z.object({ email: z.string().trim().toLowerCase().email() });
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
+// Same response whether or not the account exists, so the endpoint can't be used to enumerate users.
+const GENERIC_RESPONSE = {
+  success: true,
+  message: "If an account exists for this email, a temporary password has been generated. Please contact your Admin.",
+};
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+export const POST = route(async (req) => {
+  await enforceRateLimit(`forgot:ip:${clientIp(req.headers)}`, 10, 60 * 60 * 1000);
+  const { email } = await parseJson(req, bodySchema);
+  await enforceRateLimit(`forgot:email:${email}`, 3, 60 * 60 * 1000);
 
-    if (!user) {
-      // Return 200 even if user doesn't exist to prevent email enumeration
-      return NextResponse.json({ success: true, message: "If that email is in our system, we sent a password reset link to it." });
-    }
-
-    // Check if token already exists for this email
-    const existingToken = await prisma.passwordResetToken.findFirst({
-      where: { email },
-    });
-
-    if (existingToken) {
-      await prisma.passwordResetToken.delete({
-        where: { id: existingToken.id },
-      });
-    }
-
-    // Generate secure 6-character alphanumeric code
-    const token = crypto.randomBytes(3).toString("hex").toUpperCase();
-    const expires = new Date(Date.now() + 3600 * 1000); // 1 hour
-
-    await prisma.passwordResetToken.create({
-      data: {
-        email,
-        token,
-        expires,
-      },
-    });
-
-    return NextResponse.json({ success: true, message: "A temporary password has been generated. Please contact your Admin." });
-  } catch (error) {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || user.status === "INACTIVE") {
+    return NextResponse.json(GENERIC_RESPONSE);
   }
-}
+
+  // Keep a still-valid code (e.g. an admin-issued invite) instead of letting anyone replace it.
+  const active = await prisma.passwordResetToken.findFirst({ where: { email, expires: { gt: new Date() } } });
+  if (!active) {
+    await prisma.passwordResetToken.deleteMany({ where: { email } });
+    await prisma.passwordResetToken.create({
+      data: { email, token: generateTempPassword(), expires: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+    });
+  }
+
+  return NextResponse.json(GENERIC_RESPONSE);
+});

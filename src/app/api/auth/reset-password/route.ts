@@ -1,50 +1,38 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { z } from "zod";
 import bcrypt from "bcryptjs";
+import prisma from "@/lib/prisma";
+import { badRequest, parseJson, route } from "@/lib/api/http";
+import { clientIp, enforceRateLimit } from "@/lib/rateLimit";
+import { MIN_PASSWORD_LENGTH } from "@/lib/auth/tempPassword";
 
-export async function POST(req: Request) {
-  try {
-    const { token, password } = await req.json();
+const bodySchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  token: z.string().trim().min(1),
+  password: z.string().min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`).max(200),
+});
 
-    if (!token || !password) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+export const POST = route(async (req) => {
+  await enforceRateLimit(`reset:ip:${clientIp(req.headers)}`, 20, 15 * 60 * 1000);
+  const { email, token, password } = await parseJson(req, bodySchema);
+  await enforceRateLimit(`reset:email:${email}`, 5, 15 * 60 * 1000);
 
-    const existingToken = await prisma.passwordResetToken.findUnique({
-      where: { token },
-    });
-
-    if (!existingToken) {
-      return NextResponse.json({ error: "Invalid token!" }, { status: 400 });
-    }
-
-    const hasExpired = new Date(existingToken.expires) < new Date();
-
-    if (hasExpired) {
-      return NextResponse.json({ error: "Token has expired!" }, { status: 400 });
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email: existingToken.email },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: "User does not exist!" }, { status: 400 });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await prisma.user.update({
-      where: { id: existingUser.id },
-      data: { password: hashedPassword },
-    });
-
-    await prisma.passwordResetToken.delete({
-      where: { id: existingToken.id },
-    });
-
-    return NextResponse.json({ success: true, message: "Password updated successfully!" });
-  } catch (error) {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  // The code must match *this* email; a bare token is never enough.
+  const existingToken = await prisma.passwordResetToken.findUnique({ where: { email_token: { email, token } } });
+  if (!existingToken || existingToken.expires < new Date()) {
+    throw badRequest("This temporary password is invalid or has expired.");
   }
-}
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || user.status === "INACTIVE") {
+    throw badRequest("This temporary password is invalid or has expired.");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword } }),
+    prisma.passwordResetToken.deleteMany({ where: { email } }),
+  ]);
+
+  return NextResponse.json({ success: true, message: "Password updated successfully!" });
+});

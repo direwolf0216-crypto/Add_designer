@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+/** Only allow same-origin relative redirects after login. */
+function safeCallbackUrl(value: string | null): string {
+  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
+  return "/dashboard/overview";
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState({
     email: "",
     password: "",
@@ -28,8 +35,12 @@ export default function LoginPage() {
 
     if (signInData?.error) {
       if (signInData.error.startsWith("TEMPORARY_PASSWORD:")) {
+        // Hand the one-time code to the reset page without putting it in the URL/history.
         const token = signInData.error.split(":")[1];
-        router.push(`/reset-password?token=${token}`);
+        try {
+          sessionStorage.setItem("pwreset", JSON.stringify({ email: data.email.trim().toLowerCase(), token }));
+        } catch {}
+        router.push("/reset-password");
         return;
       }
       
@@ -37,12 +48,14 @@ export default function LoginPage() {
         setShowPendingPopup(true);
       } else if (signInData.error === "Account deactivated") {
         setError("Your account has been deactivated. Please contact support.");
+      } else if (signInData.error.startsWith("Too many attempts")) {
+        setError(signInData.error);
       } else {
         setError("Invalid credentials. Please try again.");
       }
       setLoading(false);
     } else {
-      router.push("/dashboard/overview");
+      router.push(safeCallbackUrl(searchParams.get("callbackUrl")));
       router.refresh();
     }
   };
@@ -300,5 +313,13 @@ export default function LoginPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

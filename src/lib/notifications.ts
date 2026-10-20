@@ -1,28 +1,44 @@
-import prisma from "./prisma";
+import "server-only";
+import { after } from "next/server";
+import { Prisma, type NotificationPriority, type NotificationType } from "@prisma/client";
 import webpush from "web-push";
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
+import prisma from "./prisma";
 
-const BOT_URL = process.env.WHATSAPP_BOT_URL || "http://localhost:3001";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-webpush.setVapidDetails(
-  "mailto:admin@adddesigner.com",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BM7mYrnONkCPpx7wemRCy4R7r7eD8ZuDGAU9NOE-K1gvS7apjLkhRTfYgJ_LonMla20uX61yHvbt1yUak20CXiI",
-  process.env.VAPID_PRIVATE_KEY || "WDeshUo0oOmE6nvY5lOXNHIZrmoGbHbSUf6m5AVDbpY"
-);
+// Push and email are optional: each channel is enabled only when its credentials are configured.
+const pushEnabled = Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+if (pushEnabled) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:admin@adddesigner.com",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string,
+    process.env.VAPID_PRIVATE_KEY as string
+  );
+}
 
-// Ethereal placeholder for dev environments
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.ethereal.email",
-  port: parseInt(process.env.SMTP_PORT || "587", 10),
-  auth: {
-    user: process.env.SMTP_USER || "test@example.com",
-    pass: process.env.SMTP_PASS || "testpass",
-  },
-});
+let transporter: Transporter | null = null;
+function getTransporter(): Transporter | null {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  transporter ??= nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number.parseInt(process.env.SMTP_PORT || "587", 10),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+  return transporter;
+}
 
-import { NotificationType, NotificationPriority } from "@prisma/client";
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
-export async function createNotification(params: {
+export type NotificationParams = {
   userId: string;
   title: string;
   message: string;
@@ -31,143 +47,120 @@ export async function createNotification(params: {
   entityId?: string;
   entityType?: string;
   priority?: NotificationPriority;
-}) {
+};
+
+export async function createNotification(params: NotificationParams) {
   const { userId, title, message, type, actionUrl, entityId, entityType, priority = "NORMAL" } = params;
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { pushSubscriptions: true },
     });
-
     if (!user) return null;
 
-    // Check notification preferences
-    if (user.notificationPrefs) {
-      const prefs = user.notificationPrefs as Record<string, boolean>;
-      if (prefs[type] === false) {
-        return null; // User disabled this type
-      }
-    }
+    const prefs = user.notificationPrefs as Record<string, boolean> | null;
+    if (prefs && prefs[type] === false) return null;
 
-    // 1. Create in Database
     const notification = await prisma.notification.create({
       data: { userId, title, message, type, actionUrl, entityId, entityType, priority },
     });
 
-    // 2. Send Web Push
-    if (user.pushNotifications && user.pushSubscriptions.length > 0) {
-      const payload = JSON.stringify({
-        title,
-        body: message,
-        url: actionUrl || "/",
-        icon: "/assets/logo.png"
-      });
+    const deliveries: Promise<unknown>[] = [];
 
+    if (pushEnabled && user.pushNotifications && user.pushSubscriptions.length > 0) {
+      const payload = JSON.stringify({ title, body: message, url: actionUrl || "/", icon: "/assets/logo.png", tag: notification.id });
       for (const sub of user.pushSubscriptions) {
-        try {
-          await webpush.sendNotification({
-            endpoint: sub.endpoint,
-            keys: { auth: sub.auth, p256dh: sub.p256dh }
-          }, payload);
-        } catch (e: any) {
-          if (e.statusCode === 410 || e.statusCode === 404) {
-            await prisma.pushSubscription.delete({ where: { id: sub.id } });
-          } else {
-          }
-        }
+        deliveries.push(
+          webpush
+            .sendNotification({ endpoint: sub.endpoint, keys: { auth: sub.auth, p256dh: sub.p256dh } }, payload)
+            .catch(async (e: { statusCode?: number }) => {
+              if (e.statusCode === 410 || e.statusCode === 404) {
+                await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+              } else {
+                console.error("[notifications] push failed", e);
+              }
+            })
+        );
       }
     }
 
-    // 3. Send Email
-    if (user.emailNotifications && user.email) {
-      try {
-        await transporter.sendMail({
-          from: '"Add designer" <notifications@adddesigner.com>',
-          to: user.email,
-          subject: title,
-          html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+    const mailer = getTransporter();
+    if (mailer && user.emailNotifications && user.email) {
+      const link = actionUrl
+        ? `<a href="${escapeHtml(APP_URL + actionUrl)}" style="display: inline-block; padding: 10px 20px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 15px;">View Details</a>`
+        : "";
+      deliveries.push(
+        mailer
+          .sendMail({
+            from: process.env.SMTP_FROM || '"Add designer" <notifications@adddesigner.com>',
+            to: user.email,
+            subject: title.replace(/[\r\n]+/g, " "),
+            html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
             <h2 style="color: #ea580c; font-weight: bold; font-size: 24px;">Add designer</h2>
-            <h3>${title}</h3>
-            <p>${message}</p>
-            ${actionUrl ? `<a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${actionUrl}" style="display: inline-block; padding: 10px 20px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 15px;">View Details</a>` : ''}
-          </div>`
-        });
-      } catch (e) {
-      }
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(message)}</p>
+            ${link}
+          </div>`,
+          })
+          .catch((e) => console.error("[notifications] email failed", e))
+      );
     }
 
-    // 4. Send WhatsApp
-    if (user.phone) {
-       const cleanPhone = user.phone.replace(/[^0-9]/g, '');
-       if (cleanPhone.length >= 10) {
-         let prefix = '🔔 *Add designer Notification*';
-         if (priority === 'HIGH') prefix = '🚨 *High Priority Alert*';
-         else if (type === 'JOB_CREATED') prefix = '🆕 *New Job Alert*';
-         else if (type === 'JOB_UPDATED') prefix = '🔄 *Status Update*';
-
-         let text = `${prefix}\n\n${message}`;
-         if (actionUrl) {
-            text += `\n\nView details: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${actionUrl}`;
-         }
-         try {
-           /* WHATSAPP TEMPORARILY DISABLED
-           await fetch(`${BOT_URL}/api/send`, {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ to: cleanPhone, message: text })
-           });
-           */
-         } catch (e) {
-         }
-       }
-    }
-
+    await Promise.all(deliveries);
     return notification;
   } catch (error) {
+    console.error("[notifications] createNotification failed", error);
     return null;
   }
 }
 
-export async function broadcastNotification(params: {
-  title: string;
-  message: string;
-  type: NotificationType;
-  actionUrl?: string;
-  entityId?: string;
-  entityType?: string;
-  priority?: NotificationPriority;
-  skipUserId?: string | null;
-}) {
+export async function broadcastNotification(params: Omit<NotificationParams, "userId"> & { skipUserId?: string | null }) {
   const { skipUserId, ...notificationParams } = params;
   try {
     const users = await prisma.user.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, role: true },
     });
-    
-    // Fetch role permissions for this notification type
+
     const rolePermissions = await prisma.rolePermission.findMany({
-      where: { permission: `notify_${notificationParams.type}` }
+      where: { permission: `notify_${notificationParams.type}` },
     });
-    
-    const rolesEnabled = rolePermissions.filter(rp => rp.enabled).map(rp => rp.role);
-    
-    // Always include ADMINs even if not explicitly set (or respect their setting if set)
-    const adminPerm = rolePermissions.find(rp => rp.role === 'ADMIN');
-    if (!adminPerm || adminPerm.enabled) {
-      if (!rolesEnabled.includes('ADMIN')) rolesEnabled.push('ADMIN');
-    }
+    const rolesEnabled = rolePermissions.filter((rp) => rp.enabled).map((rp) => rp.role);
+    // Admins receive notifications unless they explicitly turned this type off.
+    const adminPerm = rolePermissions.find((rp) => rp.role === "ADMIN");
+    if ((!adminPerm || adminPerm.enabled) && !rolesEnabled.includes("ADMIN")) rolesEnabled.push("ADMIN");
 
     const results = await Promise.allSettled(
       users
-        .filter(user => !(skipUserId && user.id === skipUserId))
-        .filter(user => rolesEnabled.includes(user.role))
-        .map(user => createNotification({ ...notificationParams, userId: user.id }))
+        .filter((user) => !(skipUserId && user.id === skipUserId))
+        .filter((user) => rolesEnabled.includes(user.role))
+        .map((user) => createNotification({ ...notificationParams, userId: user.id }))
     );
-    return results
-      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value !== null)
-      .map(r => r.value);
+    return results.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []));
   } catch (error) {
-    return null;
+    console.error("[notifications] broadcast failed", error);
+    return [];
+  }
+}
+
+/**
+ * Broadcast after the response is sent. Unlike a floating promise this is guaranteed to run to
+ * completion on serverless platforms (Next.js `after`).
+ */
+export function broadcastLater(params: Parameters<typeof broadcastNotification>[0]) {
+  after(() => broadcastNotification(params));
+}
+
+/**
+ * Claim a reminder slot. Returns false if this exact reminder was already sent, so cron reruns and
+ * overlapping schedules never notify twice. Use keys like `PAYMENT_DUE:<jobId>:<yyyy-MM-dd>`.
+ */
+export async function claimReminder(key: string): Promise<boolean> {
+  try {
+    await prisma.reminderLog.create({ data: { key } });
+    return true;
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return false;
+    throw e;
   }
 }
