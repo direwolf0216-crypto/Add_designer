@@ -1,194 +1,129 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { Transaction } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { generateNextTransactionId } from "@/lib/transactionId";
+import { route, parseJson, badRequest, forbidden, notFound } from "@/lib/api/http";
+import { requirePermission, roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { newTransactionRef, withUniqueRetry } from "@/lib/ids";
+import { sumAmounts } from "@/lib/money";
+import { refreshOrderTotals } from "@/lib/services/jobs";
+import {
+  assertSingleType,
+  bulkTransactionSchema,
+  softDeleteTransactionTx,
+  transactionData,
+} from "@/lib/services/transactions";
 
-export async function GET(request: Request, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+async function assertCanModifyGroup(user: SessionUser, rows: Transaction[]) {
+  if (rows.every((row) => row.userId === user.id)) return;
+  if (await roleHasPermission(user.role, "manage_transactions")) return;
+  throw forbidden("You can only change transactions you recorded");
+}
 
-  try {
-    const { groupId } = await params;
-    const transactions = await prisma.transaction.findMany({
-      where: { groupId, deletedAt: null },
-      orderBy: { createdAt: "asc" }
-    });
+export const GET = route<{ groupId: string }>(async (_request, { params }) => {
+  await requirePermission("view_transactions");
+  const { groupId } = await params;
+  const transactions = await prisma.transaction.findMany({
+    where: { groupId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    take: 500,
+  });
+  if (transactions.length === 0) throw notFound("Transaction group not found");
 
-    if (!transactions || transactions.length === 0) {
-      return NextResponse.json({ error: "Transaction group not found" }, { status: 404 });
-    }
-
-    const firstTx = transactions[0];
-    const categoryNames = transactions.map(tx => tx.category).join(', ');
-    
-    const combinedTransaction = {
-      ...firstTx,
+  return NextResponse.json({
+    transaction: {
+      ...transactions[0],
       id: groupId,
-      category: categoryNames,
-      amount: transactions.reduce((sum, tx) => sum + tx.amount, 0),
-      items: transactions.map(tx => ({
-        id: tx.id,
-        transactionId: tx.transactionId,
-        category: tx.category,
-        amount: tx.amount
-      }))
-    };
+      category: transactions.map((tx) => tx.category).join(", "),
+      amount: sumAmounts(transactions.map((tx) => tx.amount)),
+      items: transactions.map((tx) => ({ id: tx.id, transactionId: tx.transactionId, category: tx.category, amount: tx.amount })),
+    },
+  });
+});
 
-    return NextResponse.json({ transaction: combinedTransaction }, { status: 200 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to fetch group", details: String(error) }, { status: 500 });
+export const PUT = route<{ groupId: string }>(async (request, { params }) => {
+  const user = await requirePermission("view_transactions");
+  const { groupId } = await params;
+  const items = await parseJson(request, bulkTransactionSchema);
+  assertSingleType(items);
+  if (new Set(items.map((i) => i.category)).size !== items.length) {
+    throw badRequest("Each category may appear only once");
   }
-}
 
-export async function PUT(request: Request, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as any).id as string;
+  const existing = await prisma.transaction.findMany({ where: { groupId, deletedAt: null }, orderBy: { createdAt: "asc" } });
+  if (existing.length === 0) throw notFound("Transaction group not found");
+  await assertCanModifyGroup(user, existing);
 
-  try {
-    const { groupId } = await params;
-    const body = await request.json();
-    
-    if (!Array.isArray(body)) {
-      return NextResponse.json({ error: "Expected an array of transactions for bulk update" }, { status: 400 });
-    }
+  // A unique violation aborts the whole Postgres transaction, so the retry wraps the transaction
+  // and regenerates the references of any newly added categories.
+  await withUniqueRetry(
+    () =>
+      prisma.$transaction(
+        async (tx) => {
+          const byCategory = new Map<string, Transaction[]>();
+          for (const row of existing) byCategory.set(row.category, [...(byCategory.get(row.category) ?? []), row]);
 
-    if (body.length === 0) {
-      return NextResponse.json({ error: "No transactions provided" }, { status: 400 });
-    }
-
-    const types = new Set(body.map(tx => tx.type));
-    if (types.size > 1) {
-      return NextResponse.json({ error: "All categories must be same type" }, { status: 422 });
-    }
-
-    const existingTransactions = await prisma.transaction.findMany({
-      where: { groupId, deletedAt: null }
-    });
-
-    const existingByCategory = new Map(existingTransactions.map(tx => [tx.category, tx]));
-    
-    const transactionsToUpdate = [];
-    const transactionsToCreate = [];
-    
-    for (let i = 0; i < body.length; i++) {
-      const tx = body[i];
-      const { amount, type, date, category, paymentMode, description, status, recordDate, ...restBody } = tx;
-
-      const customData: Record<string, any> = {};
-      for (const [key, value] of Object.entries(restBody)) {
-        if (key !== 'id' && key !== 'userId' && key !== 'recordDate' && !key.startsWith('$ACTION')) {
-          customData[key] = value;
-        }
-      }
-
-      const parsedAmount = parseFloat(amount);
-      if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
-        return NextResponse.json({ error: `Amount must be a positive number for category ${category}.` }, { status: 422 });
-      }
-      
-      const payload = {
-        amount: parsedAmount,
-        type,
-        date: recordDate ? new Date(recordDate) : new Date(date),
-        category,
-        paymentMode,
-        description: description?.trim() || null,
-        status: status || "SETTLED",
-        customData: Object.keys(customData).length > 0 ? customData : undefined,
-      };
-
-      if (existingByCategory.has(category)) {
-        const existingId = existingByCategory.get(category)!.id;
-        transactionsToUpdate.push(prisma.transaction.update({
-          where: { id: existingId },
-          data: payload
-        }));
-        existingByCategory.delete(category);
-      } else {
-        const transactionId = await generateNextTransactionId();
-        transactionsToCreate.push(prisma.transaction.create({
-          data: {
-            ...payload,
-            transactionId,
-            ...(userId ? { user: { connect: { id: userId } } } : {}),
-            groupId
+          const toCreate = [];
+          for (const item of items) {
+            const data = transactionData(item);
+            const match = byCategory.get(item.category)?.shift();
+            if (match) {
+              await tx.transaction.update({ where: { id: match.id }, data });
+            } else {
+              toCreate.push({ ...data, transactionId: newTransactionRef(), userId: user.id, groupId });
+            }
           }
-        }));
-      }
-    }
+          if (toCreate.length > 0) await tx.transaction.createMany({ data: toCreate });
 
-    // Soft delete any removed categories
-    const transactionsToDelete = Array.from(existingByCategory.values()).map(tx => 
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: { deletedAt: new Date() }
-      })
-    );
+          // Categories removed from the group (and duplicates left over from older data).
+          const removed = [...byCategory.values()].flat();
+          for (const row of removed) await softDeleteTransactionTx(tx, row, user.id);
+        },
+        { timeout: 20000 }
+      ),
+    newTransactionRef
+  );
 
-    await prisma.$transaction([
-      ...transactionsToUpdate,
-      ...transactionsToCreate,
-      ...transactionsToDelete
-    ]);
+  return NextResponse.json({ success: true });
+});
 
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to update bulk transactions.", details: String(error) }, { status: 500 });
-  }
-}
+export const DELETE = route<{ groupId: string }>(async (_request, { params }) => {
+  const user = await requirePermission("view_transactions");
+  const { groupId } = await params;
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as any).id as string;
+  const existing = await prisma.transaction.findMany({ where: { groupId, deletedAt: null } });
+  if (existing.length === 0) throw notFound("Group not found");
+  await assertCanModifyGroup(user, existing);
 
-  try {
-    const { groupId } = await params;
-    
-    const transactions = await prisma.transaction.findMany({
-      where: { groupId, deletedAt: null }
+  await prisma.$transaction(async (tx) => {
+    const transactions = await tx.transaction.findMany({ where: { groupId, deletedAt: null } });
+    const ids = transactions.map((t) => t.id);
+    // The conditional update serialises concurrent deletes: the loser updates nothing and stops,
+    // so the group never gets a second bin entry.
+    const { count } = await tx.transaction.updateMany({
+      where: { id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
+    if (count === 0) return;
 
-    if (transactions.length === 0) {
-      return NextResponse.json({ error: "Group not found" }, { status: 404 });
-    }
-
-    const now = new Date();
-    await prisma.$transaction(
-      transactions.map(tx => prisma.transaction.update({
-        where: { id: tx.id },
-        data: { deletedAt: now }
-      }))
-    );
-
-    // Create a single recycle bin entry for the group
-    const totalAmount = transactions.reduce((sum, tx) => sum + tx.amount, 0);
-    const categoryNames = transactions.map(tx => tx.category).join('+');
-    
-    await prisma.recycleBin.create({
+    await tx.recycleBin.create({
       data: {
         itemId: groupId,
         itemType: "TRANSACTION_GROUP",
-        trashedById: userId,
-        originalData: JSON.parse(JSON.stringify({
-          groupId,
-          children: transactions,
-          categoryNames,
-          totalAmount
-        }))
-      }
+        trashedById: user.id,
+        originalData: JSON.parse(
+          JSON.stringify({
+            groupId,
+            children: transactions,
+            categoryNames: transactions.map((t) => t.category).join("+"),
+            totalAmount: sumAmounts(transactions.map((t) => t.amount)),
+          })
+        ),
+      },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to delete group", details: String(error) }, { status: 500 });
-  }
-}
+    const jobIds = new Set(transactions.flatMap((t) => (t.jobId ? [t.jobId] : [])));
+    for (const jobId of jobIds) await refreshOrderTotals(tx, jobId);
+  });
+
+  return NextResponse.json({ success: true });
+});

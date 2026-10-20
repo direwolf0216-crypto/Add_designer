@@ -1,80 +1,81 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { route } from "@/lib/api/http";
+import { requireUser, roleHasPermission } from "@/lib/auth/session";
+import { toBusinessISODate } from "@/lib/dates";
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const MAX_QUERY_LENGTH = 100;
+const RESULTS_PER_TYPE = 5;
+
+type SearchResult = {
+  id: string;
+  type: "JOB" | "TRANSACTION";
+  title: string;
+  subtitle: string;
+  link: string;
+  icon: string;
+  color: string;
+};
+
+export const GET = route(async (request) => {
+  const user = await requireUser();
+  const query = (new URL(request.url).searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY_LENGTH);
+  if (query.length < 2) {
+    return NextResponse.json({ results: [] });
   }
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
+  const contains = { contains: query, mode: "insensitive" as const };
+  const canSeeTransactions = await roleHasPermission(user.role, "view_transactions");
 
-    if (!query || query.length < 2) {
-      return NextResponse.json({ results: [] });
-    }
-
-    const results: any[] = [];
-
-    // Search Jobs (and associated Client)
-    const jobs = await prisma.job.findMany({
+  const [jobs, transactions] = await Promise.all([
+    prisma.job.findMany({
       where: {
         deletedAt: null,
         OR: [
-          { jobNumber: { contains: query, mode: "insensitive" } },
-          { location: { contains: query, mode: "insensitive" } },
-          { client: { name: { contains: query, mode: "insensitive" } } },
-          { client: { email: { contains: query, mode: "insensitive" } } },
-          { client: { phone: { contains: query, mode: "insensitive" } } },
-        ]
+          { jobNumber: contains },
+          { location: contains },
+          { client: { name: contains } },
+          { client: { email: contains } },
+          { client: { phone: contains } },
+        ],
       },
-      include: {
-        client: true
-      },
-      take: 5
-    });
+      select: { id: true, category: true, jobNumber: true, date: true, client: { select: { name: true } } },
+      orderBy: { date: "desc" },
+      take: RESULTS_PER_TYPE,
+    }),
+    canSeeTransactions
+      ? prisma.transaction.findMany({
+          where: {
+            deletedAt: null,
+            OR: [{ description: contains }, { category: contains }, { transactionId: contains }],
+          },
+          select: { id: true, description: true, category: true, transactionId: true, type: true, amount: true, date: true },
+          orderBy: { date: "desc" },
+          take: RESULTS_PER_TYPE,
+        })
+      : Promise.resolve([]),
+  ]);
 
-    jobs.forEach(b => {
-      results.push({
-        id: b.id,
-        type: "JOB",
-        title: `${b.client.name} - ${b.category}`,
-        subtitle: `Job No: ${b.jobNumber || 'N/A'} • ${b.date.toISOString().split('T')[0]}`,
-        link: `/jobs/details/${b.id}`,
-        icon: "ph-calendar-star",
-        color: "blue"
-      });
-    });
+  const results: SearchResult[] = [
+    ...jobs.map((b) => ({
+      id: b.id,
+      type: "JOB" as const,
+      title: `${b.client.name} - ${b.category}`,
+      subtitle: `Job No: ${b.jobNumber || "N/A"} • ${toBusinessISODate(b.date)}`,
+      link: `/jobs/details/${b.id}`,
+      icon: "ph-calendar-star",
+      color: "blue",
+    })),
+    ...transactions.map((t) => ({
+      id: t.id,
+      type: "TRANSACTION" as const,
+      title: t.description || t.category,
+      subtitle: `${t.transactionId ?? "-"} • ${t.type === "INCOME" ? "+" : "-"}₹${t.amount} • ${toBusinessISODate(t.date)}`,
+      link: `/transactions/details/${t.id}`,
+      icon: "ph-wallet",
+      color: t.type === "INCOME" ? "green" : "red",
+    })),
+  ];
 
-    // Search Transactions
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        OR: [
-          { description: { contains: query, mode: "insensitive" } },
-          { category: { contains: query, mode: "insensitive" } },
-          { transactionId: { contains: query, mode: "insensitive" } },
-        ]
-      },
-      take: 5
-    });
-
-    transactions.forEach(t => {
-      results.push({
-        id: t.id,
-        type: "TRANSACTION",
-        title: t.description || t.category,
-        subtitle: `${t.transactionId} • ${t.type === 'INCOME' ? '+' : '-'}₹${t.amount} • ${t.date.toISOString().split('T')[0]}`,
-        link: `/transactions/details/${t.id}`,
-        icon: "ph-wallet",
-        color: t.type === 'INCOME' ? "green" : "red"
-      });
-    });
-
-    return NextResponse.json({ results });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to search" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ results });
+});

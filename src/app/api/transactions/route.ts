@@ -1,299 +1,149 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { broadcastNotification } from "@/lib/notifications";
-import { generateNextTransactionId } from "@/lib/transactionId";
+import { route, parseJson, intParam, badRequest } from "@/lib/api/http";
+import { requirePermission } from "@/lib/auth/session";
+import { broadcastLater } from "@/lib/notifications";
+import { newTransactionRef, withUniqueRetry } from "@/lib/ids";
+import { refreshOrderTotals } from "@/lib/services/jobs";
+import {
+  notifyIfBudgetExceeded,
+  transactionCreateSchema,
+  transactionData,
+  updateTransaction,
+} from "@/lib/services/transactions";
+import { businessDayRange, businessMonthRange, businessRangeFromISO, businessWeekRange } from "@/lib/dates";
 
 const PAGE_SIZE = 25;
+const NO_STORE = { "Cache-Control": "private, no-store" };
 
-export async function GET(request: Request) {
-  // F6: User-scope all queries
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const isoMonth = z.string().regex(/^\d{4}-\d{2}$/);
+
+function dateFilter(searchParams: URLSearchParams): Prisma.DateTimeFilter | undefined {
+  const dateFrom = isoDay.safeParse(searchParams.get("dateFrom")).data;
+  const dateTo = isoDay.safeParse(searchParams.get("dateTo")).data;
+  if (dateFrom || dateTo) {
+    const { start, end } = businessRangeFromISO(dateFrom, dateTo);
+    return { ...(start && { gte: start }), ...(end && { lte: end }) };
   }
-  const userId = (session.user as any).id as string;
+  const month = isoMonth.safeParse(searchParams.get("month")).data;
+  if (month) {
+    const { start, end } = businessMonthRange(businessRangeFromISO(`${month}-01`).start);
+    return { gte: start, lte: end };
+  }
+  const view = searchParams.get("view");
+  const range =
+    view === "day" ? businessDayRange() : view === "week" ? businessWeekRange() : view === "month" ? businessMonthRange() : null;
+  return range ? { gte: range.start, lte: range.end } : undefined;
+}
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const month = searchParams.get("month"); // format: 'YYYY-MM'
-    const category = searchParams.get("categories");
-    const view = searchParams.get("view"); // 'day', 'week', 'month'
-    const dateFrom = searchParams.get("dateFrom");
-    const dateTo = searchParams.get("dateTo");
-    const amountMin = searchParams.get("amountMin");
-    const amountMax = searchParams.get("amountMax");
-    const legacyCategory = searchParams.get("category");
-    const type = searchParams.get("type");
-    const paymentMode = searchParams.get("paymentMode");
+const amountParam = (value: string | null) => {
+  const n = value ? Number.parseFloat(value) : Number.NaN;
+  return Number.isFinite(n) ? n : undefined;
+};
 
-    const whereClause: any = { deletedAt: null };
-    // 1. Date Logic — F4: Fixed date mutation bug by NOT reusing the same `now` object
-    if (dateFrom || dateTo) {
-      whereClause.date = {};
-      if (dateFrom) whereClause.date.gte = new Date(`${dateFrom}T00:00:00.000`);
-      if (dateTo) whereClause.date.lte = new Date(`${dateTo}T23:59:59.999`);
-    } else if (month) {
-      const [year, mon] = month.split("-").map(Number);
-      whereClause.date = {
-        gte: new Date(year, mon - 1, 1),
-        lt: new Date(year, mon, 1),
-      };
-    } else if (view) {
-      const now = new Date();
-      if (view === "day") {
-        // F4 FIX: Create two independent date objects instead of mutating one
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        whereClause.date = { gte: start, lte: end };
-      } else if (view === "week") {
-        const dayOfWeek = now.getDay();
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek, 0, 0, 0, 0);
-        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 6, 23, 59, 59, 999);
-        whereClause.date = { gte: start, lte: end };
-      } else if (view === "month") {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        whereClause.date = { gte: start, lte: end };
-      }
-    }
+export const GET = route(async (request) => {
+  await requirePermission("view_transactions");
+  const url = new URL(request.url);
+  const { searchParams } = url;
 
-    // 2. Category Logic
-    const activeCategories = category
-      ? category.split(",").map((c) => c.trim()).filter(Boolean)
-      : legacyCategory && legacyCategory !== "All"
+  const where: Prisma.TransactionWhereInput = { deletedAt: null };
+
+  const date = dateFilter(searchParams);
+  if (date) where.date = date;
+
+  const legacyCategory = searchParams.get("category");
+  const categories = searchParams.get("categories")
+    ? searchParams.get("categories")!.split(",").map((c) => c.trim()).filter(Boolean).slice(0, 50)
+    : legacyCategory && legacyCategory !== "All"
       ? [legacyCategory]
       : [];
-    if (activeCategories.length > 0) {
-      whereClause.category = { in: activeCategories };
-    }
+  if (categories.length > 0) where.category = { in: categories };
 
-    // 3. Amount Logic
-    if (amountMin || amountMax) {
-      whereClause.amount = {};
-      if (amountMin) whereClause.amount.gte = parseFloat(amountMin);
-      if (amountMax) whereClause.amount.lte = parseFloat(amountMax);
-    }
+  const amountMin = amountParam(searchParams.get("amountMin"));
+  const amountMax = amountParam(searchParams.get("amountMax"));
+  if (amountMin !== undefined || amountMax !== undefined) {
+    where.amount = { ...(amountMin !== undefined && { gte: amountMin }), ...(amountMax !== undefined && { lte: amountMax }) };
+  }
 
-    // 4. Type and PaymentMode Logic
-    if (type && type !== "ALL") whereClause.type = type;
-    if (paymentMode && paymentMode !== "ALL") whereClause.paymentMode = paymentMode;
+  const type = searchParams.get("type");
+  if (type === "INCOME" || type === "EXPENSE") where.type = type;
+  const paymentMode = searchParams.get("paymentMode");
+  if (paymentMode && paymentMode !== "ALL") where.paymentMode = paymentMode;
 
-    // P2: Offset-based pagination (cursor on non-unique sort leads to duplicates)
-    const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
-    
-    
-    const transactions = await prisma.transaction.findMany({
-      where: { 
-        ...whereClause
-      },
-      orderBy: [
-        { date: "desc" },
-        { createdAt: "desc" }
-      ],
+  const page = intParam(url, "page", 1, 1, 10_000);
+
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
-    });
+    }),
+    prisma.transaction.count({ where }),
+  ]);
 
-    const total = await prisma.transaction.count({
-      where: { ...whereClause },
-    });
+  return NextResponse.json({ items, total, page, pageSize: PAGE_SIZE }, { headers: NO_STORE });
+});
 
-    return NextResponse.json({ items: transactions, total, page, pageSize: PAGE_SIZE }, {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
-    });
-  } catch (error: any) {
+export const POST = route(async (request) => {
+  const user = await requirePermission("view_transactions");
+  const body = await parseJson(request, transactionCreateSchema);
+  const data = transactionData(body);
 
-    if (
-      error.message?.toLowerCase().includes("timeout") ||
-      error.message?.toLowerCase().includes("connection")
-    ) {
-      return NextResponse.json(
-        { error: "Service temporarily overloaded. Please try again." },
-        { status: 503, headers: { "Retry-After": "5" } }
-      );
-    }
-
-    return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    // F6: User-scope writes
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userId = (session.user as any).id as string;
-
-    const body = await request.json();
-    const { amount, type, date, category, paymentMode, description, status, productOrderId, jobId, recordDate, ...restBody } = body;
-
-    const customData: Record<string, any> = {};
-    for (const [key, value] of Object.entries(restBody)) {
-      if (key !== 'id' && key !== 'userId' && key !== 'recordDate' && !key.startsWith('$ACTION')) {
-        customData[key] = value;
-      }
-    }
-
-    // F2: Server-side validation
-    const errors: Record<string, string> = {};
-    const parsedAmount = parseFloat(amount);
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
-      errors.amount = "Amount must be a positive number.";
-    }
-    if (!type || !["INCOME", "EXPENSE"].includes(type)) {
-      errors.type = "Type must be INCOME or EXPENSE.";
-    }
-    if (!date || isNaN(new Date(date).getTime())) {
-      errors.date = "A valid date is required.";
-    }
-    if (!category) {
-      errors.category = `Category is required.`;
-    }
-    if (!paymentMode) {
-      errors.paymentMode = `Payment mode is required.`;
-    }
-
-    if (Object.keys(errors).length > 0) {
-      return NextResponse.json({ error: "Validation failed", errors }, { status: 422 });
-    }
-
-    const transactionId = await generateNextTransactionId();
-
-    const newTransaction = await prisma.transaction.create({
-      data: {
-        transactionId,
-        amount: parsedAmount,
-        type,
-        date: recordDate ? new Date(recordDate) : new Date(date),
-        category,
-        paymentMode,
-        description: description?.trim() || null,
-        status: status || "SETTLED",
-        ...(productOrderId ? { productOrder: { connect: { id: productOrderId } } } : {}),
-        jobId: jobId || undefined,
-        customData: Object.keys(customData).length > 0 ? customData : undefined,
-        ...(userId ? { user: { connect: { id: userId } } } : {}),
-      },
-    });
-
-    if (type === "INCOME") {
-      // Fire and forget so we don't block the UI
-      broadcastNotification({
-        title: "Payment Received",
-        message: `A payment of ₹${parsedAmount} was logged via ${paymentMode}.`,
-        type: "PAYMENT_RECEIVED",
-        actionUrl: `/transactions`,
-        entityId: newTransaction.id,
-        entityType: "transaction",
-        skipUserId: userId
-      }).catch(console.error);
-    } else if (type === "EXPENSE") {
-      // Check Budget limits
-      const txDate = recordDate ? new Date(recordDate) : new Date(date);
-      const month = txDate.getMonth() + 1;
-      const year = txDate.getFullYear();
-      
-      const budget = await prisma.categoryBudget.findFirst({
-        where: { category, month, year }
-      });
-
-      if (budget) {
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59, 999);
-        
-        const categoryExpenses = await prisma.transaction.aggregate({
-          where: {
-            type: "EXPENSE",
-            category,
-            date: { gte: startDate, lte: endDate },
-            status: "SETTLED"
-          },
-          _sum: { amount: true }
-        });
-        
-        const totalSpent = categoryExpenses._sum.amount || 0;
-        
-        if (totalSpent > budget.monthlyLimit) {
-           broadcastNotification({
-             title: "Budget Exceeded",
-             message: `⚠️ ${category} budget exceeded by ₹${totalSpent - budget.monthlyLimit}.`,
-             type: "BUDGET_EXCEEDED",
-             actionUrl: `/settings`,
-             entityId: budget.id,
-             entityType: "budget",
-             priority: "HIGH"
-           }).catch(console.error);
+  // A unique violation aborts the whole Postgres transaction, so the retry wraps the transaction.
+  const created = await withUniqueRetry(
+    (transactionId) =>
+      prisma.$transaction(async (tx) => {
+        if (body.jobId) {
+          const job = await tx.job.findUnique({ where: { id: body.jobId }, select: { deletedAt: true } });
+          if (!job || job.deletedAt) throw badRequest("Linked job not found");
         }
-      }
-    }
+        if (body.productOrderId) {
+          const order = await tx.productOrder.findUnique({ where: { id: body.productOrderId }, select: { id: true } });
+          if (!order) throw badRequest("Linked product order not found");
+        }
+        const row = await tx.transaction.create({
+          data: {
+            ...data,
+            transactionId,
+            userId: user.id,
+            jobId: body.jobId ?? null,
+            productOrderId: body.productOrderId ?? null,
+          },
+        });
+        if (row.jobId && row.type === "INCOME") await refreshOrderTotals(tx, row.jobId);
+        return row;
+      }),
+    newTransactionRef
+  );
 
-    return NextResponse.json(newTransaction, {
-      status: 201,
-      headers: { "Cache-Control": "private, no-store" },
+  if (created.type === "INCOME") {
+    broadcastLater({
+      title: "Payment Received",
+      message: `A payment of ₹${created.amount.toLocaleString("en-IN")} was logged via ${created.paymentMode}.`,
+      type: "PAYMENT_RECEIVED",
+      actionUrl: "/transactions",
+      entityId: created.id,
+      entityType: "transaction",
+      skipUserId: user.id,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to create transaction.", details: String(error) }, { status: 500 });
+  } else {
+    // The row is already saved; a failed budget check must not turn this into an error response.
+    await notifyIfBudgetExceeded(user.id, created.category, created.date).catch((e) =>
+      console.error("[transactions] budget check failed", e)
+    );
   }
-}
 
-export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as any).id as string;
+  return NextResponse.json(created, { status: 201, headers: NO_STORE });
+});
 
-  try {
-    const body = await request.json();
-    const { id, amount, type, date, category, paymentMode, description, status, ...restBody } = body;
-
-    if (!id) return NextResponse.json({ error: "Transaction ID required" }, { status: 400 });
-
-    // Confirm the transaction belongs to this user
-    const existing = await prisma.transaction.findFirst({ where: { id, userId } });
-    if (!existing) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
-
-    const errors: Record<string, string> = {};
-    const parsedAmount = parseFloat(amount);
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) errors.amount = "Amount must be a positive number.";
-    if (!type || !["INCOME", "EXPENSE"].includes(type)) errors.type = "Invalid type.";
-    if (!date || isNaN(new Date(date).getTime())) errors.date = "A valid date is required.";
-
-    if (Object.keys(errors).length > 0) {
-      return NextResponse.json({ error: "Validation failed", errors }, { status: 422 });
-    }
-
-    const customData: Record<string, any> = existing.customData && typeof existing.customData === 'object' ? { ...(existing.customData as any) } : {};
-    for (const [key, value] of Object.entries(restBody)) {
-      if (key !== 'userId' && !key.startsWith('$ACTION')) {
-        customData[key] = value;
-      }
-    }
-
-    const updated = await prisma.transaction.update({
-      where: { id },
-      data: {
-        amount: parsedAmount,
-        type,
-        date: new Date(date),
-        category: category || existing.category,
-        paymentMode: paymentMode || existing.paymentMode,
-        description: description?.trim() || null,
-        status: status || existing.status,
-        customData: Object.keys(customData).length > 0 ? customData : undefined,
-      },
-    });
-
-    return NextResponse.json(updated, { headers: { "Cache-Control": "private, no-store" } });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
-  }
-}
+/** Legacy collection update (`{ id, ...fields }`); same rules as PUT /api/transactions/[id]. */
+export const PUT = route(async (request) => {
+  const user = await requirePermission("view_transactions");
+  const body = await parseJson(request, z.looseObject({ id: z.string().min(1, "Transaction ID required") }));
+  const updated = await updateTransaction(body.id, body, user);
+  return NextResponse.json(updated, { headers: NO_STORE });
+});

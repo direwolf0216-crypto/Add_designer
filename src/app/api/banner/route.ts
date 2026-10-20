@@ -1,115 +1,55 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getSessionUser } from "@/lib/auth/session";
+import { businessTodayUtc } from "@/lib/dates";
+import { asJsonObject } from "@/lib/services/transactions";
 
 export const dynamic = "force-dynamic";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TIME = /^\d{2}:\d{2}$/;
+
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const user = await getSessionUser();
+  if (!user) {
     return NextResponse.json({ show: false });
   }
 
   try {
-    // 1. Fetch banner settings
-    const bannerSetting = await prisma.systemSetting.findUnique({
-      where: { key: "BANNER_SETTINGS" }
-    });
-
-    let settings = {
-      bannerEnabled: true,
-      bannerTime1: "09:00",
-      bannerTime2: "17:00"
+    const stored = asJsonObject((await prisma.systemSetting.findUnique({ where: { key: "BANNER_SETTINGS" } }))?.value);
+    const settings = {
+      ...stored,
+      bannerEnabled: stored.bannerEnabled !== false,
+      bannerTime1: typeof stored.bannerTime1 === "string" && TIME.test(stored.bannerTime1) ? stored.bannerTime1 : "09:00",
+      bannerTime2: typeof stored.bannerTime2 === "string" && TIME.test(stored.bannerTime2) ? stored.bannerTime2 : "17:00",
     };
-
-    if (bannerSetting && bannerSetting.value) {
-      settings = { ...settings, ...(bannerSetting.value as any) };
-    }
-
     if (!settings.bannerEnabled) {
       return NextResponse.json({ show: false });
     }
 
-    // 2. Calculate tomorrow and day after tomorrow (in local time)
-    const todayLocal = new Date();
-    todayLocal.setHours(todayLocal.getHours() + 5);
-    todayLocal.setMinutes(todayLocal.getMinutes() + 30);
-    todayLocal.setHours(0, 0, 0, 0);
-    
-    const tomorrowLocalStart = new Date(todayLocal);
-    tomorrowLocalStart.setDate(tomorrowLocalStart.getDate() + 1);
-    const tomorrowLocalEnd = new Date(tomorrowLocalStart);
-    tomorrowLocalEnd.setHours(23, 59, 59, 999);
+    // Job dates are calendar dates stored as UTC midnight, so "tomorrow" is today's business date + 1 day.
+    const today = businessTodayUtc().getTime();
+    const tomorrow = new Date(today + DAY_MS);
+    const dayAfter = new Date(today + 2 * DAY_MS);
+    const end = new Date(today + 3 * DAY_MS);
 
-    const dayAfterLocalStart = new Date(todayLocal);
-    dayAfterLocalStart.setDate(dayAfterLocalStart.getDate() + 2);
-    const dayAfterLocalEnd = new Date(dayAfterLocalStart);
-    dayAfterLocalEnd.setHours(23, 59, 59, 999);
-
-    // Convert back to UTC for querying
-    const toUTC = (d: Date) => {
-      const copy = new Date(d);
-      copy.setHours(copy.getHours() - 5);
-      copy.setMinutes(copy.getMinutes() - 30);
-      return copy;
-    };
-
-    const tStartUTC = toUTC(tomorrowLocalStart);
-    const dEndUTC = toUTC(dayAfterLocalEnd);
-
-    // 3. Query upcoming jobs
     const jobs = await prisma.job.findMany({
-      where: {
-        date: {
-          gte: tStartUTC,
-          lte: dEndUTC
-        },
-        deletedAt: null
-      },
-      select: {
-        id: true,
-        date: true,
-        time: true,
-        category: true,
-        status: true,
-        location: true,
-        client: {
-          select: { name: true }
-        }
-      },
-      orderBy: {
-        date: 'asc'
-      }
+      where: { deletedAt: null, date: { gte: tomorrow, lt: end } },
+      select: { id: true, date: true, time: true, category: true, status: true, location: true, client: { select: { name: true } } },
+      orderBy: { date: "asc" },
+      take: 200,
     });
 
     if (jobs.length === 0) {
       return NextResponse.json({ show: false });
     }
 
-    // 4. Group jobs
-    const day1: any[] = [];
-    const day2: any[] = [];
-
-    const tomorrowUTCStart = toUTC(tomorrowLocalStart);
-    const tomorrowUTCEnd = toUTC(tomorrowLocalEnd);
-
-    for (const b of jobs) {
-      const bDate = new Date(b.date);
-      if (bDate >= tomorrowUTCStart && bDate <= tomorrowUTCEnd) {
-        day1.push(b);
-      } else {
-        day2.push(b);
-      }
-    }
-
     return NextResponse.json({
       show: true,
       settings,
-      day1,
-      day2
+      day1: jobs.filter((j) => j.date < dayAfter),
+      day2: jobs.filter((j) => j.date >= dayAfter),
     });
-
   } catch (error) {
     console.error("Banner API Error:", error);
     return NextResponse.json({ show: false });

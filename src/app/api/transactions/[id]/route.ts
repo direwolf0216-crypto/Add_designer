@@ -1,365 +1,199 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { route, parseJson, notFound } from "@/lib/api/http";
+import { requirePermission } from "@/lib/auth/session";
+import { businessDayRange } from "@/lib/dates";
+import { round2 } from "@/lib/money";
 import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
+import {
+  asJsonObject,
+  loadTransactionForWrite,
+  restoreTransactionTx,
+  softDeleteTransactionTx,
+  updateTransaction,
+} from "@/lib/services/transactions";
 
-const legacyOwnerFilter = (userId: string) => ({
-  OR: [{ userId }, { userId: null }],
-});
+const NO_STORE = { "Cache-Control": "private, no-store" };
 
-const startOfDay = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+type LayoutField = { id: string; name: string; type: string };
 
-const endOfDay = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+const STANDARD_FIELD_IDS = new Set(["fld_tx_amount", "fld_tx_type", "fld_tx_date", "fld_tx_category", "fld_tx_mode", "fld_tx_desc"]);
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function layoutFields(schema: unknown): LayoutField[] {
+  const sections = (asJsonObject(schema).sections ?? []) as unknown[];
+  if (!Array.isArray(sections)) return [];
+  return sections.flatMap((section) => {
+    const fields = asJsonObject(section).fields;
+    if (!Array.isArray(fields)) return [];
+    return fields.map((raw) => {
+      const field = asJsonObject(raw);
+      const id = String(field.id ?? "");
+      return { id, name: String(field.name || id), type: String(field.type || "SINGLE_LINE") };
+    });
+  });
+}
+
+/** Payment rows synthesised for jobs created before installments were stored as transactions. */
+async function legacyAdvance(id: string) {
+  const jobId = id.replace("legacy-advance-", "");
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      client: { select: { name: true } },
+      createdBy: { select: { id: true, name: true, email: true } },
+      order: true,
+    },
+  });
+  if (!job || job.deletedAt) throw notFound("Job not found for legacy transaction");
+
+  const customData = asJsonObject(job.customData);
+  const advanceAmount = Number(job.order?.advance || customData.fld_b_advance || 0) || 0;
+  const paymentMode = String(customData.paymentMode || customData.fld_b_payment_mode || "Cash");
+
+  return {
+    transaction: {
+      id,
+      transactionId: id,
+      amount: advanceAmount,
+      type: "INCOME",
+      date: job.date,
+      category: "JOB",
+      paymentMode,
+      description: "Advance Payment (Legacy)",
+      status: "SETTLED",
+      customData: {},
+      attachmentUrl: null,
+      job: { id: job.id, jobNumber: job.jobNumber, category: job.category, client: { name: job.client?.name || "" } },
+      user: job.createdBy || null,
+      productOrder: null,
+      customFields: [],
+    },
+    impact: { dayIncome: advanceAmount, dayExpenses: 0, dayNet: advanceAmount, categoryTotal: advanceAmount, categoryShare: 100 },
+  };
+}
+
+export const GET = route<{ id: string }>(async (_request, { params }) => {
+  await requirePermission("view_transactions");
+  const { id } = await params;
+
+  if (id.startsWith("legacy-advance-")) {
+    return NextResponse.json(await legacyAdvance(id), { headers: NO_STORE });
   }
-  const userId = (session.user as any).id as string;
 
-  try {
-    const { id } = await params;
-    
-    // Handle Legacy Advance Transactions (dynamically generated for old jobs)
-    if (id.startsWith("legacy-advance-")) {
-      const jobId = id.replace("legacy-advance-", "");
-      const job = await prisma.job.findUnique({
-        where: { id: jobId },
-        include: { 
-          client: { select: { name: true } }, 
-          createdBy: { select: { id: true, name: true, email: true } },
-          order: true
-        }
-      });
-      
-      if (!job) {
-        return NextResponse.json({ error: "Job not found for legacy transaction" }, { status: 404 });
-      }
-      
-      const customData = job.customData as any;
-      const advanceAmount = Number(job.order?.advance || customData?.fld_b_advance || 0);
-      const paymentMode = customData?.paymentMode || customData?.fld_b_payment_mode || "Cash";
-      const txDate = job.date || new Date();
-      
-      const legacyTransaction = {
-        id,
-        transactionId: id,
-        amount: advanceAmount,
-        type: "INCOME",
-        date: txDate,
-        category: "JOB",
-        paymentMode: paymentMode,
-        description: "Advance Payment (Legacy)",
-        status: "SETTLED",
-        customData: {},
-        attachmentUrl: null,
-        job: {
-          id: job.id,
-          jobNumber: job.jobNumber,
-          category: job.category,
-          client: { name: job.client?.name || "" }
-        },
-        user: job.createdBy || null,
-        productOrder: null,
-        customFields: []
-      };
+  const transaction = await prisma.transaction.findUnique({
+    where: { id },
+    include: {
+      job: { select: { id: true, jobNumber: true, category: true, client: { select: { name: true } } } },
+      user: { select: { id: true, name: true, email: true } },
+      productOrder: { select: { id: true, orderNumber: true } },
+    },
+  });
+  if (!transaction || transaction.deletedAt) throw notFound("Transaction not found");
 
-      return NextResponse.json(
-        {
-          transaction: legacyTransaction,
-          impact: { dayIncome: advanceAmount, dayExpenses: 0, dayNet: advanceAmount, categoryTotal: advanceAmount, categoryShare: 100 },
-        },
-        { headers: { "Cache-Control": "private, no-store" } }
-      );
-    }
+  const { start, end } = businessDayRange(transaction.date);
+  const dayWhere = { date: { gte: start, lte: end }, deletedAt: null };
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id },
-      include: {
-        job: {
-          select: {
-            id: true,
-            jobNumber: true,
-            category: true,
-            client: { select: { name: true } },
-          },
-        },
-        user: { select: { id: true, name: true, email: true } },
-        productOrder: { select: { id: true, orderNumber: true } }
-      },
-    });
+  const [byType, categoryAggregate, layout] = await Promise.all([
+    prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where: dayWhere }),
+    prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: { ...dayWhere, type: transaction.type, category: transaction.category },
+    }),
+    prisma.formLayout.findUnique({ where: { formKey: "TRANSACTION_FORM" } }),
+  ]);
 
-    if (!transaction) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
+  const dayIncome = round2(byType.find((t) => t.type === "INCOME")?._sum.amount ?? 0);
+  const dayExpenses = round2(byType.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
+  const categoryTotal = round2(categoryAggregate._sum.amount ?? 0);
+  const typeTotal = transaction.type === "INCOME" ? dayIncome : dayExpenses;
+  const customData = asJsonObject(transaction.customData);
 
-    const dateRange = {
-      gte: startOfDay(transaction.date),
-      lte: endOfDay(transaction.date),
-    };
-    const scopedDayWhere = {
-      date: dateRange,
-    };
+  const fallbackLayout = DEFAULT_LAYOUTS.find((item) => item.formKey === "TRANSACTION_FORM");
+  const fields = layoutFields(layout?.schema ?? fallbackLayout?.schema);
+  const fieldById = new Map(fields.map((f) => [f.id, f]));
 
-    const [incomeAggregate, expenseAggregate, categoryAggregate, layout] = await Promise.all([
-      prisma.transaction.aggregate({
-        _sum: { amount: true },
-        where: { ...scopedDayWhere, type: "INCOME" },
-      }),
-      prisma.transaction.aggregate({
-        _sum: { amount: true },
-        where: { ...scopedDayWhere, type: "EXPENSE" },
-      }),
-      prisma.transaction.aggregate({
-        _sum: { amount: true },
-        where: {
-          ...scopedDayWhere,
-          type: transaction.type,
-          category: transaction.category,
-        },
-      }),
-      prisma.formLayout.findUnique({ where: { formKey: "TRANSACTION_FORM" } }),
-    ]);
+  const customAttachment = Object.entries(customData).find(([key, value]) => {
+    if (typeof value !== "string" || !value) return false;
+    const definition = fieldById.get(key);
+    const searchable = `${key} ${definition?.name || ""} ${definition?.type || ""}`.toLowerCase();
+    return /(attachment|receipt|invoice|bill|document|file|upload)/.test(searchable);
+  });
 
-    const dayIncome = incomeAggregate._sum.amount || 0;
-    const dayExpenses = expenseAggregate._sum.amount || 0;
-    const categoryTotal = categoryAggregate._sum.amount || 0;
-    const typeTotal = transaction.type === "INCOME" ? dayIncome : dayExpenses;
-    const customData =
-      transaction.customData && typeof transaction.customData === "object"
-        ? (transaction.customData as Record<string, unknown>)
-        : {};
-
-    const fallbackLayout = DEFAULT_LAYOUTS.find((item) => item.formKey === "TRANSACTION_FORM");
-    const layoutSchema = layout?.schema || fallbackLayout?.schema;
-    const fields = ((layoutSchema as any)?.sections || [])
-      .flatMap((section: any) => section.fields || [])
-      .map((field: any) => ({
-        id: field.id,
-        name: field.name || field.id,
-        type: field.type || "SINGLE_LINE",
-      }));
-
-    const standardFieldIds = new Set([
-      "fld_tx_amount",
-      "fld_tx_type",
-      "fld_tx_date",
-      "fld_tx_category",
-      "fld_tx_mode",
-      "fld_tx_desc",
-    ]);
-
-    const customAttachment = Object.entries(customData).find(([key, value]) => {
-      if (typeof value !== "string" || !value) return false;
-      const definition = fields.find((field: any) => field.id === key);
-      const searchable = `${key} ${definition?.name || ""} ${definition?.type || ""}`.toLowerCase();
-      return /(attachment|receipt|invoice|bill|document|file|upload)/.test(searchable);
-    });
-
-    const customFields = Object.entries(customData)
-      .filter(([key, value]) =>
-        !standardFieldIds.has(key) &&
+  const customFields = Object.entries(customData)
+    .filter(
+      ([key, value]) =>
+        !STANDARD_FIELD_IDS.has(key) &&
         !["attachmentUrl", "receiptUrl"].includes(key) &&
         key !== customAttachment?.[0] &&
         !key.startsWith("$ACTION") &&
         value !== null &&
         value !== undefined &&
         value !== ""
-      )
-      .map(([key, value]) => {
-        const definition = fields.find((field: any) => field.id === key);
-        return {
-          id: key,
-          label: definition?.name || key.replace(/^fld_tx_/, "").replace(/_/g, " "),
-          type: definition?.type || "SINGLE_LINE",
-          value,
-        };
-      });
+    )
+    .map(([key, value]) => {
+      const definition = fieldById.get(key);
+      return {
+        id: key,
+        label: definition?.name || key.replace(/^fld_tx_/, "").replace(/_/g, " "),
+        type: definition?.type || "SINGLE_LINE",
+        value,
+      };
+    });
 
-    const attachmentUrl =
-      transaction.attachmentUrl ||
-      (typeof customData.attachmentUrl === "string" ? customData.attachmentUrl : null) ||
-      (typeof customData.receiptUrl === "string" ? customData.receiptUrl : null) ||
-      (typeof customAttachment?.[1] === "string" ? customAttachment[1] : null) ||
-      null;
+  const attachmentUrl =
+    transaction.attachmentUrl ||
+    (typeof customData.attachmentUrl === "string" ? customData.attachmentUrl : null) ||
+    (typeof customData.receiptUrl === "string" ? customData.receiptUrl : null) ||
+    (typeof customAttachment?.[1] === "string" ? customAttachment[1] : null) ||
+    null;
 
-    return NextResponse.json(
-      {
-        transaction: {
-          ...transaction,
-          attachmentUrl,
-          customFields,
-        },
-        impact: {
-          dayIncome,
-          dayExpenses,
-          dayNet: dayIncome - dayExpenses,
-          categoryTotal,
-          categoryShare: typeTotal > 0 ? (categoryTotal / typeTotal) * 100 : 0,
-        },
+  return NextResponse.json(
+    {
+      transaction: { ...transaction, attachmentUrl, customFields },
+      impact: {
+        dayIncome,
+        dayExpenses,
+        dayNet: round2(dayIncome - dayExpenses),
+        categoryTotal,
+        categoryShare: typeTotal > 0 ? (categoryTotal / typeTotal) * 100 : 0,
       },
-      { headers: { "Cache-Control": "private, no-store" } }
-    );
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch transaction" }, { status: 500 });
-  }
-}
+    },
+    { headers: NO_STORE }
+  );
+});
 
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as any).id as string;
+export const PUT = route<{ id: string }>(async (request, { params }) => {
+  const user = await requirePermission("view_transactions");
+  const { id } = await params;
+  const body = await parseJson(request, z.record(z.string(), z.unknown()));
+  const updated = await updateTransaction(id, body, user);
+  return NextResponse.json(updated, { headers: NO_STORE });
+});
 
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const { amount, type, date, category, paymentMode, description, status, ...restBody } = body;
+const patchSchema = z.object({ deletedAt: z.union([z.string(), z.null()]) });
 
-    const existing = await prisma.transaction.findUnique({
-      where: { id },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
+/** `{ deletedAt: <date> }` trashes and `{ deletedAt: null }` restores, via the same paths as DELETE / recycle bin. */
+export const PATCH = route<{ id: string }>(async (request, { params }) => {
+  const user = await requirePermission("view_transactions");
+  const { id } = await params;
+  const { deletedAt } = await parseJson(request, patchSchema);
+  const row = await loadTransactionForWrite(id, user);
 
-    // Validate updated fields
-    const errors: Record<string, string> = {};
-    const parsedAmount = parseFloat(amount);
-    if (amount !== undefined && (isNaN(parsedAmount) || parsedAmount <= 0)) {
-      errors.amount = "Amount must be a positive number.";
-    }
-    if (type && !["INCOME", "EXPENSE"].includes(type)) errors.type = "Invalid type.";
-    if (date && isNaN(new Date(date).getTime())) errors.date = "Invalid date.";
+  const transaction = await prisma.$transaction(async (tx) => {
+    if (deletedAt === null) await restoreTransactionTx(tx, row);
+    else await softDeleteTransactionTx(tx, row, user.id);
+    return tx.transaction.findUniqueOrThrow({ where: { id } });
+  });
+  return NextResponse.json({ message: "Transaction updated successfully", transaction });
+});
 
+export const DELETE = route<{ id: string }>(async (_request, { params }) => {
+  const user = await requirePermission("view_transactions");
+  const { id } = await params;
+  const row = await loadTransactionForWrite(id, user);
+  if (row.deletedAt) throw notFound("Transaction not found");
 
-    if (Object.keys(errors).length > 0) {
-      return NextResponse.json({ error: "Validation failed", errors }, { status: 422 });
-    }
-
-    const customData: Record<string, any> = existing.customData && typeof existing.customData === 'object' ? { ...(existing.customData as any) } : {};
-    for (const [key, value] of Object.entries(restBody)) {
-      if (key !== 'userId' && !key.startsWith('$ACTION')) {
-        customData[key] = value;
-      }
-    }
-
-    const updatedTransaction = await prisma.transaction.update({
-      where: { id },
-      data: {
-        ...(amount !== undefined && { amount: parsedAmount }),
-        ...(type && { type }),
-        ...(date && { date: new Date(date) }),
-        ...(category && { category }),
-        ...(paymentMode && { paymentMode }),
-        ...(description !== undefined && { description: description?.trim() || null }),
-        ...(status && { status }),
-        ...(Object.keys(customData).length > 0 && { customData }),
-      },
-    });
-
-    return NextResponse.json(updatedTransaction, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    
-    // Only support patching deletedAt for soft-deletion right now
-    if (body.deletedAt !== undefined) {
-      const updated = await prisma.transaction.update({
-        where: { id },
-        data: {
-          deletedAt: body.deletedAt ? new Date(body.deletedAt) : null
-        }
-      });
-      return NextResponse.json({ message: "Transaction updated successfully", transaction: updated });
-    }
-    
-    return NextResponse.json({ error: "Invalid patch request" }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as any).id as string;
-
-  try {
-    const { id } = await params;
-
-    const existing = await prisma.transaction.findUnique({
-      where: { id },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
-
-    await prisma.recycleBin.create({
-      data: {
-        itemType: "transaction",
-        itemId: id,
-        originalData: JSON.parse(JSON.stringify(existing)),
-        trashedById: userId,
-      }
-    });
-
-    await prisma.transaction.update({
-      where: { id },
-      data: { deletedAt: new Date() }
-    });
-
-    if (existing.productOrderId) {
-      const order = await prisma.productOrder.findUnique({
-        where: { id: existing.productOrderId }
-      });
-      if (order) {
-        if (existing.description?.startsWith("Advance") || existing.description?.startsWith("Full Payment")) {
-          const cData: any = order.customData || {};
-          const oldAdvance = Number(cData.advanceAmount) || 0;
-          const newAdvance = Math.max(0, oldAdvance - existing.amount);
-          await prisma.productOrder.update({
-            where: { id: order.id },
-            data: { 
-              customData: { ...cData, advanceAmount: newAdvance }
-            }
-          });
-        } else if (existing.description?.startsWith("Due Collection")) {
-          // If due collection is reverted, revert status back to READY and reset discount
-          await prisma.productOrder.update({
-            where: { id: order.id },
-            data: { 
-              status: "READY",
-              discountAmount: 0 
-            }
-          });
-        }
-      }
-    }
-    return NextResponse.json({ success: true }, {
-      headers: { "Cache-Control": "private, no-store" },
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete transaction: " + (error as any).message }, { status: 500 });
-  }
-}
+  await prisma.$transaction((tx) => softDeleteTransactionTx(tx, row, user.id));
+  return NextResponse.json({ success: true }, { headers: NO_STORE });
+});

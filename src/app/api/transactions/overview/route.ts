@@ -1,102 +1,55 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { route } from "@/lib/api/http";
+import { requirePermission } from "@/lib/auth/session";
+import { businessDayRange, businessRangeFromISO, toBusinessISODate } from "@/lib/dates";
+import { round2 } from "@/lib/money";
 
-export async function GET(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const startDateParam = searchParams.get('startDate');
-    const endDateParam = searchParams.get('endDate');
-
-    const userId = (session.user as any).id as string;
-
-    const whereClause: any = { deletedAt: null };
-
-    if (startDateParam || endDateParam) {
-      whereClause.date = {};
-      if (startDateParam) whereClause.date.gte = new Date(startDateParam);
-      if (endDateParam) whereClause.date.lte = new Date(endDateParam);
-    }
-
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-
-    // Run parallel aggregates — combined income+expense via groupBy
-    const [
-      typeAgg,
-      categoryExpenses,
-      recentTransactions,
-      todayTransactions,
-      todayTypeAgg,
-    ] = await Promise.all([
-      // Income + Expense totals in one query
-      prisma.transaction.groupBy({
-        by: ['type'],
-        _sum: { amount: true },
-        where: { ...whereClause }
-      }),
-      // Expenses by Category
-      prisma.transaction.groupBy({
-        by: ['category'],
-        _sum: { amount: true },
-        where: { ...whereClause, type: 'EXPENSE' }
-      }),
-      // Recent transactions (limit 100)
-      prisma.transaction.findMany({
-        where: whereClause,
-        orderBy: [
-          { date: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        take: 100
-      }),
-      // Today's Transactions
-      prisma.transaction.findMany({
-        where: { date: { gte: todayStart, lte: todayEnd }, deletedAt: null },
-        orderBy: { date: 'desc' }
-      }),
-      // Today's Income + Expense combined
-      prisma.transaction.groupBy({
-        by: ['type'],
-        _sum: { amount: true },
-        where: { date: { gte: todayStart, lte: todayEnd }, deletedAt: null }
-      }),
-    ]);
-
-    const incomeItem = typeAgg.find(t => t.type === 'INCOME');
-    const expenseItem = typeAgg.find(t => t.type === 'EXPENSE');
-    const totalIncome = incomeItem?._sum.amount || 0;
-    const totalExpenses = expenseItem?._sum.amount || 0;
-    
-    const todayIncomeItem = todayTypeAgg.find(t => t.type === 'INCOME');
-    const todayExpenseItem = todayTypeAgg.find(t => t.type === 'EXPENSE');
-    const todayIncome = todayIncomeItem?._sum.amount || 0;
-    const todayExpense = todayExpenseItem?._sum.amount || 0;
-
-    const expensesByCategory = categoryExpenses.reduce((acc, curr) => {
-      acc[curr.category] = curr._sum.amount || 0;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return NextResponse.json({
-      totalIncome,
-      totalExpenses,
-      expensesByCategory,
-      recentTransactions,
-      todayTransactions,
-      todayIncome,
-      todayExpense,
-      todayNet: todayIncome - todayExpense
-    });
-
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch transactions overview" }, { status: 500 });
-  }
+/** Accepts `yyyy-MM-dd` or an ISO instant and returns the business-timezone calendar day. */
+function businessDayParam(value: string | null): string | undefined {
+  if (!value) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : toBusinessISODate(date);
 }
+
+export const GET = route(async (req) => {
+  await requirePermission("view_transactions");
+  const { searchParams } = new URL(req.url);
+
+  const where: Prisma.TransactionWhereInput = { deletedAt: null };
+  const { start, end } = businessRangeFromISO(
+    businessDayParam(searchParams.get("startDate")),
+    businessDayParam(searchParams.get("endDate"))
+  );
+  if (start || end) where.date = { ...(start && { gte: start }), ...(end && { lte: end }) };
+
+  const today = businessDayRange();
+  const todayWhere: Prisma.TransactionWhereInput = { date: { gte: today.start, lte: today.end }, deletedAt: null };
+
+  const [typeAgg, categoryExpenses, recentTransactions, todayTransactions, todayTypeAgg] = await Promise.all([
+    prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where }),
+    prisma.transaction.groupBy({ by: ["category"], _sum: { amount: true }, where: { ...where, type: "EXPENSE" } }),
+    prisma.transaction.findMany({ where, orderBy: [{ date: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.transaction.findMany({ where: todayWhere, orderBy: { date: "desc" }, take: 200 }),
+    prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where: todayWhere }),
+  ]);
+
+  const sumFor = (rows: typeof typeAgg, type: "INCOME" | "EXPENSE") =>
+    round2(rows.find((t) => t.type === type)?._sum.amount ?? 0);
+
+  const todayIncome = sumFor(todayTypeAgg, "INCOME");
+  const todayExpense = sumFor(todayTypeAgg, "EXPENSE");
+
+  return NextResponse.json({
+    totalIncome: sumFor(typeAgg, "INCOME"),
+    totalExpenses: sumFor(typeAgg, "EXPENSE"),
+    expensesByCategory: Object.fromEntries(categoryExpenses.map((c) => [c.category, round2(c._sum.amount ?? 0)])),
+    recentTransactions,
+    todayTransactions,
+    todayIncome,
+    todayExpense,
+    todayNet: round2(todayIncome - todayExpense),
+  });
+});
