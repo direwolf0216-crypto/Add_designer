@@ -1,5 +1,5 @@
-import prisma from '../lib/prisma';
-import { DEFAULT_LAYOUTS } from '../lib/defaultLayouts';
+import prisma from '../../src/lib/prisma';
+import { DEFAULT_LAYOUTS } from '../../src/lib/defaultLayouts';
 
 async function main() {
   // No layouts to patch currently

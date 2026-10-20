@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+import prisma from '../../src/lib/prisma';
 
 function convertTo24Hour(time12h: string): string | null {
   if (!time12h) return null;

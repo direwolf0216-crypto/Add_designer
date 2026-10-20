@@ -71,3 +71,4 @@ test_invoice.pdf
 
 # local sqlite leftovers
 prisma/*.db
+personal *.txt

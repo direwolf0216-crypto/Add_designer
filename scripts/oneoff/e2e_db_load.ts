@@ -1,4 +1,4 @@
-import prisma from '../src/lib/prisma';
+import prisma from '../../src/lib/prisma';
 
 async function main() {
   console.log('Fetching a client to attach jobs to...');

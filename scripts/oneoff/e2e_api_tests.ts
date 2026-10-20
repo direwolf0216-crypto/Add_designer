@@ -25,7 +25,7 @@ async function request(url, method = 'GET', body = null) {
   });
 }
 
-import prisma from '../src/lib/prisma';
+import prisma from '../../src/lib/prisma';
 
 async function runTests() {
   console.log('--- STARTING JOBS API E2E TESTS ---');
