@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 const config: Config = {
   content: [
@@ -7,6 +8,13 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // base-ui marks state with bare data attributes (data-open, data-closed, …).
+      data: {
+        open: "open",
+        closed: "closed",
+        disabled: "disabled",
+        placeholder: "placeholder",
+      },
       keyframes: {
         heartbeat: {
           '0%, 100%': { transform: 'scale(1)', opacity: '1' },
@@ -24,42 +32,23 @@ const config: Config = {
         shimmer: 'shimmer 1.5s infinite',
       },
       colors: {
-        border: "#e5e7eb",
-        input: "#e5e7eb",
-        ring: "#ff9f1c",
-        background: "#f8fafc",
-        foreground: "#1f2937",
-        primary: {
-          DEFAULT: "#ff9f1c",
-          foreground: "white",
-        },
-        secondary: {
-          DEFAULT: "#ffffff",
-          foreground: "#6b7280",
-        },
-        destructive: {
-          DEFAULT: "#ef4444",
-          foreground: "white",
-        },
-        muted: {
-          DEFAULT: "#f1f5f9",
-          foreground: "#6b7280",
-        },
-        accent: {
-          DEFAULT: "#fff3e0",
-          foreground: "#ff9f1c",
-        },
-        popover: {
-          DEFAULT: "#ffffff",
-          foreground: "#1f2937",
-        },
-        card: {
-          DEFAULT: "#ffffff",
-          foreground: "#1f2937",
-        },
+        border: "rgb(var(--border) / <alpha-value>)",
+        input: "rgb(var(--input) / <alpha-value>)",
+        ring: "rgb(var(--ring) / <alpha-value>)",
+        background: "rgb(var(--background) / <alpha-value>)",
+        foreground: "rgb(var(--foreground) / <alpha-value>)",
+        primary: { DEFAULT: "rgb(var(--primary) / <alpha-value>)", foreground: "rgb(var(--primary-foreground) / <alpha-value>)" },
+        secondary: { DEFAULT: "rgb(var(--secondary) / <alpha-value>)", foreground: "rgb(var(--secondary-foreground) / <alpha-value>)" },
+        destructive: { DEFAULT: "rgb(var(--destructive) / <alpha-value>)", foreground: "rgb(var(--destructive-foreground) / <alpha-value>)" },
+        muted: { DEFAULT: "rgb(var(--muted) / <alpha-value>)", foreground: "rgb(var(--muted-foreground) / <alpha-value>)" },
+        accent: { DEFAULT: "rgb(var(--accent) / <alpha-value>)", foreground: "rgb(var(--accent-foreground) / <alpha-value>)" },
+        popover: { DEFAULT: "rgb(var(--popover) / <alpha-value>)", foreground: "rgb(var(--popover-foreground) / <alpha-value>)" },
+        card: { DEFAULT: "rgb(var(--card) / <alpha-value>)", foreground: "rgb(var(--card-foreground) / <alpha-value>)" },
+        success: "rgb(var(--success) / <alpha-value>)",
+        info: "rgb(var(--info) / <alpha-value>)",
       },
     },
   },
-  plugins: [],
+  plugins: [animate],
 };
 export default config;

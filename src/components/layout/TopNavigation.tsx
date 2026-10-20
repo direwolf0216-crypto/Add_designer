@@ -164,6 +164,8 @@ export default function TopNavigation() {
     <header className={`relative flex ${title ? 'justify-between' : 'justify-end'} items-center px-4 md:px-10 py-4 md:py-5 bg-transparent z-50`}>
       <div className="flex items-center gap-3">
         <button
+          type="button"
+          aria-label="Open navigation menu"
           onClick={toggleSidebar}
           className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
         >
@@ -172,6 +174,8 @@ export default function TopNavigation() {
 
         {pathname.includes("settings") && (
           <button
+            type="button"
+            aria-label="Open settings menu"
             onClick={() => {
               const search = new URLSearchParams(window.location.search);
               search.set("menu", "open");
@@ -185,35 +189,6 @@ export default function TopNavigation() {
 
         {title && title === "Add designer" ? (
           <div className="relative hidden sm:block">
-            <style>{`
-              .studio-brand {
-                font-family: 'Alex Brush', cursive;
-                font-weight: 400;
-                font-size: 5.8rem;
-                line-height: 1.1;
-                background: linear-gradient(135deg, #0f172a 0%, #334155 50%, #020617 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                padding-left: 20px;
-                padding-right: 20px;
-                margin-top: -15px;
-                margin-bottom: -10px;
-              }
-              .studio-brand-accent {
-                font-family: 'Montserrat', sans-serif;
-                font-weight: 500;
-                font-size: 1.2rem;
-                text-transform: uppercase;
-                letter-spacing: 0.35em;
-                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                margin-top: 40px;
-              }
-            `}</style>
             <div className="studio-brand">
               Add <span className="studio-brand-accent hidden md:inline">designer</span>
             </div>
@@ -227,6 +202,9 @@ export default function TopNavigation() {
         <div ref={searchRef} className="relative">
           <button
             className="md:hidden w-[45px] h-[45px] flex items-center justify-center rounded-full bg-white border border-gray-200 text-slate-600 shadow-sm"
+            type="button"
+            aria-label="Search"
+            aria-expanded={isMobileSearchOpen}
             onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
           >
             <i className="ph-bold ph-magnifying-glass text-[1.4rem]"></i>
@@ -237,7 +215,8 @@ export default function TopNavigation() {
             ${isMobileSearchOpen ? 'flex' : 'hidden'}
           `}>
             <input
-              type="text"
+              type="search"
+              aria-label="Search jobs and transactions"
               placeholder="Search jobs, transactions..."
               className="border-none outline-none bg-transparent w-full font-sans text-[0.9rem] text-slate-900 placeholder:text-slate-400"
               value={searchQuery}
@@ -294,6 +273,10 @@ export default function TopNavigation() {
 
         <div className="relative" ref={notificationsRef}>
           <button
+            type="button"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={isNotificationsOpen}
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
             className="bg-white border border-gray-200 rounded-full w-[45px] h-[45px] flex items-center justify-center relative cursor-pointer shadow-sm hover:bg-slate-50 transition-colors"
           >
@@ -411,12 +394,16 @@ export default function TopNavigation() {
         </div>
 
         <div className="relative" ref={profileRef}>
-          <div
+          <button
+            type="button"
+            aria-label="Account menu"
+            aria-haspopup="true"
+            aria-expanded={isProfileOpen}
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className={`w-[45px] h-[45px] rounded-full bg-slate-900 text-white hover:bg-slate-800 flex items-center justify-center font-extrabold text-base cursor-pointer shadow-sm transition-colors`}
           >
             {userInitials}
-          </div>
+          </button>
 
           {isProfileOpen && (
             <>
@@ -430,6 +417,8 @@ export default function TopNavigation() {
                     <i className="ph ph-sign-out text-[1.1rem]"></i> Sign Out
                   </button>
                   <button
+                    type="button"
+                    aria-label="Close account menu"
                     onClick={() => setIsProfileOpen(false)}
                     className="text-slate-400 hover:text-slate-600 transition-colors"
                   >

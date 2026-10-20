@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { invalidateAll } from "@/lib/swr";
 import useSWR from "swr";
-import flatpickr from "flatpickr";
 
 import CustomDropdown from "@/components/ui/CustomDropdown";
 import CustomMultiDropdown from "@/components/ui/CustomMultiDropdown";
@@ -24,6 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { mutate } from "swr";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { uploadFileToDrive } from "@/lib/uploadHelper";
+import { toLocalISODate } from "@/lib/dates";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -74,9 +75,6 @@ function JobFormModalInner() {
     }
   });
 
-  const timeInputRef = useRef<HTMLInputElement>(null);
-  const [timeFpInstance, setTimeFpInstance] = useState<flatpickr.Instance | null>(null);
-
   const [categoryOptions, setCategoryOptions] = useState<string[]>(['Flex Printing', 'Invitations', 'Business Cards', 'Posters']);
   const [statusOptions, setStatusOptions] = useState<string[]>(['Confirmed', 'Pending', 'Partial']);
   const [layoutSchema, setLayoutSchema] = useState<any>(null);
@@ -84,7 +82,7 @@ function JobFormModalInner() {
   const [allJobs, setAllJobs] = useState<any[]>([]);
   const [isMultiInstallment, setIsMultiInstallment] = useState(false);
   const [installments, setInstallments] = useState<{ amount: string, date: string, paymentMode: string, transactionId?: string }[]>([
-    { amount: '', date: new Date().toISOString().split('T')[0], paymentMode: 'Cash' }
+    { amount: '', date: toLocalISODate(), paymentMode: 'Cash' }
   ]);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState<string | null>(null);
   const [repeatableData, setRepeatableData] = useState<Record<string, Array<Record<string, any>>>>({});
@@ -198,17 +196,14 @@ function JobFormModalInner() {
 
       reset(formValues);
 
-      if (timeFpInstance && formValues.time) {
-        timeFpInstance.setDate(formValues.time);
-      }
 
-
-      const validTransactions = (b.transactions || []).filter((tx: any) => !tx.deletedAt);
+      // Only the job's own installment payments; other linked transactions (expenses, due collections) aren't installments.
+      const validTransactions = (b.transactions || []).filter((tx: any) => !tx.deletedAt && tx.type === 'INCOME' && tx.category === 'JOB');
       if (validTransactions.length > 0) {
         setIsMultiInstallment(validTransactions.length > 1);
         setInstallments(validTransactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((tx: any) => ({
           amount: tx.amount.toString(),
-          date: new Date(tx.date).toISOString().split('T')[0],
+          date: toLocalISODate(new Date(tx.date)),
           paymentMode: tx.paymentMode || 'Cash',
           transactionId: tx.id
         })));
@@ -219,17 +214,17 @@ function JobFormModalInner() {
         setIsMultiInstallment(false);
         setInstallments([{
           amount: b.order?.advance ? b.order.advance.toString() : (formValues.advance || ''),
-          date: new Date().toISOString().split('T')[0],
+          date: toLocalISODate(),
           paymentMode: formValues.paymentMode || 'Cash'
         }]);
       }
     }
-  }, [isAddModalOpen, job?.id, isJobLoading, reset, timeFpInstance, layoutSchema]);
+  }, [isAddModalOpen, job?.id, isJobLoading, reset, layoutSchema]);
 
   // Add mode default initialization
   useEffect(() => {
     if (isAddModalOpen && !isJobLoading && !jobToEditId) {
-      const defaultDate = selectedDateForNew || new Date().toISOString().split('T')[0];
+      const defaultDate = selectedDateForNew || toLocalISODate();
       const defaultValues: any = {
         title: '', category: '', date: defaultDate, time: '10:00 AM',
         location: '', phone: '', email: '', package: '', advance: '', due: '', status: 'Confirmed'
@@ -275,31 +270,9 @@ function JobFormModalInner() {
       }
       setRepeatableData(initialRepeatable);
       reset(defaultValues);
-      if (timeFpInstance) timeFpInstance.setDate(defaultValues.time || '10:00 AM');
       clearErrors();
     }
-  }, [isAddModalOpen, jobToEditId, isJobLoading, selectedDateForNew, reset, clearErrors, layoutSchema, timeFpInstance]);
-
-  useEffect(() => {
-    if (isAddModalOpen) {
-      let timeFp: flatpickr.Instance | null = null;
-      if (timeInputRef.current) {
-        timeFp = flatpickr(timeInputRef.current, {
-          enableTime: true,
-          noCalendar: true,
-          dateFormat: "h:i K",
-          defaultDate: watch('time') || '10:00 AM',
-          onChange: (selectedDates, dateStr) => setValue('time', dateStr)
-        }) as flatpickr.Instance;
-        setTimeFpInstance(timeFp);
-      }
-
-      return () => {
-        if (timeFp) timeFp.destroy();
-        setTimeFpInstance(null);
-      };
-    }
-  }, [isAddModalOpen, setValue, watch]);
+  }, [isAddModalOpen, jobToEditId, isJobLoading, selectedDateForNew, reset, clearErrors, layoutSchema]);
 
   const parseCurrency = (str: string) => parseFloat(str.replace(/,/g, '')) || 0;
   const formatCurrencyInput = (num: number) => num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -578,71 +551,15 @@ function JobFormModalInner() {
       }
     }
 
+    // Installment payments are created/updated/removed server-side in the same transaction as the job.
+    formDataObj.set('installments', JSON.stringify(installments.filter(inst => parseFloat(inst.amount) > 0)));
     const result = await saveJobAction(formDataObj);
 
     if (result.success && result.data) {
-      let needsReSave = false;
-      const newInstallments = [...installments];
-      const txPromises = newInstallments.map(async (inst) => {
-        if (inst.amount && parseFloat(inst.amount) > 0) {
-          const isLegacy = inst.transactionId?.toString().startsWith('legacy');
-          if (!inst.transactionId || isLegacy) {
-            try {
-              const res = await fetch('/api/transactions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  amount: parseFloat(inst.amount),
-                  type: 'INCOME',
-                  category: 'JOB',
-                  description: `Advance Payment for Job ${result.data.jobNumber || '#' + result.data.id} - ${data.title || 'Client'}`,
-                  date: new Date(inst.date).toISOString(),
-                  jobId: result.data.id,
-                  paymentMode: inst.paymentMode || 'Cash'
-                })
-              });
-              if (res.ok) {
-                const txData = await res.json();
-                inst.transactionId = txData.id;
-                needsReSave = true;
-              }
-            } catch (e) {
-              console.error("Failed to create transaction for installment", e);
-            }
-          } else {
-            // Update existing transaction
-            try {
-              await fetch(`/api/transactions/${inst.transactionId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  amount: parseFloat(inst.amount),
-                  date: new Date(inst.date).toISOString(),
-                  paymentMode: inst.paymentMode || 'Cash'
-                })
-              });
-            } catch (e) {
-              console.error("Failed to update transaction for installment", e);
-            }
-          }
-        }
-      });
-      await Promise.all(txPromises);
-
-      if (needsReSave) {
-        formDataObj.set('id', result.data.id);
-        formDataObj.set('installments', JSON.stringify(newInstallments));
-        await saveJobAction(formDataObj);
-      }
-
       toast.success(job ? "Job updated successfully!" : "Job created successfully!");
 
       // Use SWR mutate to update cache immediately without full page reload
-      mutate(
-        (key: any) => typeof key === 'string' && (key.startsWith('/api/jobs') || key.startsWith('/api/dashboard') || key.startsWith('/api/transactions')),
-        undefined,
-        { revalidate: true }
-      );
+      invalidateAll();
       router.refresh();
 
       closeJobForm();
@@ -683,18 +600,9 @@ function JobFormModalInner() {
     return { ...user, isBusy };
   });
 
-  const handleDeleteInstallment = async (idx: number) => {
-    const inst = installments[idx];
-    if (inst.transactionId) {
-      if (!confirm('Are you sure you want to delete this payment transaction?')) return;
-      try {
-        await fetch(`/api/transactions/${inst.transactionId}`, { method: 'DELETE' });
-        toast.success('Transaction deleted');
-      } catch (err) {
-        toast.error('Failed to delete transaction');
-        return;
-      }
-    }
+  // Removing an installment only edits the form; the payment is deleted when the job is saved,
+  // so cancelling the form leaves it untouched.
+  const handleDeleteInstallment = (idx: number) => {
     setInstallments(installments.filter((_, i) => i !== idx));
   };
 
@@ -1101,10 +1009,23 @@ function JobFormModalInner() {
                               <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-xl flex items-center justify-center gap-4 z-10 border border-red-100 shadow-sm">
                                 <span className="text-slate-800 font-bold text-[0.95rem]">Remove this entry?</span>
                                 <button type="button" onClick={() => {
+                                  const secKey = `rep_${section.id}`;
+                                  const count = (repeatableData[secKey] || []).length;
                                   setRepeatableData(prev => {
-                                    const arr = [...(prev[`rep_${section.id}`] || [])];
+                                    const arr = [...(prev[secKey] || [])];
                                     arr.splice(entryIdx, 1);
-                                    return { ...prev, [`rep_${section.id}`]: arr };
+                                    return { ...prev, [secKey]: arr };
+                                  });
+                                  // Rates are keyed by entry position: shift later entries down so each rate stays with its item.
+                                  setFinancialRates(prev => {
+                                    const next = { ...prev };
+                                    for (let i = entryIdx; i < count - 1; i++) {
+                                      const later = prev[`${secKey}_${i + 1}`];
+                                      if (later === undefined) delete next[`${secKey}_${i}`];
+                                      else next[`${secKey}_${i}`] = later;
+                                    }
+                                    delete next[`${secKey}_${count - 1}`];
+                                    return next;
                                   });
                                   setDeleteConfirm(null);
                                 }} className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-[0.9rem] transition-colors shadow-lg shadow-red-500/20">Yes, Remove</button>
@@ -1181,7 +1102,7 @@ function JobFormModalInner() {
                                               setIsMultiInstallment(true);
                                               setInstallments([
                                                 ...installments,
-                                                { amount: '', date: new Date().toISOString().split('T')[0], paymentMode: 'Cash' }
+                                                { amount: '', date: toLocalISODate(), paymentMode: 'Cash' }
                                               ]);
                                             }}
                                             className="text-[0.75rem] font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1 transition-colors whitespace-nowrap"
@@ -1193,8 +1114,8 @@ function JobFormModalInner() {
                                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</div>
                                           <input type="text" value={installments[0]?.amount || ''} onChange={(e) => {
                                             const newInst = [...installments];
-                                            if (newInst.length === 0) newInst.push({ amount: '', date: new Date().toISOString().split('T')[0], paymentMode: 'Cash' });
-                                            newInst[0].amount = e.target.value.replace(/[^0-9.]/g, '');
+                                            if (newInst.length === 0) newInst.push({ amount: '', date: toLocalISODate(), paymentMode: 'Cash' });
+                                            newInst[0] = { ...newInst[0], amount: e.target.value.replace(/[^0-9.]/g, '') };
                                             setInstallments(newInst);
                                           }} className="flex h-[45px] w-full rounded-xl border border-gray-200 bg-white pl-8 pr-4 py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" placeholder="Amount" />
                                         </div>
@@ -1209,8 +1130,8 @@ function JobFormModalInner() {
                                             value={installments[0]?.paymentMode || 'Cash'}
                                             onChange={(val: any) => {
                                               const newInst = [...installments];
-                                              if (newInst.length === 0) newInst.push({ amount: '', date: new Date().toISOString().split('T')[0], paymentMode: 'Cash' });
-                                              newInst[0].paymentMode = val;
+                                              if (newInst.length === 0) newInst.push({ amount: '', date: toLocalISODate(), paymentMode: 'Cash' });
+                                              newInst[0] = { ...newInst[0], paymentMode: val };
                                               setInstallments(newInst);
                                             }}
                                             placeholder="Select Payment Mode"
@@ -1224,7 +1145,7 @@ function JobFormModalInner() {
                                         <label className="text-[0.75rem] font-bold text-slate-600 uppercase tracking-[0.5px]">Payments & Installments</label>
                                         <button
                                           type="button"
-                                          onClick={() => setInstallments([...installments, { amount: '', date: new Date().toISOString().split('T')[0], paymentMode: 'Cash' }])}
+                                          onClick={() => setInstallments([...installments, { amount: '', date: toLocalISODate(), paymentMode: 'Cash' }])}
                                           className="text-[0.7rem] font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1 transition-colors bg-orange-50 px-3 py-1.5 rounded-lg -mr-1"
                                         >
                                           <i className="ph-bold ph-plus"></i> Add Installment
@@ -1238,16 +1159,16 @@ function JobFormModalInner() {
                                               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[0.95rem] z-10 pointer-events-none">₹</div>
                                               <input type="text" value={inst.amount || ''} onChange={(e) => {
                                                 const newInst = [...installments];
-                                                newInst[idx].amount = e.target.value.replace(/[^0-9.]/g, '');
+                                                newInst[idx] = { ...newInst[idx], amount: e.target.value.replace(/[^0-9.]/g, '') };
                                                 setInstallments(newInst);
                                               }} className="flex h-[42px] w-full rounded-xl border border-gray-200 bg-white pl-8 pr-3 py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" placeholder="Amount" />
                                             </div>
                                             <div className="w-full sm:w-[130px] shrink-0 h-[42px] relative">
                                               <DatePickerInput
-                                                value={inst.date ? new Date(inst.date).toISOString().split('T')[0] : ''}
+                                                value={inst.date ? (/^\d{4}-\d{2}-\d{2}$/.test(inst.date) ? inst.date : toLocalISODate(new Date(inst.date))) : ''}
                                                 onChange={(val: any) => {
                                                   const newInst = [...installments];
-                                                  newInst[idx].date = val;
+                                                  newInst[idx] = { ...newInst[idx], date: val };
                                                   setInstallments(newInst);
                                                 }}
                                               />
@@ -1258,7 +1179,7 @@ function JobFormModalInner() {
                                                 value={inst.paymentMode || 'Cash'}
                                                 onChange={(val: any) => {
                                                   const newInst = [...installments];
-                                                  newInst[idx].paymentMode = val;
+                                                  newInst[idx] = { ...newInst[idx], paymentMode: val };
                                                   setInstallments(newInst);
                                                 }}
                                                 placeholder="Mode"

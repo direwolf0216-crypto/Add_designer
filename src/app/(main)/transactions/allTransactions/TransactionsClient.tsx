@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense, useRef } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
+import useSWR from "swr";
+import { fetcher, invalidateFinance } from "@/lib/swr";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import DatePickerInput from "@/components/ui/DatePickerInput";
@@ -8,6 +10,7 @@ import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { toast } from "sonner";
 import BudgetOverview from "@/components/dashboard/BudgetOverview";
 import HighPriorityAlerts from "@/components/dashboard/HighPriorityAlerts";
+import { toLocalISODate } from "@/lib/dates";
 
 function ViewSelectorCard({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,21 +68,14 @@ function TransactionsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { openTransactionDetails, openTransactionForm } = useGlobalForm();
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  // F5/P2: Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [inlineDeleteId, setInlineDeleteId] = useState<string | null>(null);
   
-  const totalPages = Math.ceil(totalCount / 25);
   
   const activeView = searchParams.get('view');
   const filterParams = {
@@ -209,7 +205,7 @@ function TransactionsList() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `kanakkupulla-ledger-${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `kanakkupulla-ledger-${toLocalISODate()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -249,7 +245,7 @@ function TransactionsList() {
           startY: finalY + 15,
         });
         
-        doc.save(`kanakkupulla-ledger-${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`kanakkupulla-ledger-${toLocalISODate()}.pdf`);
       }
     } catch (e) {
       toast.error("Export failed");
@@ -307,42 +303,34 @@ function TransactionsList() {
     router.push(`?${params.toString()}`);
   };
 
-  const fetchTransactions = useCallback(async (pageNum?: number) => {
-    if (!pageNum) {
-      setIsLoading(true);
-      setTransactions([]);
-      setCurrentPage(1);
-      setTotalCount(0);
-    } else {
-      setIsLoadingMore(true);
-    }
-    try {
-      const params = new URLSearchParams();
-      if (filterParams.view && !hasCustomDateRange) params.append('view', filterParams.view);
-      if (filterParams.dateFrom) params.append('dateFrom', filterParams.dateFrom);
-      if (filterParams.dateTo) params.append('dateTo', filterParams.dateTo);
-      if (filterParams.categories) params.append('categories', filterParams.categories);
-      if (filterParams.amountMin) params.append('amountMin', filterParams.amountMin);
-      if (filterParams.amountMax) params.append('amountMax', filterParams.amountMax);
-      if (filterParams.type) params.append('type', filterParams.type);
-      if (filterParams.paymentMode) params.append('paymentMode', filterParams.paymentMode);
-      if (filterParams.month && filterParams.view === 'month' && !hasCustomDateRange) params.append('month', filterParams.month);
-      if (pageNum) params.append('page', String(pageNum));
+  // Page resets whenever the filters (URL) change, without an effect.
+  const filterKey = searchParams.toString();
+  const [pageState, setPageState] = useState({ filterKey, page: 1 });
+  const currentPage = pageState.filterKey === filterKey ? pageState.page : 1;
 
-      const res = await fetch(`/api/transactions?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        const items = data.items ?? [];
-        setTransactions(items);
-        setCurrentPage(pageNum || 1);
-        setTotalCount(data.total ?? 0);
-      } else if (res.status === 401) {
-        toast.error("Session expired. Please log in again.");
-      }
-    } catch (e) { console.error(e); }
-    setIsLoading(false);
-    setIsLoadingMore(false);
-  }, [searchParams]);
+  const listParams = new URLSearchParams();
+  if (filterParams.view && !hasCustomDateRange) listParams.append('view', filterParams.view);
+  if (filterParams.dateFrom) listParams.append('dateFrom', filterParams.dateFrom);
+  if (filterParams.dateTo) listParams.append('dateTo', filterParams.dateTo);
+  if (filterParams.categories) listParams.append('categories', filterParams.categories);
+  if (filterParams.amountMin) listParams.append('amountMin', filterParams.amountMin);
+  if (filterParams.amountMax) listParams.append('amountMax', filterParams.amountMax);
+  if (filterParams.type) listParams.append('type', filterParams.type);
+  if (filterParams.paymentMode) listParams.append('paymentMode', filterParams.paymentMode);
+  if (filterParams.month && filterParams.view === 'month' && !hasCustomDateRange) listParams.append('month', filterParams.month);
+  if (currentPage > 1) listParams.append('page', String(currentPage));
+
+  // SWR (not local state) so saves from the global transaction modal refresh this list too.
+  const { data: listData, isLoading, isValidating } = useSWR<{ items?: any[]; total?: number }>(
+    `/api/transactions?${listParams.toString()}`,
+    fetcher,
+    { keepPreviousData: true }
+  );
+  const transactions = listData?.items ?? [];
+  const totalCount = listData?.total ?? 0;
+  const totalPages = Math.ceil(totalCount / 25);
+  const isLoadingMore = isValidating && !isLoading;
+  const fetchTransactions = (pageNum: number) => setPageState({ filterKey, page: pageNum });
 
   const confirmDelete = async () => {
     if (!deleteId) return;
@@ -352,13 +340,8 @@ function TransactionsList() {
       const url = isGroup ? `/api/transactions/bulk/${deleteId}` : `/api/transactions/${deleteId}`;
       const res = await fetch(url, { method: 'DELETE' });
       if (res.ok) {
-        if (isGroup) {
-          setTransactions(prev => prev.filter(tx => tx.groupId !== deleteId));
-        } else {
-          setTransactions(prev => prev.filter(tx => tx.id !== deleteId));
-        }
+        invalidateFinance();
         toast.success(isGroup ? "Group deleted." : "Transaction deleted.");
-        router.refresh(); 
       } else {
         toast.error("Failed to delete. Please try again.");
       }
@@ -375,18 +358,16 @@ function TransactionsList() {
       if (type === 'GROUP' && groupId) {
         const res = await fetch(`/api/transactions/bulk/${groupId}`, { method: 'DELETE' });
         if (res.ok) {
-          setTransactions(prev => prev.filter(tx => tx.groupId !== groupId));
+          invalidateFinance();
           toast.success("Group deleted.");
-          router.refresh();
         } else {
           toast.error("Failed to delete group.");
         }
       } else {
         const res = await fetch(`/api/transactions/${txId}`, { method: 'DELETE' });
         if (res.ok) {
-          setTransactions(prev => prev.filter(tx => tx.id !== txId));
+          invalidateFinance();
           toast.success("Transaction deleted.");
-          router.refresh();
         } else {
           toast.error("Failed to delete transaction.");
         }
@@ -397,10 +378,6 @@ function TransactionsList() {
     setIsDeleting(false);
     setInlineDeleteId(null);
   };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
 
   return (
     <div className="animate-fade-in w-full">
@@ -461,7 +438,7 @@ function TransactionsList() {
             {activeView === 'day' && (
               <div className="w-[140px]">
                 <DatePickerInput 
-                  value={(filterParams.dateFrom && filterParams.dateFrom === filterParams.dateTo) ? filterParams.dateFrom : new Date().toISOString().split('T')[0]}
+                  value={(filterParams.dateFrom && filterParams.dateFrom === filterParams.dateTo) ? filterParams.dateFrom : toLocalISODate()}
                   onChange={(val) => {
                     const params = new URLSearchParams(searchParams.toString());
                     params.set('view', 'day');
@@ -478,7 +455,7 @@ function TransactionsList() {
             {activeView === 'week' && (
               <div className="w-[200px]">
                 <DatePickerInput 
-                  value={(filterParams.dateFrom && filterParams.dateTo) ? filterParams.dateFrom : new Date().toISOString().split('T')[0]}
+                  value={(filterParams.dateFrom && filterParams.dateTo) ? filterParams.dateFrom : toLocalISODate()}
                   onChange={handleSpecificWeekFromDate}
                   placeholder="Select Week"
                   mode="week"

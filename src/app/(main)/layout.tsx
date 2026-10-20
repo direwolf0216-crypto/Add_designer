@@ -2,12 +2,10 @@ import Sidebar from "@/components/layout/Sidebar";
 import TopNavigation from "@/components/layout/TopNavigation";
 import { JobProvider } from "@/components/providers/JobProvider";
 import { SystemProvider } from "@/components/providers/SystemProvider";
-import PageTransition from "@/components/layout/PageTransition";
 import { MobileNavProvider } from "@/components/providers/MobileNavProvider";
 import { GlobalFormProvider } from "@/components/providers/GlobalFormProvider";
-import JobFormModal from "@/components/dashboard/JobFormModal";
-import TransactionModal from "@/components/dashboard/TransactionModal";
-import TransactionDetailsModal from "@/components/dashboard/TransactionDetailsModal";
+import GlobalModals from "@/components/layout/GlobalModals";
+import UpcomingJobsBanner from "@/components/layout/UpcomingJobsBanner";
 
 import React from "react";
 
@@ -39,16 +37,13 @@ export default function MainLayout({
                 <TopNavigation />
               </div>
               <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 relative z-10">
-                <PageTransition>
-                  {children}
-                </PageTransition>
+                {children}
               </div>
             </main>
 
             {/* Global Forms */}
-            <JobFormModal />
-            <TransactionModal />
-            <TransactionDetailsModal />
+            <GlobalModals />
+            <UpcomingJobsBanner />
 
           </GlobalFormProvider>
         </JobProvider>

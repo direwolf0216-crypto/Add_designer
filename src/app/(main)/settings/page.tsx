@@ -2,11 +2,15 @@
 
 import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import UserManagement from "@/components/settings/UserManagement";
-import RolesPermissions from "@/components/settings/RolesPermissions";
-import LayoutsFieldsBuilder from "@/components/settings/LayoutsFieldsBuilder";
-import RecycleBin from "@/components/settings/RecycleBin";
-import GoogleDriveIntegration from "@/components/settings/integrations/GoogleDriveIntegration";
+import dynamic from "next/dynamic";
+
+// Each settings tab is code-split; only the open tab's bundle is downloaded.
+const tabLoading = () => <div className="h-40 animate-pulse rounded-2xl bg-white/60" aria-busy="true" />;
+const UserManagement = dynamic(() => import("@/components/settings/UserManagement"), { loading: tabLoading });
+const RolesPermissions = dynamic(() => import("@/components/settings/RolesPermissions"), { loading: tabLoading });
+const LayoutsFieldsBuilder = dynamic(() => import("@/components/settings/LayoutsFieldsBuilder"), { loading: tabLoading });
+const RecycleBin = dynamic(() => import("@/components/settings/RecycleBin"), { loading: tabLoading });
+const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
 
 const GROUPS = [
   {

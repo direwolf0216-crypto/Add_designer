@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { invalidateFinance } from "@/lib/swr";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import useSWR, { mutate } from "swr";
@@ -92,9 +93,15 @@ const fieldIcon = (type: string, label: string) => {
   return "ph-info";
 };
 
-export default function TransactionDetailsModal() {
+/**
+ * Rendered globally (opened through GlobalFormProvider) or as a standalone page for deep links
+ * such as search results, in which case `id` comes from the route.
+ */
+export default function TransactionDetailsModal({ id, standalone = false }: { id?: string; standalone?: boolean } = {}) {
   const router = useRouter();
-  const { isTransactionDetailsOpen, transactionDetailsId, closeTransactionDetails, openTransactionForm, openJobDetails } = useGlobalForm();
+  const { isTransactionDetailsOpen: isGlobalOpen, transactionDetailsId: globalId, closeTransactionDetails, openTransactionForm, openJobDetails } = useGlobalForm();
+  const isTransactionDetailsOpen = standalone || isGlobalOpen;
+  const transactionDetailsId = standalone ? id : globalId;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { data, error, isLoading } = useSWR<TransactionDetailResponse>(
@@ -103,6 +110,10 @@ export default function TransactionDetailsModal() {
   );
 
   const close = () => {
+    if (standalone) {
+      router.push("/transactions/allTransactions");
+      return;
+    }
     closeTransactionDetails();
 
   };
@@ -136,14 +147,7 @@ export default function TransactionDetailsModal() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || "Delete failed");
       }
-      await mutate(
-        (key) => typeof key === "string" && (
-          key.startsWith("/api/transactions") || 
-          key.startsWith("/api/jobs")
-        ),
-        undefined,
-        { revalidate: true }
-      );
+      invalidateFinance();
       toast.success("Transaction deleted");
       setShowDeleteConfirm(false);
       close();

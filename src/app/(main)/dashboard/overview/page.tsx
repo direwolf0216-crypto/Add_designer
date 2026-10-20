@@ -7,13 +7,20 @@ import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { useRouter } from "next/navigation";
 import OverdueJobBanners from "@/components/jobs/OverdueJobBanners";
 import DashboardDateRangePicker from "@/components/dashboard/DashboardDateRangePicker";
-import RevenueChart from "@/components/dashboard/RevenueChart";
+import dynamic from "next/dynamic";
+
 import JobBreakdown from "@/components/dashboard/JobBreakdown";
 import QuickActions from "@/components/dashboard/QuickActions";
 import TaskAlerts from "@/components/dashboard/TaskAlerts";
 import RevenueTarget from "@/components/dashboard/RevenueTarget";
 import StatCards from "@/components/dashboard/StatCards";
 import { usePermissions } from "@/hooks/usePermissions";
+
+// recharts is heavy; keep it out of the initial dashboard bundle.
+const RevenueChart = dynamic(() => import("@/components/dashboard/RevenueChart"), {
+  ssr: false,
+  loading: () => <div className="h-[300px] animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />,
+});
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Photography Session": "ph-camera",

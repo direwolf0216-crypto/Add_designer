@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { invalidateJobs } from "@/lib/swr";
 import CustomDropdown from "@/components/ui/CustomDropdown";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
@@ -8,7 +9,7 @@ import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { updateJobTrackingAction, deleteJobAction } from "@/app/actions";
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
-import useSWR, { mutate as globalMutate } from 'swr';
+import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 import { FolderClock, PenTool, Printer, Package, AlertTriangle } from 'lucide-react';
@@ -99,7 +100,8 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
   }, [initialJobs]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   
-  const { data: layoutSchema } = useSWR('/api/settings/layout', fetcher);
+  const { data: layoutData } = useSWR('/api/settings/layouts/JOB_FORM', fetcher);
+  const layoutSchema = layoutData?.schema;
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { openJobDetails, openJobForm } = useGlobalForm();
@@ -157,7 +159,8 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
   }, [jobs]);
 
   const handleUpdateJob = async (jobId: string, updates: { status?: string, customData?: any }) => {
-    // Optimistic update
+    const previousJobs = jobs;
+    // Optimistic update (rolled back below if the save fails)
     setJobs(prev => prev.map(a => {
       if (a.id === jobId) {
         let newCustomData = typeof a.customData === 'string' ? JSON.parse(a.customData) : (a.customData || {});
@@ -176,14 +179,10 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
     const res = await updateJobTrackingAction(jobId, updates);
     if (!res.success) {
       toast.error(res.error || "Failed to update job");
-      // Revert optimistic update ideally, but skipping for brevity
+      setJobs(previousJobs);
     } else {
       toast.success("Job updated");
-      globalMutate(
-        (key) => typeof key === 'string' && (key.startsWith('/api/jobs') || key.startsWith('/api/dashboard')),
-        undefined,
-        { revalidate: true }
-      );
+      invalidateJobs();
       router.refresh();
     }
   };
@@ -727,8 +726,14 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
                 onClick={async () => {
                   setIsDeleting(true);
                   try {
-                    await deleteJobAction(deleteConfirmId);
-                    globalMutate(key => typeof key === 'string' && key.startsWith('/api/jobs'));
+                    const res = await deleteJobAction(deleteConfirmId);
+                    if (!res.success) {
+                      toast.error(res.error || "Failed to delete job");
+                      return;
+                    }
+                    toast.success("Job moved to the recycle bin");
+                    invalidateJobs();
+                    router.refresh();
                     setDeleteConfirmId(null);
                   } finally {
                     setIsDeleting(false);

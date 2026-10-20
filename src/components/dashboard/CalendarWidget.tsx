@@ -13,6 +13,7 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 import { Suspense } from "react";
+import { toLocalISODate } from "@/lib/dates";
 
 function CalendarWidgetInner() {
   const router = useRouter();
@@ -57,8 +58,8 @@ function CalendarWidgetInner() {
     endDate.setDate(endDate.getDate() + 2);
   }
 
-  const startDateStr = startDate.toISOString().split('T')[0];
-  const endDateStr = endDate.toISOString().split('T')[0];
+  const startDateStr = toLocalISODate(startDate);
+  const endDateStr = toLocalISODate(endDate);
 
   const { data: dbJobs, isLoading } = useSWR(`/api/jobs?startDate=${startDateStr}&endDate=${endDateStr}`, fetcher, {
     revalidateOnFocus: false,

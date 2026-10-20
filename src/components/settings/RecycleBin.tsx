@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { invalidateAll } from "@/lib/swr";
 import useSWR, { mutate as globalMutate } from "swr";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -54,7 +55,7 @@ export default function RecycleBin() {
       if (!res.ok) throw new Error("Failed to restore");
       toast.success("Item restored");
       mutate();
-      globalMutate((key: any) => typeof key === 'string' && key.startsWith('/api/transactions'), undefined, { revalidate: true });
+      invalidateAll();
       const newSet = new Set(selectedIds);
       newSet.delete(id);
       setSelectedIds(newSet);
@@ -103,7 +104,7 @@ export default function RecycleBin() {
       toast.success(`Restored ${selectedIds.size} items`);
       setSelectedIds(newSet => { newSet.clear(); return new Set(); });
       mutate();
-      globalMutate((key: any) => typeof key === 'string' && key.startsWith('/api/transactions'), undefined, { revalidate: true });
+      invalidateAll();
     } catch (e) {
       toast.error("Error restoring items");
     }

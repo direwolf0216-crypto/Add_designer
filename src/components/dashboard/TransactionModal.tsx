@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { invalidateFinance } from "@/lib/swr";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import TimePickerInput from "@/components/ui/TimePickerInput";
@@ -52,12 +53,7 @@ function TransactionModalInner() {
   };
   
   const onSuccess = () => {
-    mutate(
-      (key: any) => typeof key === 'string' && key.startsWith('/api/transactions'),
-      undefined,
-      { revalidate: true }
-    );
-    mutate('/api/dashboard/overview');
+    invalidateFinance();
     closeTransactionForm();
   };
 
@@ -292,11 +288,7 @@ function TransactionModalInner() {
             : `₹${parseFloat(form.amount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })} ${form.type?.toLowerCase()} on ${new Date(form.date || Date.now()).toLocaleDateString("en-IN")}`,
         });
         
-        // Revalidate SWR caches for transactions
-        mutate((key: any) => typeof key === 'string' && key.startsWith('/api/transactions'));
-        
         onSuccess();
-        onClose();
       } else {
         const data = await res.json().catch(() => ({}));
         if (res.status === 422 && data.errors) {

@@ -27,13 +27,6 @@ export default function DashboardDateRangePicker({ onRangeChange }: DashboardDat
     if (option !== 'Custom') {
       onRangeChange(ranges[option]);
     }
-    
-    // Invalidate any dashboard overview cache to force fresh data on next render
-    mutate(
-      (key) => typeof key === 'string' && key.startsWith('/api/dashboard/overview'),
-      undefined,
-      { revalidate: true }
-    );
   };
 
   return (

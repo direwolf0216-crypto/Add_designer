@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { invalidateJobs } from "@/lib/swr";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -85,6 +86,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
   const router = useRouter();
   const { checkPermission } = usePermissions();
   const canManageTransactions = checkPermission('manage_transactions');
+  const canManageJobs = checkPermission('manage_jobs');
   const {
     openJobForm,
     isJobDetailsOpen,
@@ -165,11 +167,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
       refreshJob();
 
       // Globally invalidate SWR keys so Jobs list, Calendar, Dashboard, and Album Status sync instantly
-      globalMutate(
-        (key) => typeof key === 'string' && (key.startsWith('/api/jobs') || key.startsWith('/api/dashboard')),
-        undefined,
-        { revalidate: true }
-      );
+      invalidateJobs();
       router.refresh();
     } else {
       toast.error("Failed to update status");
@@ -193,11 +191,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
     if (res.success) {
       toast.success(`Status updated to ${newStatus}`);
       refreshJob();
-      globalMutate(
-        (key) => typeof key === 'string' && (key.startsWith('/api/jobs') || key.startsWith('/api/dashboard')),
-        undefined,
-        { revalidate: true }
-      );
+      invalidateJobs();
       router.refresh();
     } else {
       toast.error("Failed to update status");
@@ -214,11 +208,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
           setIsDeleteConfirmOpen(false);
           closeJobDetails();
 
-          globalMutate(
-            (key) => typeof key === 'string' && (key.startsWith('/api/jobs') || key.startsWith('/api/dashboard')),
-            undefined,
-            { revalidate: true }
-          );
+          invalidateJobs();
           router.refresh();
         } else {
           toast.error("Failed to delete job.");
@@ -426,9 +416,9 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
                   </div>
                   
                   {/* Edit Job */}
-                  <button onClick={() => { openJobForm(job.id, undefined); closeJobDetails(); }} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm">
+                  {canManageJobs && <button onClick={() => { openJobForm(job.id, undefined); closeJobDetails(); }} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm">
                     <Edit3 className="w-4 h-4" /> Edit Job
-                  </button>
+                  </button>}
                   
                   {/* Print Summary */}
                   <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm">
@@ -440,14 +430,16 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
 
                   {/* Legacy Actions (Delete, Export, Invoice) */}
                   <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-                    <button onClick={() => setIsDeleteConfirmOpen(true)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={exportJob} disabled={isExporting} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors" title="Export">
+                    {canManageJobs && (
+                      <button onClick={() => setIsDeleteConfirmOpen(true)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete" aria-label="Delete job">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={exportJob} disabled={isExporting} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors" title="Export" aria-label="Export job">
                       <Upload className="w-4 h-4" />
                     </button>
                     {canManageTransactions && (
-                      <button onClick={generateInvoice} disabled={isGeneratingInvoice} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors" title="Invoice">
+                      <button onClick={generateInvoice} disabled={isGeneratingInvoice} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors" title="Invoice" aria-label="Generate invoice">
                         <Receipt className="w-4 h-4" />
                       </button>
                     )}

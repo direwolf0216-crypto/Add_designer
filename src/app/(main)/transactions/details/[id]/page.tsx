@@ -6,5 +6,5 @@ export default async function TransactionDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <TransactionDetailsModal />;
+  return <TransactionDetailsModal id={id} standalone />;
 }

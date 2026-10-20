@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Modals from '@/components/dashboard/Modals';
 import { useJobs } from '@/components/providers/JobProvider';
 import { useGlobalForm } from '@/components/providers/GlobalFormProvider';
+import { toLocalISODate } from "@/lib/dates";
 
 export default function JobsLayout({
   children,
@@ -143,7 +144,7 @@ export default function JobsLayout({
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `jobs_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", `jobs_export_${toLocalISODate()}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -168,7 +169,7 @@ export default function JobsLayout({
           body: tableData,
           startY: 20,
         });
-        doc.save(`jobs_export_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`jobs_export_${toLocalISODate()}.pdf`);
       }
     } catch (error) {
       alert("Failed to export schedule.");
