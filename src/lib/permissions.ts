@@ -54,7 +54,8 @@ export const STAFF_DEFAULTS: Record<Permission, boolean> = {
   manage_jobs: true,
   // Off: staff see the jobs assigned to them ("My jobs").
   view_all_jobs: false,
-  view_amounts: true,
+  // Off: staff work on jobs without seeing prices, payments or balances.
+  view_amounts: false,
   view_transactions: true,
   manage_transactions: false,
   view_analytics: true,

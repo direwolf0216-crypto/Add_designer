@@ -17,6 +17,11 @@ describe("permissions", () => {
     expect(manager).toContain("view_amounts");
   });
 
+  it("hides amounts from Staff by default", () => {
+    expect(resolvePermissions("STAFF", null, [])).not.toContain("view_amounts");
+    expect(resolvePermissions("STAFF", null, [{ role: "STAFF", permission: "view_amounts", enabled: true }])).toContain("view_amounts");
+  });
+
   it("applies Staff overrides on top of the defaults", () => {
     const staff = resolvePermissions("STAFF", null, [
       { role: "STAFF", permission: "view_amounts", enabled: false },
