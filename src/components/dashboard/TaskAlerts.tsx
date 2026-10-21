@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useSyncExternalStore } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { GlassCard } from "./vibrant";
 
 import { fetcher } from "@/lib/swr";
 
@@ -78,70 +79,58 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingP
 
   if (!isMounted || (alerts.length === 0 && unconfirmedCount === 0 && pendingProofs === 0)) return null;
 
-  return (
-    <div className="bg-white rounded-[20px] p-5 md:p-6 border border-gray-100 shadow-sm mb-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
-          <i className="ph-fill ph-bell-ringing text-[1.1rem]"></i>
-        </div>
-        <h3 className="text-[1.1rem] font-extrabold text-slate-900 tracking-tight">Smart Alerts & To-Dos</h3>
-      </div>
+  const row = (tint: string) => `flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 ${tint}`;
+  const actionClass = "inline-flex h-8 shrink-0 items-center rounded-xl bg-white px-3 text-xs font-bold shadow-sm ring-1 transition-colors";
+  const tile = (bg: string, icon: string) => (
+    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-md ${bg}`}>
+      <i className={`ph-bold ${icon} text-[16px]`} aria-hidden="true"></i>
+    </span>
+  );
 
-      <div className="flex flex-col gap-3">
+  return (
+    <GlassCard icon="ph-bell-ringing" tone="orange" title="Smart alerts & to-dos" subtitle="Things waiting on the shop">
+      <div className="flex flex-col gap-2.5">
         {pendingProofs > 0 && (
-          <div className="bg-orange-50/50 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm border border-orange-100/50 transition-all hover:bg-orange-50">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
-                <i className="ph-bold ph-warning text-lg"></i>
-              </div>
-              <div>
-                <p className="text-[0.95rem] font-bold text-slate-900">Proofs Due</p>
-                <p className="text-[0.8rem] font-medium text-slate-500">{pendingProofs} proof deliveries are pending</p>
+          <div className={row("border-amber-100 bg-amber-50/70")}>
+            <div className="flex min-w-0 items-center gap-3">
+              {tile("bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30", "ph-warning")}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">Proofs due</p>
+                <p className="num truncate text-xs font-medium text-slate-500">{pendingProofs.toLocaleString('en-IN')} proof deliveries are pending</p>
               </div>
             </div>
-            <Link href="/jobs?view=list&focus=active" className="shrink-0 px-4 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-[0.75rem] font-bold hover:bg-orange-50 transition-colors">
-              View All
-            </Link>
+            <Link href="/jobs?view=list&focus=active" className={`${actionClass} text-amber-600 ring-amber-100 hover:bg-amber-50`}>View</Link>
           </div>
         )}
 
         {unconfirmedCount > 0 && (
-          <div className="bg-blue-50/50 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm border border-blue-100/50 transition-all hover:bg-blue-50">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
-                <i className="ph-bold ph-info text-lg"></i>
-              </div>
-              <div>
-                <p className="text-[0.95rem] font-bold text-slate-900">Pending Jobs</p>
-                <p className="text-[0.8rem] font-medium text-slate-500">{unconfirmedCount} jobs awaiting confirmation</p>
+          <div className={row("border-sky-100 bg-sky-50/70")}>
+            <div className="flex min-w-0 items-center gap-3">
+              {tile("bg-gradient-to-br from-sky-500 to-indigo-500 shadow-sky-500/30", "ph-clock")}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">Jobs to confirm</p>
+                <p className="num truncate text-xs font-medium text-slate-500">{unconfirmedCount.toLocaleString('en-IN')} jobs awaiting confirmation</p>
               </div>
             </div>
-            <Link href="/jobs?view=list&focus=active" className="shrink-0 px-4 py-1.5 rounded-lg border border-blue-200 text-blue-500 text-[0.75rem] font-bold hover:bg-blue-50 transition-colors">
-              View All
-            </Link>
+            <Link href="/jobs?view=list&focus=active" className={`${actionClass} text-sky-600 ring-sky-100 hover:bg-sky-50`}>View all</Link>
           </div>
         )}
 
         {alerts.map((alert: any) => (
-          <div key={alert.id} className="bg-red-50/50 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm border border-red-100/50 transition-all hover:bg-red-50">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md shadow-red-500/20 shrink-0">
-                <i className="ph-bold ph-warning-circle text-lg"></i>
-              </div>
-              <div>
-                <p className="text-[0.95rem] font-bold text-slate-900 leading-tight">{alert.title}</p>
-                <p className="text-[0.8rem] font-medium text-slate-500 mt-0.5">{alert.message}</p>
+          <div key={alert.id} className={row("border-rose-100 bg-rose-50/70")}>
+            <div className="flex min-w-0 items-center gap-3">
+              {tile("bg-gradient-to-br from-rose-500 to-red-500 shadow-rose-500/30", "ph-warning-circle")}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-900">{alert.title}</p>
+                <p className="line-clamp-2 text-xs font-medium text-slate-500">{alert.message}</p>
               </div>
             </div>
-            <button 
-              onClick={() => handleDismiss(alert.id)}
-              className="shrink-0 px-4 py-1.5 rounded-lg border border-red-200 text-red-500 text-[0.75rem] font-bold hover:bg-red-50 transition-colors"
-            >
+            <button type="button" onClick={() => handleDismiss(alert.id)} className={`${actionClass} text-slate-500 ring-slate-200 hover:bg-slate-50`}>
               Dismiss
             </button>
           </div>
         ))}
       </div>
-    </div>
+    </GlassCard>
   );
 }

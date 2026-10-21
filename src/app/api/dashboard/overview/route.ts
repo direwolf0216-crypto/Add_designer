@@ -13,6 +13,7 @@ import {
 import { round2 } from "@/lib/money";
 import { asJsonObject } from "@/lib/services/transactions";
 import { jobScope } from "@/lib/jobs/scope";
+import { stageOptions } from "@/lib/jobs/tracking";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_CHART_DAYS = 400;
@@ -70,6 +71,8 @@ export const GET = route(async (req) => {
     typeAgg,
     jobsForChart,
     upcomingAllJobs,
+    jobLayout,
+    stageGroups,
   ] = await Promise.all([
     prisma.job.count({ where: { ...scope, deletedAt: null, NOT: { status: statusIs("cancelled") }, date: jobRange } }),
     prisma.job.findMany({
@@ -143,7 +146,21 @@ export const GET = route(async (req) => {
           ? Prisma.sql`AND EXISTS (SELECT 1 FROM "JobAssignment" a WHERE a."jobId" = j."id" AND a."userId" = ${user.id})`
           : Prisma.empty}
       GROUP BY 1`,
+    prisma.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } }),
+    // Every job in scope by board stage; the open ones become the press pipeline.
+    prisma.job.groupBy({ by: ["stage"], where: { ...scope, deletedAt: null }, _count: { _all: true } }),
   ]);
+
+  // Press pipeline: open jobs per board stage, in board order (no stage yet counts as the first stage).
+  const boardStages = stageOptions(jobLayout?.schema as Parameters<typeof stageOptions>[0]);
+  const stageCounts = new Map<string, number>();
+  for (const g of stageGroups) {
+    const key = (g.stage || boardStages[0]?.label || "Pending").toLowerCase();
+    stageCounts.set(key, (stageCounts.get(key) ?? 0) + g._count._all);
+  }
+  const pipeline = boardStages
+    .filter((s) => !/^delivered$|cancel/i.test(s.label.trim()))
+    .map((s) => ({ stage: s.label, count: stageCounts.get(s.label.toLowerCase()) ?? 0 }));
 
   const periodIncome = round2(typeAgg.find((t) => t.type === "INCOME")?._sum.amount ?? 0);
   const periodExpense = round2(typeAgg.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
@@ -198,5 +215,6 @@ export const GET = route(async (req) => {
     revenueChartData,
     jobBreakdownData,
     unconfirmedJobsCount,
+    pipeline,
   });
 });

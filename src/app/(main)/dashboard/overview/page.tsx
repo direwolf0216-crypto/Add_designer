@@ -1,45 +1,33 @@
 "use client";
 
-import Link from "next/link";
 import useSWR from "swr";
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState, useMemo, type ReactNode } from "react";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
-import { useRouter } from "next/navigation";
-import OverdueJobBanners from "@/components/jobs/OverdueJobBanners";
+import OverdueJobBanners, { useOverdueJobs } from "@/components/jobs/OverdueJobBanners";
 import DashboardDateRangePicker from "@/components/dashboard/DashboardDateRangePicker";
 import dynamic from "next/dynamic";
 
 import JobBreakdown from "@/components/dashboard/JobBreakdown";
 import QuickActions from "@/components/dashboard/QuickActions";
 import TaskAlerts from "@/components/dashboard/TaskAlerts";
-import RevenueTarget from "@/components/dashboard/RevenueTarget";
 import StatCards from "@/components/dashboard/StatCards";
+import PressPipeline from "@/components/dashboard/PressPipeline";
+import { GlassCard, HeaderLink, KpiTile, type Tone } from "@/components/dashboard/vibrant";
 import { usePermissions } from "@/hooks/usePermissions";
 import PageReveal from "@/components/motion/PageReveal";
+import { formatINR } from "@/lib/money";
+import { MetricsSkeleton } from "./DashboardSkeleton";
 
 // recharts is heavy; keep it out of the initial dashboard bundle.
 const RevenueChart = dynamic(() => import("@/components/dashboard/RevenueChart"), {
   ssr: false,
-  loading: () => <div className="h-[300px] animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />,
+  loading: () => (
+    <div className="rounded-card border border-line bg-surface p-5" aria-busy="true">
+      <div className="skeleton h-4 w-44" />
+      <div className="skeleton mt-4 h-[260px] w-full" />
+    </div>
+  ),
 });
-
-const CATEGORY_ICONS: Record<string, string> = {
-  "Printing Job": "ph-printer",
-  "Equipment": "ph-wrench",
-  "Utilities": "ph-lightning",
-  "Rent": "ph-house",
-  "Software": "ph-code",
-  "Travel": "ph-bus",
-  "Marketing": "ph-megaphone",
-  "Misc": "ph-dots-three-circle",
-};
-
-const MODE_ICONS: Record<string, string> = {
-  "UPI": "ph-qr-code",
-  "Cash": "ph-money",
-  "Bank Transfer": "ph-bank",
-  "Card": "ph-credit-card",
-};
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -49,25 +37,45 @@ const fetcher = async (url: string) => {
   return data;
 };
 
-function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate: Date } | null }) {
-  const router = useRouter();
+type DateRange = { startDate: Date; endDate: Date };
+
+const shortDate = (d: string | Date) =>
+  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+function Card({ title, subtitle, action, children, icon = "ph-squares-four", tone = "slate" }: { title: string; subtitle?: ReactNode; action?: ReactNode; children: ReactNode; icon?: string; tone?: Tone }) {
+  return (
+    <GlassCard icon={icon} tone={tone} title={title} subtitle={subtitle} action={action}>
+      {children}
+    </GlassCard>
+  );
+}
+
+const viewLink = (href: string, label = "View all") => <HeaderLink href={href}>{label}</HeaderLink>;
+
+function DashboardMetrics({
+  data, error, isLoading, retry, periodLabel, overdueCount,
+}: {
+  data: any;
+  error: any;
+  isLoading: boolean;
+  retry: () => void;
+  periodLabel: string;
+  overdueCount: number;
+}) {
   const { openJobDetails, openTransactionDetails } = useGlobalForm();
   const { checkPermission } = usePermissions();
   const canViewAnalytics = checkPermission('view_export_analytics');
-  
-  const query = useMemo(() => {
-    if (!dateRange) return '';
-    return `?startDate=${dateRange.startDate.toISOString()}&endDate=${dateRange.endDate.toISOString()}`;
-  }, [dateRange]);
 
-  const { data, error, isLoading } = useSWR(`/api/dashboard/overview${query}`, fetcher);
-
-  if (isLoading) return <DashboardSkeleton />;
+  if (isLoading && !data) return <MetricsSkeleton />;
   if (error || !data) {
     return (
-      <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-200">
-        <h3 className="font-bold mb-1">Failed to load dashboard data</h3>
-        <p className="text-sm">{error?.message || 'Unknown error occurred'}</p>
+      <div className="rounded-card border border-line bg-surface p-5">
+        <h2 className="text-[16px] font-semibold text-ink">Dashboard</h2>
+        <p className="mt-2 text-[14px] text-subtle">
+          <i className="ph ph-warning-circle mr-1.5 align-[-2px] text-[16px] text-negative" aria-hidden="true"></i>
+          Couldn&apos;t load the dashboard{error?.message ? ` (${error.message})` : ''}.{' '}
+          <button type="button" onClick={retry} className="font-medium text-brand hover:underline">Retry</button>
+        </p>
       </div>
     );
   }
@@ -75,192 +83,194 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
   const {
     totalJobs,
     upcomingJobs,
-    pendingProofs,
-    totalActiveOrders,
     transactions,
     periodIncome,
     periodExpense,
-    hotDatesCount,
+    periodNet,
+    pendingProofs,
     revenueChartData,
     jobBreakdownData,
-    unconfirmedJobsCount
+    unconfirmedJobsCount,
+    pipeline
   } = data;
 
-  const showHotDates = typeof hotDatesCount === 'number' && hotDatesCount > 0;
+  const net = typeof periodNet === 'number' ? periodNet : (periodIncome ?? 0) - (periodExpense ?? 0);
+  const kpis: { label: string; value: ReactNode; caption?: ReactNode; icon: string; tone: Tone; valueClass?: string }[] = [
+    ...(canViewAnalytics
+      ? [
+          { label: 'Income', value: formatINR(periodIncome ?? 0), caption: `Received ${periodLabel}`, icon: 'ph-trend-up', tone: 'emerald' as Tone },
+          { label: 'Expenses', value: formatINR(periodExpense ?? 0), caption: `Paid ${periodLabel}`, icon: 'ph-trend-down', tone: 'rose' as Tone },
+          { label: 'Net', value: `${net > 0 ? '+' : ''}${formatINR(net)}`, caption: 'Income less expenses', icon: 'ph-wallet', tone: 'orange' as Tone, valueClass: net >= 0 ? 'text-emerald-600' : 'text-rose-600' },
+        ]
+      : []),
+    {
+      icon: 'ph-briefcase',
+      tone: 'sky' as Tone,
+      label: 'Jobs booked',
+      value: (totalJobs ?? 0).toLocaleString('en-IN'),
+      caption: overdueCount > 0
+        ? `${overdueCount.toLocaleString('en-IN')} overdue overall`
+        : 'None overdue',
+    },
+  ];
+  const kpiCols = kpis.length === 4 ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4' : kpis.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2';
 
   return (
-    <>
-      <div className="flex flex-col lg:flex-row gap-6 mb-6">
-        <div className="flex-1 lg:w-[65%] min-w-0 flex flex-col">
-          <TaskAlerts unconfirmedCount={unconfirmedJobsCount} pendingProofs={pendingProofs} />
-          <StatCards />
-          {canViewAnalytics && (
+    <div className="flex flex-col gap-6">
+      <div className={`grid gap-4 ${kpiCols}`}>
+        {kpis.map((k, i) => (
+          <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>
+            <KpiTile {...k} />
+          </div>
+        ))}
+      </div>
+
+      {Array.isArray(pipeline) && pipeline.length > 0 && <PressPipeline stages={pipeline} />}
+
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:grid-rows-[auto_1fr]">
+        {canViewAnalytics && (
+          <div className="min-w-0 xl:col-start-1 xl:row-start-1">
             <RevenueChart data={revenueChartData} periodIncome={periodIncome} periodExpense={periodExpense} />
-          )}
-        </div>
-        
-        <div className="w-full lg:w-[35%] shrink-0 flex flex-col gap-6">
-          {canViewAnalytics && <RevenueTarget currentRevenue={periodIncome} />}
-        {/* Upcoming Jobs */}
-        <div className="dashboard-card p-5 lg:p-6 flex flex-col flex-1 group/card hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] transition-shadow duration-500">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-[1.05rem] font-black text-slate-800 tracking-tight">Upcoming Jobs</h3>
-            </div>
-            <Link href="/jobs" className="text-[0.7rem] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 flex items-center gap-1 transition-colors">
-              <i className="ph-fill ph-calendar-check"></i> View jobs
-            </Link>
           </div>
+        )}
 
-          <div className="flex-1 flex flex-col gap-2.5 mt-1">
+        <div className="flex min-w-0 flex-col gap-6 xl:col-start-2 xl:row-span-2 xl:row-start-1">
+          <OverdueJobBanners />
+          <TaskAlerts unconfirmedCount={unconfirmedJobsCount} pendingProofs={pendingProofs} />
+          <Card title="Coming up" icon="ph-calendar-check" tone="violet" action={viewLink('/jobs?view=schedule', 'Schedule')}>
             {(!upcomingJobs || upcomingJobs.length === 0) ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-400">
-                <i className="ph ph-calendar-blank text-3xl mb-2 opacity-50"></i>
-                <p className="font-medium text-sm">No upcoming jobs.</p>
-              </div>
+              <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm font-medium text-slate-500">
+                No jobs booked from today on.
+              </p>
             ) : (
-              upcomingJobs.slice(0, 3).map((job: any) => (
-                <div key={job.id} onClick={() => openJobDetails(job.id)} className="bg-gradient-to-r from-orange-50/50 to-amber-50/50 hover:from-orange-50 hover:to-amber-50 rounded-2xl p-3 border border-orange-100/50 flex items-center justify-between cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white shadow-sm text-orange-500 flex items-center justify-center shrink-0 border border-orange-100/50">
-                      <i className="ph-fill ph-printer text-xl"></i>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-slate-800 font-extrabold text-[0.85rem] truncate max-w-[140px] uppercase tracking-tight">{job.client?.name}</span>
-                      <span className="text-slate-500 font-bold text-[0.65rem] flex items-center gap-1">
-                        <i className="ph-bold ph-calendar-blank text-slate-400"></i>
-                        {new Date(job.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}, {job.time}
+              <div className="flex flex-col gap-2">
+                {upcomingJobs.slice(0, 3).map((job: any) => (
+                  <button
+                    key={job.id}
+                    type="button"
+                    onClick={() => openJobDetails(job.id)}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50/80 to-white px-3 py-2.5 text-left transition-[box-shadow,transform] duration-200 hover:-translate-y-px hover:shadow-md"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-500 shadow-sm ring-1 ring-violet-100">
+                      <i className="ph-fill ph-printer text-[16px]" aria-hidden="true"></i>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold text-slate-900">{job.client?.name || 'Unknown client'}</span>
+                      <span className="num block truncate text-xs font-medium text-slate-500">
+                        {shortDate(job.date)}{job.time ? `, ${job.time}` : ''}{job.location ? ` · ${job.location}` : ''}
                       </span>
-                      <span className="text-slate-400 font-bold text-[0.6rem] uppercase tracking-widest flex items-center gap-1 mt-0.5">
-                        <i className="ph-bold ph-map-pin text-slate-300"></i> {job.location}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <span className="text-orange-600 text-[0.6rem] font-black bg-white shadow-sm px-2 py-0.5 rounded-md uppercase tracking-wider border border-orange-100">Pending</span>
-                    <div className="flex flex-col items-end">
-                      <span className="text-slate-400 text-[0.6rem] font-bold uppercase tracking-widest">Amount</span>
-                      <span className="text-slate-800 font-black text-[0.95rem] tracking-tight">₹{job.order?.package?.toLocaleString('en-IN') || '0'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
+                    </span>
+                    </span>
+                    <span className="num shrink-0 text-sm font-extrabold text-slate-900">{formatINR(job.order?.package ?? 0)}</span>
+                  </button>
+                ))}
+              </div>
             )}
-          </div>
-
+          </Card>
         </div>
+
+        <div className={`min-w-0 xl:col-start-1 ${canViewAnalytics ? 'xl:row-start-2' : 'xl:row-start-1'}`}>
+          <div className="flex flex-col gap-6">
+            <StatCards />
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Transactions */}
-        <div className="dashboard-card p-5 lg:p-6 flex flex-col min-h-[340px] group/card hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] transition-shadow duration-500">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-[1.05rem] font-black text-slate-800 tracking-tight">Recent Transactions</h3>
-              <p className="text-slate-400 text-[0.65rem] font-bold mt-1 uppercase tracking-wider">For selected period</p>
-            </div>
-            <Link href="/transactions" className="text-[0.7rem] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 flex items-center gap-1 transition-colors">
-              View All <i className="ph-bold ph-arrow-right"></i>
-            </Link>
-          </div>
-
-          <div className="flex-1 flex flex-col gap-0.5 mt-1">
+      {/* Finishing work and recent transactions share one row: same top, same height. */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="flex min-w-0 [&>section]:flex-1">
+          <JobBreakdown data={jobBreakdownData} />
+        </div>
+        <div className="flex min-w-0 [&>section]:flex-1">
+          <Card title="Recent transactions" subtitle="Latest money in and out" icon="ph-receipt" tone="emerald" action={<HeaderLink href="/transactions" tone="emerald">View all</HeaderLink>}>
             {(!transactions || transactions.length === 0) ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-400">
-                <i className="ph ph-receipt text-3xl mb-2 opacity-50"></i>
-                <p className="font-medium text-sm">No transactions.</p>
-              </div>
+              <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm font-medium text-slate-500">
+                No transactions in this period.
+              </p>
             ) : (
-              transactions.slice(0, 5).map((txn: any) => {
-                const title = txn.description ? txn.description.split(' - ')[0] : txn.category;
-
-                return (
-                  <div key={txn.id} onClick={() => openTransactionDetails(txn.id)} className="flex items-center justify-between group py-2 px-3 -mx-3 rounded-2xl hover:bg-white cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                        txn.type === 'INCOME' ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-emerald-500/20' : 'bg-gradient-to-br from-red-400 to-red-500 text-white shadow-red-500/20'
-                      }`}>
-                        <i className={`ph-bold text-base ${txn.type === 'INCOME' ? 'ph-arrow-down-left' : 'ph-arrow-up-right'}`}></i>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-800 font-extrabold text-[0.8rem] truncate max-w-[120px]">{title}</span>
-                          <span className={`text-[0.55rem] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                            txn.type === 'INCOME' ? 'bg-emerald-100/50 text-emerald-700' : 'bg-red-100/50 text-red-700'
-                          }`}>{txn.type}</span>
-                        </div>
-                        <span className="text-slate-400 text-[0.65rem] font-medium flex items-center gap-1.5">
-                          <span className="truncate max-w-[100px] uppercase text-[9px] font-bold tracking-wider">{txn.category}</span> &middot;
-                          <span className="flex items-center gap-1 text-[10px]"><i className={`ph-fill ${MODE_ICONS[txn.paymentMode] || 'ph-wallet'}`}></i> {txn.paymentMode}</span>
+              <div className="flex flex-col gap-2">
+                {transactions.slice(0, 5).map((txn: any) => {
+                  const title = txn.description ? txn.description.split(' - ')[0] : txn.category;
+                  const isIncome = txn.type === 'INCOME';
+                  return (
+                    <button
+                      key={txn.id}
+                      type="button"
+                      onClick={() => openTransactionDetails(txn.id)}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white/70 px-3 py-2.5 text-left transition-[box-shadow,transform] duration-200 hover:-translate-y-px hover:shadow-md"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-md ${isIncome ? 'bg-gradient-to-br from-emerald-500 to-teal-500 shadow-emerald-500/30' : 'bg-gradient-to-br from-rose-500 to-red-500 shadow-rose-500/30'}`}>
+                          <i className={`ph-bold ${isIncome ? 'ph-arrow-down-left' : 'ph-arrow-up-right'} text-[15px]`} aria-hidden="true"></i>
                         </span>
-                      </div>
-                    </div>
-                  <div className="flex flex-col items-end gap-0.5 pl-2 shrink-0">
-                    <span className="text-slate-400 text-[0.6rem] font-bold uppercase tracking-wider whitespace-nowrap">
-                      {new Date(txn.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {new Date(txn.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span className={`font-black text-[0.95rem] tracking-tight ${txn.type === 'INCOME' ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {txn.type === 'INCOME' ? '+' : '-'}₹{txn.amount.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          </div>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-slate-900">{title}</span>
+                          <span className="block truncate text-xs font-medium text-slate-500">
+                            {txn.category} · {txn.paymentMode}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end">
+                        <span className={`num text-sm font-extrabold ${isIncome ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {isIncome ? '+' : '−'}{formatINR(Math.abs(txn.amount))}
+                        </span>
+                        <span className="num text-[11px] font-semibold text-slate-400">
+                          {shortDate(txn.date)}, {new Date(txn.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
         </div>
-
-        <JobBreakdown data={jobBreakdownData} />
-
-
-      </div>
-    </>
-  );
-}
-
-function DashboardSkeleton() {
-  return (
-    <div className="flex flex-col gap-8 w-full animate-pulse">
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 lg:w-[65%]">
-          <div className="bg-white rounded-2xl h-[100px] mb-6 border border-gray-100"></div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-white rounded-2xl h-[110px] border border-gray-100"></div>
-            ))}
-          </div>
-          <div className="bg-white rounded-2xl h-[350px] border border-gray-100"></div>
-        </div>
-        <div className="w-full lg:w-[35%] flex flex-col gap-6">
-          <div className="bg-white rounded-2xl h-[180px] border border-gray-100"></div>
-          <div className="bg-white rounded-2xl h-[300px] border border-gray-100"></div>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl h-[350px] border border-gray-100"></div>
-        <div className="bg-white rounded-2xl h-[350px] border border-gray-100"></div>
       </div>
     </div>
   );
 }
 
 function OverviewPageContent() {
-  const [dateRange, setDateRange] = useState<{ startDate: Date; endDate: Date } | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [periodLabel, setPeriodLabel] = useState('this month');
+  const { checkPermission } = usePermissions();
+  const canViewAnalytics = checkPermission('view_export_analytics');
+
+  const query = useMemo(() => {
+    if (!dateRange) return '';
+    return `?startDate=${dateRange.startDate.toISOString()}&endDate=${dateRange.endDate.toISOString()}`;
+  }, [dateRange]);
+
+  // Keep the last period's figures on screen while the next one loads (no layout flash).
+  const { data, error, isLoading, mutate } = useSWR(`/api/dashboard/overview${query}`, fetcher, { keepPreviousData: true });
+  const { total: overdueCount } = useOverdueJobs();
+
+  const handleRangeChange = (range: DateRange | null, label?: string) => {
+    setDateRange(range);
+    if (label) setPeriodLabel(label);
+  };
 
   return (
-    <section id="view-dashboard" className="flex flex-col gap-5 w-full max-w-[1400px] mx-auto pb-20 pt-4 bg-transparent min-h-screen">
-      <OverdueJobBanners />
-      
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <QuickActions />
-        <div className="ml-auto flex items-center justify-end z-20">
-          <DashboardDateRangePicker onRangeChange={setDateRange} />
+    <section id="view-dashboard" className="flex w-full flex-col gap-6">
+      {/* The title sits in the top bar; this row holds the day's actions and the period. */}
+      <div className="flex flex-wrap items-center justify-end gap-4">
+        <h1 className="sr-only">Dashboard</h1>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <QuickActions />
+          <DashboardDateRangePicker onRangeChange={handleRangeChange} />
         </div>
       </div>
 
-      <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardMetrics dateRange={dateRange} />
+      <Suspense fallback={<MetricsSkeleton />}>
+        <DashboardMetrics
+          data={data}
+          error={error}
+          isLoading={isLoading}
+          retry={() => mutate()}
+          periodLabel={periodLabel}
+          overdueCount={overdueCount}
+        />
       </Suspense>
     </section>
   );

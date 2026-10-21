@@ -91,9 +91,11 @@ export default function StatCards() {
     return null;
   }
 
+  const sorted = [...stats].sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-      {stats.map((stat) => {
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {sorted.map((stat, i) => {
         const Icon = CATEGORY_ICONS[stat.category] || Printer;
         const colorClass = CATEGORY_COLORS[stat.category] || "bg-gray-50 text-gray-500";
 
@@ -101,7 +103,8 @@ export default function StatCards() {
           <Link 
             key={stat.category} 
             href={`/jobs?view=list&categories=${encodeURIComponent(stat.category)}`}
-            className="dashboard-card p-4 flex flex-col justify-between transition-all hover:shadow-md hover:border-emerald-200 relative group min-h-[110px]"
+            style={{ ["--i" as string]: i }}
+            className="animate-rise dashboard-card p-4 flex flex-col justify-between transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-200 relative group min-h-[110px]"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GlassCard } from "@/components/dashboard/vibrant";
 import useSWR from "swr";
-import { format } from "date-fns";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -15,12 +15,40 @@ function persistDismissal(dismissed: Record<string, number>, id: string) {
   return newDismissed;
 }
 
-export default function OverdueJobBanners() {
-  const { data: jobs, mutate } = useSWR("/api/jobs/overdue", fetcher, {
+/** Confirmed jobs whose delivery date has passed (shared by the rail and the dashboard's title line). */
+/** The first 200 overdue jobs plus the true total (sent in X-Total-Count). */
+const overdueFetcher = async (url: string) => {
+  const res = await fetch(url);
+  const body = await res.json();
+  const jobs: any[] = Array.isArray(body) ? body : (body?.jobs ?? body?.data ?? []);
+  const total = Number(res.headers.get("X-Total-Count"));
+  return { jobs, total: Number.isFinite(total) && total > 0 ? total : jobs.length };
+};
+
+export function useOverdueJobs() {
+  const { data, mutate, isLoading } = useSWR("/api/jobs/overdue#with-total", (key: string) => overdueFetcher(key.split("#")[0]), {
     refreshInterval: 60000,
     revalidateOnFocus: false,
     dedupingInterval: 30000,
   });
+  return { jobs: data?.jobs ?? [], total: data?.total ?? 0, mutate, isLoading };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const CAP = 5;
+
+/** "24 Apr" (job dates are calendar days stored at UTC midnight). */
+const dueLabel = (date: string) =>
+  new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+
+function daysLate(date: string) {
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / DAY_MS);
+  return days <= 1 ? "1d late" : `${days.toLocaleString("en-IN")}d late`;
+}
+
+/** The dashboard rail's "Overdue deliveries": capped rows, each with Mark complete and Dismiss. */
+export default function OverdueJobBanners() {
+  const { jobs: jobsArray, total: overdueTotal, mutate, isLoading } = useOverdueJobs();
 
   const [dismissed, setDismissed] = useState<Record<string, number>>({});
   const [isExpanded, setIsExpanded] = useState(false);
@@ -76,69 +104,87 @@ export default function OverdueJobBanners() {
     }
   };
 
-  const jobsArray = Array.isArray(jobs) ? jobs : (jobs?.jobs ?? jobs?.data ?? []);
-  if (jobsArray.length === 0) return null;
-
   const visibleJobs = jobsArray.filter((b: any) => !dismissed[b.id]);
-
-  if (visibleJobs.length === 0) return null;
-
-  const displayJobs = isExpanded ? visibleJobs : visibleJobs.slice(0, 5);
+  const displayJobs = isExpanded ? visibleJobs : visibleJobs.slice(0, CAP);
+  const total = jobsArray.length;
+  const hiddenCount = total - visibleJobs.length;
 
   return (
-    <div className="flex flex-col gap-2 mb-6">
-      {displayJobs.map((job: any) => (
-        <div 
-          key={job.id}
-          className="bg-white border border-slate-100 border-l-[3px] border-l-orange-400 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-fade-in-up relative overflow-hidden"
-        >
-          {/* Decorative background element on the right */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-orange-50/50 rounded-full blur-2xl pointer-events-none"></div>
-          
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
-                <i className="ph-fill ph-printer text-orange-500 text-xl"></i>
-              </div>
-              <i className="ph-fill ph-sparkle text-orange-400 absolute -top-1 -right-1 text-sm animate-pulse"></i>
-              <i className="ph-fill ph-star text-orange-300 absolute top-1 -left-1 text-[10px] animate-pulse" style={{ animationDelay: '0.5s' }}></i>
-            </div>
-            <div>
-              <p className="text-[15px] font-bold text-slate-800">
-                <i className="ph-bold ph-package mr-1 align-[-2px]" aria-hidden="true"></i>{job.client?.name}&apos;s delivery date passed on {format(new Date(job.date), "MMM d, yyyy")}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 shrink-0 self-end md:self-auto relative z-10">
-            <button 
-              onClick={() => handleDismiss(job.id)}
-              className="px-4 py-2 text-[13px] font-bold text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all shadow-sm flex items-center gap-2"
-            >
-              <div className="bg-slate-100 rounded px-1 flex items-center justify-center">
-                <i className="ph-bold ph-x text-[10px] text-slate-500"></i>
-              </div>
-              Dismiss
-            </button>
-            <button 
-              onClick={() => handleComplete(job.id)}
-              className="px-5 py-2 text-[13px] font-bold text-white bg-[#F97316] hover:bg-orange-600 rounded-lg transition-all shadow-sm shadow-orange-500/20 flex items-center gap-2"
-            >
-              <i className="ph-bold ph-check"></i>
-              Mark Job Complete?
-            </button>
-          </div>
+    <GlassCard
+      icon="ph-warning-diamond"
+      tone="amber"
+      title="Overdue deliveries"
+      subtitle={overdueTotal > 0 ? `${overdueTotal.toLocaleString("en-IN")} jobs past their delivery date` : "Delivery date has passed"}
+      action={
+        visibleJobs.length > CAP ? (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((v) => !v)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-600 transition-colors hover:bg-orange-100"
+          >
+            {isExpanded ? "Less" : "More"}
+          </button>
+        ) : undefined
+      }
+    >
+      {isLoading && total === 0 ? (
+        <div className="flex flex-col gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-[68px] animate-pulse rounded-2xl bg-slate-100/80" />
+          ))}
         </div>
-      ))}
-
-      {visibleJobs.length > 5 && !isExpanded && (
-        <button 
-          onClick={() => setIsExpanded(true)} 
-          className="flex items-center justify-center gap-2 text-[#D95F24] hover:text-orange-700 font-extrabold text-[13px] tracking-[0.15em] mt-2 py-4 w-full transition-colors uppercase animate-fade-in"
-        >
-          CLICK HERE TO VIEW ALL <i className="ph-bold ph-arrow-right text-[15px]"></i>
-        </button>
+      ) : visibleJobs.length === 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm font-semibold text-emerald-700">
+          <i className="ph-bold ph-check-circle text-lg" aria-hidden="true"></i>
+          {total === 0
+            ? "Nothing overdue. Every confirmed job is on time."
+            : `${total} overdue ${total === 1 ? "reminder is" : "reminders are"} dismissed for today.`}
+        </div>
+      ) : (
+        <ul className={`flex flex-col gap-2.5 ${isExpanded ? "max-h-[480px] overflow-y-auto pr-1" : ""}`}>
+          {displayJobs.map((job: any, i: number) => (
+            <li
+              key={job.id}
+              className="animate-rise group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-r from-orange-50/90 to-white px-3 py-2.5 transition-shadow hover:shadow-md hover:shadow-orange-500/10"
+              style={{ ["--i" as string]: i }}
+            >
+              <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-orange-400 to-pink-500" aria-hidden="true" />
+              <span className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-orange-500 shadow-sm ring-1 ring-orange-100">
+                <i className="ph-fill ph-printer text-[17px]" aria-hidden="true"></i>
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-slate-900">{job.client?.name || "Unknown client"}</p>
+                <p className="num truncate text-xs font-medium text-slate-500">
+                  Due {dueLabel(job.date)} · <span className="font-bold text-rose-500">{daysLate(job.date)}</span>
+                  {job.category ? ` · ${job.category}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleComplete(job.id)}
+                title="Mark complete"
+                aria-label={`Mark ${job.client?.name || "this job"} complete`}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 text-xs font-bold text-white shadow-md shadow-orange-500/25 transition-transform hover:-translate-y-px active:scale-[0.97]"
+              >
+                <i className="ph-bold ph-check text-[13px]" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDismiss(job.id)}
+                aria-label={`Dismiss reminder for ${job.client?.name || "this job"}`}
+                title="Dismiss for today"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+              >
+                <i className="ph-bold ph-x text-[13px]" aria-hidden="true"></i>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+
+      {hiddenCount > 0 && visibleJobs.length > 0 && (
+        <p className="num mt-3 text-xs font-medium text-slate-400">{hiddenCount} dismissed for today</p>
+      )}
+    </GlassCard>
   );
 }

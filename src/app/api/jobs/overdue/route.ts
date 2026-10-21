@@ -10,16 +10,22 @@ export const GET = route(async () => {
   const user = await requireUser();
   const scope = await jobScope(user);
 
-  const overdueJobs = await prisma.job.findMany({
-    where: { ...scope,
-      deletedAt: null,
-      status: { equals: "Confirmed", mode: "insensitive" },
-      date: { lt: businessTodayUtc() },
-    },
-    include: { client: { select: { id: true, name: true, phone: true, email: true } } },
-    orderBy: { date: "asc" },
-    take: 200,
-  });
+  const where = {
+    ...scope,
+    deletedAt: null,
+    status: { equals: "Confirmed", mode: "insensitive" as const },
+    date: { lt: businessTodayUtc() },
+  };
+  // The list is capped; the true total travels in a header so the body stays the array callers expect.
+  const [overdueJobs, total] = await Promise.all([
+    prisma.job.findMany({
+      where,
+      include: { client: { select: { id: true, name: true, phone: true, email: true } } },
+      orderBy: { date: "asc" },
+      take: 200,
+    }),
+    prisma.job.count({ where }),
+  ]);
 
-  return NextResponse.json(overdueJobs, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(overdueJobs, { headers: { "Cache-Control": "private, no-store", "X-Total-Count": String(total) } });
 });

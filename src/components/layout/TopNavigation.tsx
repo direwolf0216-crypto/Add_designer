@@ -150,8 +150,9 @@ export default function TopNavigation() {
   };
 
 
-  let title = "Add designer";
-  if (pathname.includes("jobs")) title = ""; // Removed to avoid duplication with the new Jobs banner
+  // Jobs draws its own title row; the bar names the dashboard, the ledger and settings.
+  let title = "";
+  if (pathname.startsWith("/dashboard")) title = "Dashboard";
   else if (pathname.includes("transactions")) title = "Daily Transactions";
   else if (pathname.includes("settings")) title = "Settings";
 
@@ -190,7 +191,7 @@ export default function TopNavigation() {
             </div>
           </div>
         ) : (
-          title && <h1 className="text-xl md:text-4xl font-extrabold text-slate-900 tracking-tight hidden sm:block">{title}</h1>
+          title && <h1 className="hidden font-display text-xl font-semibold tracking-[-0.02em] text-slate-900 sm:block md:text-[2.4rem] md:leading-none">{title}</h1>
         )}
       </div>
 

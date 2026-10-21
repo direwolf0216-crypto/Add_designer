@@ -2,6 +2,7 @@ import React from 'react';
 import { useGlobalForm } from '@/components/providers/GlobalFormProvider';
 import { usePermissions } from '@/hooks/usePermissions';
 
+/** The dashboard's three everyday actions, sized to sit in the header row beside the period picker. */
 export default function QuickActions() {
   const { openJobForm, openTransactionForm } = useGlobalForm();
   const { checkPermission } = usePermissions();
@@ -9,46 +10,40 @@ export default function QuickActions() {
   const canManageJobs = checkPermission('manage_jobs');
   const canManageTransactions = checkPermission('manage_transactions');
 
+  const base = 'inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-[0.95rem] font-bold transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 active:scale-[0.98]';
+
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-      <button 
-        onClick={() => openJobForm()}
-        className={`flex items-center gap-3 bg-[#1e2338] hover:bg-[#2a3048] text-white px-5 py-3 rounded-2xl shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 shrink-0 ${!canManageJobs ? 'hidden' : ''}`}
-      >
-        <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-          <i className="ph-bold ph-plus text-lg"></i>
-        </div>
-        <div className="flex flex-col items-start pr-2">
-          <span className="text-[0.65rem] font-bold text-slate-300 capitalize tracking-wide">New</span>
-          <span className="text-[1rem] font-extrabold leading-none tracking-tight">Job</span>
-        </div>
-      </button>
-
-      <button 
-        onClick={() => openTransactionForm(undefined, { type: 'EXPENSE' })}
-        className={`flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-500 px-5 py-3 rounded-2xl border border-red-100 transition-all hover:-translate-y-0.5 hover:shadow-sm shrink-0 ${!canManageTransactions ? 'hidden' : ''}`}
-      >
-        <div className="w-9 h-9 flex items-center justify-center text-red-500">
-          <i className="ph-bold ph-receipt text-[1.4rem]"></i>
-        </div>
-        <div className="flex flex-col items-start pr-2">
-          <span className="text-[0.65rem] font-bold text-red-400 capitalize tracking-wide">Record</span>
-          <span className="text-[1rem] font-extrabold leading-none tracking-tight">Expense</span>
-        </div>
-      </button>
-
-      <button 
-        onClick={() => openTransactionForm(undefined, { type: 'INCOME' })}
-        className={`flex items-center gap-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-500 px-5 py-3 rounded-2xl border border-emerald-100 transition-all hover:-translate-y-0.5 hover:shadow-sm shrink-0 ${!canManageTransactions ? 'hidden' : ''}`}
-      >
-        <div className="w-9 h-9 flex items-center justify-center text-emerald-500">
-          <i className="ph-bold ph-money text-[1.4rem]"></i>
-        </div>
-        <div className="flex flex-col items-start pr-2">
-          <span className="text-[0.65rem] font-bold text-emerald-400 capitalize tracking-wide">Record</span>
-          <span className="text-[1rem] font-extrabold leading-none tracking-tight">Income</span>
-        </div>
-      </button>
-    </div>
+    <>
+      {canManageJobs && (
+        <button
+          type="button"
+          onClick={() => openJobForm()}
+          className={`${base} bg-[#1e2338] text-white shadow-lg shadow-slate-900/15 hover:bg-[#2a3048]`}
+        >
+          <i className="ph-bold ph-plus text-[16px]" aria-hidden="true"></i>
+          New job
+        </button>
+      )}
+      {canManageTransactions && (
+        <>
+          <button
+            type="button"
+            onClick={() => openTransactionForm(undefined, { type: 'EXPENSE' })}
+            className={`${base} border border-red-100 bg-red-50 text-red-500 hover:bg-red-100`}
+          >
+            <i className="ph-bold ph-receipt text-[17px]" aria-hidden="true"></i>
+            Expense
+          </button>
+          <button
+            type="button"
+            onClick={() => openTransactionForm(undefined, { type: 'INCOME' })}
+            className={`${base} border border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100`}
+          >
+            <i className="ph-bold ph-money text-[17px]" aria-hidden="true"></i>
+            Income
+          </button>
+        </>
+      )}
+    </>
   );
 }
