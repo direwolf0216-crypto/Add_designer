@@ -14,6 +14,7 @@ import DynamicSectionsView from "./DynamicSectionsView";
 import FinancialsCard from "./FinancialsCard";
 import JobAssignees from "./JobAssignees";
 import JobHeaderActions from "./JobHeaderActions";
+import JobPriority from "./JobPriority";
 import JobSpecsCard from "./JobSpecsCard";
 import JobSummaryStrip from "./JobSummaryStrip";
 import JobTabs, { type JobDetailsTab } from "./JobTabs";
@@ -122,7 +123,12 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
             {/* Title & Actions Row */}
             <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">{job.client?.name || job.title || "Job Details"}</h1>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">{job.client?.name || job.title || "Job Details"}</h1>
+                  <span className="print:hidden">
+                    <JobPriority jobId={job.id} priority={job.priority} canEdit={canManageJobs} onChanged={refreshJob} />
+                  </span>
+                </div>
                 <p className="text-sm text-slate-500 font-medium">
                   {(() => {
                     const category = resolveJobSummary(job, layoutSchema, JOB_DETAILS_FIELD_MAP).displayCategory;

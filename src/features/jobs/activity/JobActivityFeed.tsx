@@ -33,6 +33,7 @@ const TYPE_STYLE: Record<string, { icon: string; chip: string }> = {
   FINISHING_UPDATED: { icon: "ph-book-bookmark", chip: "bg-fuchsia-50 text-fuchsia-600 ring-fuchsia-100" },
   DELETED: { icon: "ph-trash", chip: "bg-rose-50 text-rose-600 ring-rose-100" },
   RESTORED: { icon: "ph-arrow-counter-clockwise", chip: "bg-emerald-50 text-emerald-600 ring-emerald-100" },
+  HANDED_OFF: { icon: "ph-hand-arrow-up", chip: "bg-blue-50 text-blue-600 ring-blue-100" },
 };
 
 function dayLabel(d: Date) {

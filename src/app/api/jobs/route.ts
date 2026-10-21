@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseJobFilters } from "@/lib/jobs/filters";
 import { buildJobWhere } from "@/lib/jobs/where";
-import { jobScope } from "@/lib/jobs/scope";
+import { jobScope, mineWhere } from "@/lib/jobs/scope";
 import { notifyAssigned } from "@/lib/services/assignments";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
@@ -93,8 +93,9 @@ export const GET = route(async (req) => {
   // `assignee=me` (My Jobs) or a specific user id; combined with the visibility scope above.
   const assignee = searchParams.get("assignee");
   if (assignee) {
-    const assigneeId = assignee === "me" ? user.id : assignee;
-    where.AND = [...((where.AND as Prisma.JobWhereInput[] | undefined) ?? []), { assignments: { some: { userId: assigneeId } } }];
+    // "me" also covers the jobs waiting in my teams' stages.
+    const mine = assignee === "me" ? await mineWhere(user.id) : { assignments: { some: { userId: assignee } } };
+    where.AND = [...((where.AND as Prisma.JobWhereInput[] | undefined) ?? []), mine];
   }
 
   const start = parseDateParam(searchParams.get("startDate"));

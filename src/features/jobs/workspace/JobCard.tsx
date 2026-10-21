@@ -6,6 +6,7 @@ import AssigneeAvatars from "@/features/jobs/assignees/AssigneeAvatars";
 import Amount from "@/components/data/Amount";
 import type { WorkspaceJob } from "@/lib/jobs/workspace";
 import type { StageOption } from "@/lib/jobs/tracking";
+import { PRIORITY_STYLE } from "@/lib/jobs/priority";
 import DueChip from "./DueChip";
 import { stageHex, stageIcon } from "./stageStyle";
 
@@ -76,6 +77,15 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
       </div>
 
       <div className="pointer-events-none relative z-10 mt-2 flex flex-wrap items-center gap-1.5">
+        {job.priority !== "NORMAL" && (
+          <span
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[0.7rem] font-black"
+            style={{ color: PRIORITY_STYLE[job.priority].hex, backgroundColor: `${PRIORITY_STYLE[job.priority].hex}14` }}
+          >
+            <i className={`ph-bold ${PRIORITY_STYLE[job.priority].icon}`} aria-hidden="true"></i>
+            {PRIORITY_STYLE[job.priority].label}
+          </span>
+        )}
         <span className="max-w-full truncate rounded-lg bg-slate-100 px-2 py-0.5 text-[0.7rem] font-bold text-slate-600">{job.category || "Uncategorised"}</span>
         {showStage && (
           <span className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[0.7rem] font-bold" style={{ color: stageHex(stageColor), backgroundColor: `${stageHex(stageColor)}14` }}>

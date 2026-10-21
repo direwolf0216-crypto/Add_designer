@@ -16,6 +16,8 @@ import { assertJobVisible } from "@/lib/jobs/scope";
 import { parseAmount } from "@/lib/money";
 import { nextCounter } from "@/lib/ids";
 import { HttpError } from "@/lib/api/http";
+import { PRIORITIES } from "@/lib/jobs/priority";
+import { MAX_QUEUE, reorderQueue, setJobPriority } from "@/lib/services/queue";
 
 type ActionError = { success: false; error: string };
 
@@ -269,6 +271,44 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
   } catch (e) {
     console.error("[updateJobTrackingAction]", e);
     return { success: false, error: e instanceof HttpError ? e.message : "Failed to update finishing tracking" };
+  }
+}
+
+const prioritySchema = z.enum(PRIORITIES);
+
+export async function setJobPriorityAction(jobId: string, priority: string) {
+  const user = await authorize("manage_jobs");
+  if (isError(user)) return user;
+  const parsed = prioritySchema.safeParse(priority);
+  if (!parsed.success) return { success: false, error: "Invalid priority" };
+  try {
+    await setJobPriority(user, jobId, parsed.data);
+    revalidatePath("/jobs", "layout");
+    return { success: true };
+  } catch (e) {
+    console.error("[setJobPriorityAction]", e);
+    return { success: false, error: e instanceof HttpError ? e.message : "Couldn't change the priority" };
+  }
+}
+
+const queueSchema = z.object({
+  teamId: z.string().min(1).max(64),
+  items: z.array(z.object({ id: z.string().min(1).max(64), priority: prioritySchema })).max(MAX_QUEUE),
+});
+
+/** Save a team queue's order (and any priority changes from dragging between groups). */
+export async function reorderQueueAction(teamId: string, items: { id: string; priority: string }[]) {
+  const user = await authorize("manage_jobs");
+  if (isError(user)) return user;
+  const parsed = queueSchema.safeParse({ teamId, items });
+  if (!parsed.success) return { success: false, error: "Invalid queue order" };
+  try {
+    await reorderQueue(user, parsed.data.teamId, parsed.data.items);
+    revalidatePath("/jobs", "layout");
+    return { success: true };
+  } catch (e) {
+    console.error("[reorderQueueAction]", e);
+    return { success: false, error: e instanceof HttpError ? e.message : "Couldn't save the queue order" };
   }
 }
 

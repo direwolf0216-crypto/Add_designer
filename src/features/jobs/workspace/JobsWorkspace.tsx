@@ -9,6 +9,7 @@ import StatsStrip from "./StatsStrip";
 import BoardView from "./BoardView";
 import ListView from "./ListView";
 import ScheduleView from "./ScheduleView";
+import QueueView from "./QueueView";
 import { useWorkspaceUrl } from "./url";
 
 /** Shown instead of a board of empty columns / an empty table. */
@@ -52,6 +53,7 @@ export default function JobsWorkspace({ data }: { data: WorkspaceData }) {
           {!empty && view === "board" && <BoardView data={data} />}
           {!empty && view === "list" && <ListView data={data} />}
           {view === "schedule" && <ScheduleView data={data} />}
+          {view === "queue" && <QueueView data={data} />}
         </div>
       </ViewTransition>
     </div>

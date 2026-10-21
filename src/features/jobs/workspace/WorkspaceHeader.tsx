@@ -17,6 +17,7 @@ const VIEWS = [
   { id: "board", label: "Board", icon: "ph-kanban" },
   { id: "list", label: "List", icon: "ph-rows" },
   { id: "schedule", label: "Schedule", icon: "ph-calendar-dots" },
+  { id: "queue", label: "Queue", icon: "ph-list-numbers" },
 ] as const;
 
 function Segmented<T extends string>({ value, options, hrefFor, label }: { value: T; options: { id: T; label: string; icon?: string; badge?: number }[]; hrefFor: (id: T) => string; label: string }) {
@@ -124,7 +125,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
             <button
               type="button"
               onClick={() => openJobForm()}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:-translate-y-0.5 hover:shadow-xl"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-[filter,box-shadow] hover:shadow-xl hover:brightness-105"
             >
               <i className="ph-bold ph-plus" aria-hidden="true"></i>
               New job
@@ -156,7 +157,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
             label="View"
             value={params.view}
             options={VIEWS.map((v) => ({ ...v }))}
-            hrefFor={(id) => hrefWith({ view: id === "board" ? null : id, more: null, sort: null, dir: null })}
+            hrefFor={(id) => hrefWith({ view: id === "board" ? null : id, more: null, sort: null, dir: null, team: id === "queue" ? params.team || null : null })}
           />
         </div>
       </div>

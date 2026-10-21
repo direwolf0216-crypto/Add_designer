@@ -60,6 +60,10 @@ model Job {
   stage           String?
   /// Delivery due date (calendar date, UTC midnight), derived from the layout due-date field.
   dueDate         DateTime?
+  /// Queue priority (Urgent first). Board columns and team queues sort by it.
+  priority        JobPriority     @default(NORMAL)
+  /// Hand-set place in its queue within the same priority; null joins the end (by due date).
+  queuePosition   Float?
   client          Client          @relation(fields: [clientId], references: [id])
   createdBy       User?           @relation("JobCreatedBy", fields: [createdById], references: [id])
   updatedBy       User?           @relation("JobUpdatedBy", fields: [updatedById], references: [id])
@@ -75,6 +79,7 @@ model Job {
   @@index([clientId, date])
   @@index([deletedAt, stage])
   @@index([deletedAt, dueDate])
+  @@index([deletedAt, stage, priority, queuePosition])
 }
 
 model SystemLog {
@@ -184,6 +189,7 @@ model User {
   jobAssignments     JobAssignment[]    @relation("JobAssignee")
   assignedJobs       JobAssignment[]    @relation("JobAssigner")
   jobActivities      JobActivity[]
+  teams              TeamMember[]
 
   @@index([status])
   @@index([customRoleId])
@@ -470,6 +476,7 @@ enum JobActivityType {
   FINISHING_UPDATED
   DELETED
   RESTORED
+  HANDED_OFF
 }
 
 enum TransactionType {
@@ -512,4 +519,34 @@ model InvoiceLineItem {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+enum JobPriority {
+  URGENT
+  HIGH
+  NORMAL
+  LOW
+}
+
+/// A group of people (e.g. Design, Printing) that takes over jobs when they reach its stages.
+model Team {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  color     String       @default("#3b82f6")
+  /// Board stage labels this team works on. A stage belongs to at most one team.
+  stages    String[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  members   TeamMember[]
+}
+
+model TeamMember {
+  teamId  String
+  userId  String
+  addedAt DateTime @default(now())
+  team    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@index([userId])
 }

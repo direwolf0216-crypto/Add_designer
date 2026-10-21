@@ -12,6 +12,7 @@ const UserManagement = dynamic(() => import("@/components/settings/UserManagemen
 const RolesPermissions = dynamic(() => import("@/components/settings/RolesPermissions"), { loading: tabLoading });
 const LayoutsFieldsBuilder = dynamic(() => import("@/components/settings/LayoutsFieldsBuilder"), { loading: tabLoading });
 const RecycleBin = dynamic(() => import("@/components/settings/RecycleBin"), { loading: tabLoading });
+const TeamsSettings = dynamic(() => import("@/components/settings/TeamsSettings"), { loading: tabLoading });
 const BusinessDetails = dynamic(() => import("@/components/settings/BusinessDetails"), { loading: tabLoading });
 const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
 
@@ -21,6 +22,7 @@ const GROUPS = [
     items: [
       { id: "users", label: "Users & Team", icon: "ph-users-three" },
       { id: "permissions", label: "Roles & Permissions", icon: "ph-shield-check" },
+      { id: "teams", label: "Teams", icon: "ph-users-four" },
     ]
   },
   {
@@ -194,6 +196,7 @@ function SettingsPage() {
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
           {displayedSection === "business" && <BusinessDetails />}
+          {displayedSection === "teams" && <TeamsSettings />}
         </div>
       </div>
       

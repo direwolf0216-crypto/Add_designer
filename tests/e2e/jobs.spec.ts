@@ -8,6 +8,9 @@ test.describe("jobs flow (requires E2E_USER_EMAIL / E2E_USER_PASSWORD)", () => {
   test.skip(!email || !password, "No E2E test account configured");
 
   test("sign in and open the job form", async ({ page }) => {
+    // The "Coming up next" reminder opens over any page at set times of day: close it whenever it shows.
+    const reminder = page.getByRole("dialog", { name: /coming up/i });
+    await page.addLocatorHandler(reminder, () => reminder.getByRole("button", { name: "Dismiss" }).click());
     await page.goto("/login");
     await page.fill('input[type="email"]', email!);
     await page.fill('input[type="password"]', password!);

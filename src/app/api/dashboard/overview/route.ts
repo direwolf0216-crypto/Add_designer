@@ -13,6 +13,7 @@ import {
 import { round2 } from "@/lib/money";
 import { asJsonObject } from "@/lib/services/transactions";
 import { jobScope } from "@/lib/jobs/scope";
+import { teamStagesFor } from "@/lib/services/teams";
 import { stageOptions } from "@/lib/jobs/tracking";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -36,7 +37,7 @@ const FINISHING_WORK = /binding|lamination|framing/i;
 
 export const GET = route(async (req) => {
   const user = await requirePermission("view_analytics");
-  const scope = await jobScope(user);
+  const [scope, teamStages] = await Promise.all([jobScope(user), teamStagesFor(user.id)]);
   const { searchParams } = new URL(req.url);
 
   let fromIso = businessDayParam(searchParams.get("startDate"));
@@ -143,7 +144,8 @@ export const GET = route(async (req) => {
       WHERE j."deletedAt" IS NULL
         AND j."date" >= ${today} AND j."date" < ${ninetyDaysOut}
         ${Object.keys(scope).length > 0
-          ? Prisma.sql`AND EXISTS (SELECT 1 FROM "JobAssignment" a WHERE a."jobId" = j."id" AND a."userId" = ${user.id})`
+          ? Prisma.sql`AND (EXISTS (SELECT 1 FROM "JobAssignment" a WHERE a."jobId" = j."id" AND a."userId" = ${user.id})
+              OR lower(j."stage") = ANY(${teamStages.map((st) => st.toLowerCase())}::text[]))`
           : Prisma.empty}
       GROUP BY 1`,
     prisma.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } }),

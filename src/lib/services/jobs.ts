@@ -11,6 +11,7 @@ import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 import { syncAssignments } from "@/lib/services/assignments";
 import { deriveJobTracking } from "@/lib/jobs/tracking";
+import { notifyHandoff, recordHandoff } from "@/lib/services/teams";
 import { keepStoredMoney, moneyKeys } from "@/lib/jobs/amounts";
 import type { FormLayout } from "@/lib/forms/types";
 
@@ -217,7 +218,9 @@ export async function saveJob(input: SaveJobInput, actor: Actor) {
   const [seesAllJobs, seesAmounts, scope] = await Promise.all([userCan(actor, "view_all_jobs"), userCan(actor, "view_amounts"), jobScope(actor)]);
   // A unique-ref collision aborts the Postgres transaction, so the whole transaction is retried
   // (with fresh random refs) rather than the single insert.
-  return withUniqueRetry(() => saveJobOnce(input, actor, seesAllJobs, seesAmounts, scope), () => "");
+  const result = await withUniqueRetry(() => saveJobOnce(input, actor, seesAllJobs, seesAmounts, scope), () => "");
+  notifyHandoff(result.handoff, result.job, result.client.name, actor.id);
+  return result;
 }
 
 async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boolean, seesAmounts: boolean, scope: Prisma.JobWhereInput) {
@@ -266,11 +269,13 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         updatedById: userId,
       };
 
+      // A job that changes stage joins the end of its new queue.
+      const queueReset = existing && common.stage !== existing.stage ? { queuePosition: null } : {};
       const date = jobDate(input);
       const job = existing
         ? await tx.job.update({
           where: { id: existing.id },
-          data: { ...common, clientId: client.id, ...(date ? { date } : {}) },
+          data: { ...common, ...queueReset, clientId: client.id, ...(date ? { date } : {}) },
         })
         : await tx.job.create({
           data: {
@@ -331,7 +336,8 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         },
       });
 
-      return { job, client, order, installments, created: !existing, assignmentChanges };
+      const handoff = await recordHandoff(tx, existing?.stage, job, userId);
+      return { job, client, order, installments, created: !existing, assignmentChanges, handoff };
     },
     { timeout: 20000 }
   );
@@ -397,7 +403,7 @@ export async function updateJob(
   build: (existing: Prisma.JobGetPayload<{ include: { client: true; order: true } }>) => JobUpdate
 ) {
   const [scope, seesAmounts] = await Promise.all([jobScope(actor), userCan(actor, "view_amounts")]);
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.job.findFirst({ where: { id: jobId, ...scope }, include: { client: true, order: true } });
     if (!existing) throw notFound("Job not found");
 
@@ -408,7 +414,9 @@ export async function updateJob(
       data.customData = keepStoredMoney(data.customData as Record<string, unknown>, stored, moneyKeys(layout?.schema as FormLayout | null)) as Prisma.InputJsonValue;
     }
     const tracking = deriveJobTracking(data.customData ?? existing.customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]);
-    const job = await tx.job.update({ where: { id: jobId }, data: { ...data, ...tracking, updatedById: actor.id } });
+    // A job that changes stage joins the end of its new queue.
+    const queueReset = tracking.stage !== existing.stage ? { queuePosition: null } : {};
+    const job = await tx.job.update({ where: { id: jobId }, data: { ...data, ...tracking, ...queueReset, updatedById: actor.id } });
     const assignmentChanges = assigneeIds ? await syncAssignments(tx, jobId, assigneeIds, actor.id) : { added: [], removed: [] };
 
     const changes = diffJob(
@@ -430,6 +438,9 @@ export async function updateJob(
     if (!existing.proofDelivered && job.proofDelivered) {
       await recordJobActivity(tx, { jobId, actorId: actor.id, type: "PROOF_DELIVERED", summary: "Marked proof as delivered" });
     }
-    return { before: existing, job, assignmentChanges };
+    const handoff = await recordHandoff(tx, existing.stage, job, actor.id);
+    return { before: existing, job, assignmentChanges, handoff };
   });
+  notifyHandoff(result.handoff, result.job, result.before.client?.name, actor.id);
+  return result;
 }
