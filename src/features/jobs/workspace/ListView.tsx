@@ -83,7 +83,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
                 <StageBadge stage={job.stage} color={stageColor(job.stage)} />
               </td>
               <td className="px-4 py-3">
-                <DueChip due={job.dueDate} today={data.today} closed={/deliver|cancel/i.test(job.stage)} />
+                <DueChip due={job.dueDate} today={data.today} closed={/^delivered$|cancel/i.test(job.stage.trim())} />
               </td>
               {job.amount !== null && (
                 <td className="px-4 py-3 text-right">

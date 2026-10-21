@@ -153,6 +153,6 @@ describe("buildStatusSteps", () => {
   });
 
   it("has defaults without a status picker", () => {
-    expect(buildStatusSteps(null).map((s) => s.value)).toEqual(["Pending", "Designing", "Sent for printing", "Ready for delivery"]);
+    expect(buildStatusSteps(null).map((s) => s.value)).toEqual(["Pending", "Designing", "Designing Completed", "Sent for printing", "Ready for delivery"]);
   });
 });

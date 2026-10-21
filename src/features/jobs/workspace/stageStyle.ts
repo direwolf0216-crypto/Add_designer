@@ -17,6 +17,7 @@ export function stageHex(colorClass: string | undefined): string {
 export function stageIcon(label: string): string {
   const l = label.toLowerCase();
   if (l.includes("pend")) return "ph-hourglass-medium";
+  if (l.includes("design") && l.includes("complet")) return "ph-check-square-offset";
   if (l.includes("design")) return "ph-paint-brush";
   if (l.includes("print")) return "ph-printer";
   if (l.includes("finish") || l.includes("bind")) return "ph-book-bookmark";

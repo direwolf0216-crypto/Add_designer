@@ -19,7 +19,8 @@ type Props = {
   showStage?: boolean;
 };
 
-const CLOSED = /deliver|cancel/i;
+// "Ready for Delivery" is still open; only Delivered and Cancelled are closed.
+const CLOSED = /^delivered$|cancel/i;
 
 export default function JobCard({ job, today, stages = [], onMove, draggable = false, showStage = false }: Props) {
   const amount = job.amount ?? 0;

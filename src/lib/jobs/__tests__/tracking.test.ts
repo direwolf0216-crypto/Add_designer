@@ -30,3 +30,22 @@ describe("job tracking", () => {
     expect(deriveJobTracking(null, layout)).toEqual({ stage: null, dueDate: null });
   });
 });
+
+describe("designing completed", () => {
+  const withDone = {
+    sections: [
+      { id: "sec_job_event", fields: [
+        { id: "fld_b_status", type: "STATUS_PICKER", statusOptions: [{ label: "Designing" }, { label: "Designing Completed" }, { label: "Printing" }] },
+      ] },
+    ],
+  };
+
+  it("is its own board column, between Designing and Printing", () => {
+    expect(stageOptions(withDone).map((s) => s.label)).toEqual(["Designing", "Designing Completed", "Printing"]);
+    expect(stageOptions(null).map((s) => s.label).slice(1, 4)).toEqual(["Designing", "Designing Completed", "Printing"]);
+  });
+
+  it("puts the job in that column", () => {
+    expect(deriveJobTracking({ fld_b_status: "Designing Completed" }, withDone).stage).toBe("Designing Completed");
+  });
+});

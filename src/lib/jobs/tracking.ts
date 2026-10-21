@@ -12,6 +12,7 @@ type Layout = { sections?: { id?: string; isRepeatable?: boolean; fields?: Layou
 export const DEFAULT_STAGES = [
   { label: "Pending", color: "bg-red-500" },
   { label: "Designing", color: "bg-yellow-500" },
+  { label: "Designing Completed", color: "bg-violet-500" },
   { label: "Printing", color: "bg-blue-500" },
   { label: "Ready for Delivery", color: "bg-emerald-500" },
   { label: "Delivered", color: "bg-slate-500" },

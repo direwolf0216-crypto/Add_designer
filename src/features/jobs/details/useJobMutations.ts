@@ -8,7 +8,7 @@ import { invalidateJobs } from "@/lib/swr";
 import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
 
 /** Statuses that are written through the tracking action (also mirrored into customData). */
-const TRACKING_STATUSES = ["designing", "printing", "ready for delivery", "delivered"];
+const TRACKING_STATUSES = ["designing", "designing completed", "printing", "ready for delivery", "delivered"];
 
 /** Actions available from the job details view: status changes, delete, invoice and PDF export. */
 export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJob | null; refreshJob: () => void; onDeleted: () => void }) {
@@ -31,7 +31,8 @@ export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJo
     setIsUpdatingStatus(true);
 
     const res = TRACKING_STATUSES.includes(newStatus.toLowerCase())
-      ? await updateJobTrackingAction(job.id, { customData: { fld_b_job_status: newStatus }, status: newStatus })
+      ? // fld_b_status is the board stage: the card moves to the column of the chosen status.
+        await updateJobTrackingAction(job.id, { customData: { fld_b_job_status: newStatus, fld_b_status: newStatus }, status: newStatus })
       : await updateJobStatusAction(job.id, newStatus);
 
     setIsUpdatingStatus(false);

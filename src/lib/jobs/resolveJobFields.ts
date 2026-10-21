@@ -302,6 +302,7 @@ export interface StatusStep {
 const DEFAULT_STEPS: StatusStep[] = [
   { label: "Pending", value: "Pending", icon: "ph-fill ph-clock", color: "text-red-500" },
   { label: "Designing", value: "Designing", icon: "ph-fill ph-paint-brush-broad" },
+  { label: "Designing Completed", value: "Designing Completed", icon: "ph-fill ph-check-square-offset" },
   { label: "Printing in Progress", value: "Sent for printing", icon: "ph-fill ph-printer" },
   { label: "Ready for Delivery", value: "Ready for delivery", icon: "ph-fill ph-package" },
 ];
@@ -316,6 +317,7 @@ export function buildStatusSteps(layout: FormLayout | null | undefined): StatusS
     let icon = "ph-fill ph-check-circle";
     let color = "text-slate-500";
     if (lower.includes("pending") || lower.includes("confirmed")) { icon = "ph-fill ph-clock"; color = "text-amber-500"; }
+    else if (lower.includes("design") && lower.includes("complet")) { icon = "ph-fill ph-check-square-offset"; color = "text-violet-500"; }
     else if (lower.includes("design")) { icon = "ph-fill ph-paint-brush-broad"; color = "text-blue-500"; }
     else if (lower.includes("print")) { icon = "ph-fill ph-printer"; color = "text-fuchsia-500"; }
     else if (lower.includes("deliver") || lower.includes("dispatch")) { icon = "ph-fill ph-package"; color = "text-green-500"; }
