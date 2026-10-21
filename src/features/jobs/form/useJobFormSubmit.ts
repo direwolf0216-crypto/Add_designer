@@ -90,6 +90,7 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       layout: layoutSchema,
       fieldMap: JOB_FORM_FIELD_MAP,
     });
+    formData.set("assigneeIds", JSON.stringify(state.assigneeIds));
     const result = await saveJobAction(formData);
 
     if (result.success && result.data) {

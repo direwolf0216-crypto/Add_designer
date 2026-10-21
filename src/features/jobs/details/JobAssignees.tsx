@@ -1,13 +1,19 @@
 "use client";
 
+import { mutate } from "swr";
 import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
+import AssigneePicker from "@/features/jobs/assignees/AssigneePicker";
+import type { JobAssignee } from "@/features/jobs/assignees/types";
 import type { TeamUser } from "./useJob";
 
-/**
- * EXTENSION POINT — assignees avatar stack in the job details header (before the status badge).
- * Renders nothing for now. `teamUsers` is the /api/users list already loaded by useJob, for
- * resolving assignee ids to names/avatars.
- */
-export default function JobAssignees(_props: { job: DetailsJob; teamUsers: TeamUser[] }) {
-  return null;
+/** Assignee avatars in the job details header; opens the assign popover for users with manage_jobs. */
+export default function JobAssignees({ job }: { job: DetailsJob; teamUsers: TeamUser[] }) {
+  const assignees = ((job as { assignments?: JobAssignee[] }).assignments ?? []) as JobAssignee[];
+  return (
+    <AssigneePicker
+      jobId={job.id}
+      assignees={assignees}
+      onSaved={(next) => mutate(`/api/jobs/${job.id}`, (current: unknown) => (current ? { ...(current as object), assignments: next } : current), { revalidate: true })}
+    />
+  );
 }

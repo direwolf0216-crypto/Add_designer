@@ -33,6 +33,8 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
   const [installments, setInstallments] = useState<Installment[]>(() => [newInstallment()]);
   const [repeatableData, setRepeatableData] = useState<RepeatableData>({});
   const [financialRates, setFinancialRates] = useState<FinancialRates>({});
+  /** User ids to assign; submitted alongside the job (see useJobFormSubmit). */
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
 
   // Edit mode pre-fill
   useEffect(() => {
@@ -43,6 +45,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
       reset(state.values);
       setIsMultiInstallment(state.isMultiInstallment);
       setInstallments(state.installments);
+      setAssigneeIds(((job as { assignments?: { userId: string }[] }).assignments ?? []).map((a) => a.userId));
     }
   }, [isOpen, job?.id, isJobLoading, reset, layoutSchema]); // eslint-disable-line react-hooks/exhaustive-deps -- re-fill only when a different job loads
 
@@ -51,6 +54,11 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
     if (isOpen && !isJobLoading && !jobToEditId) {
       const defaults = layoutDefaults(layoutSchema, JOB_FORM_FIELD_MAP, initialDate || toLocalISODate());
       setRepeatableData(defaults.repeatableData);
+      // Start clean: nothing may carry over from a job edited earlier (e.g. installment transaction ids).
+      setFinancialRates({});
+      setInstallments([newInstallment()]);
+      setIsMultiInstallment(false);
+      setAssigneeIds([]);
       reset(defaults.values);
       clearErrors();
     }
@@ -84,6 +92,8 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
     setRepeatableData,
     financialRates,
     setFinancialRates,
+    assigneeIds,
+    setAssigneeIds,
   };
 }
 
