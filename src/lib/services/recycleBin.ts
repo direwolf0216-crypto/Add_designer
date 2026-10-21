@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma, RecycleBin } from "@prisma/client";
 import prisma, { type TxClient } from "@/lib/prisma";
 import { badRequest, conflict, errorResponse, forbidden, notFound } from "@/lib/api/http";
-import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { type SessionUser, userCan } from "@/lib/auth/session";
 import { getGoogleDriveToken } from "@/lib/googleDriveAuth";
 import { hardDeleteJob, refreshOrderTotals, restoreJob } from "@/lib/services/jobs";
 import { adjustProductOrder } from "@/lib/services/transactions";
@@ -87,7 +87,7 @@ function driveFileIds(customData: unknown): string[] {
 }
 
 async function canActOnTransactions(user: SessionUser, txs: TxSnapshot[]) {
-  if (await roleHasPermission(user.role, "manage_transactions")) return true;
+  if (await userCan(user, "manage_transactions")) return true;
   return txs.length > 0 && txs.every((t) => t.userId === user.id);
 }
 
@@ -155,7 +155,7 @@ export async function restoreItem(entry: RecycleBin, user: SessionUser) {
   if (!type) throw badRequest("This item type cannot be restored");
 
   if (type === "job" || type === "product-order") {
-    if (!(await roleHasPermission(user.role, "manage_jobs"))) throw forbidden();
+    if (!(await userCan(user, "manage_jobs"))) throw forbidden();
   } else if (!(await canActOnTransactions(user, snapshotTransactions(type, entry)))) {
     throw forbidden();
   }
@@ -165,7 +165,7 @@ export async function restoreItem(entry: RecycleBin, user: SessionUser) {
       if (type === "job") {
         const job = await tx.job.findUnique({ where: { id: entry.itemId }, select: { id: true } });
         if (!job) throw notFound("This job no longer exists");
-        if (!(await roleHasPermission(user.role, "view_all_jobs"))) {
+        if (!(await userCan(user, "view_all_jobs"))) {
           const assigned = await tx.jobAssignment.findUnique({ where: { jobId_userId: { jobId: entry.itemId, userId: user.id } } });
           if (!assigned) throw notFound("This job no longer exists");
         }

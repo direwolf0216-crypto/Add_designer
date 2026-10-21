@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { HttpError, forbidden, parseJson, route } from "@/lib/api/http";
-import { requireUser, roleHasPermission } from "@/lib/auth/session";
+import { requireUser, userCan } from "@/lib/auth/session";
 import { REAUTH_REQUIRED, folderCachePrefix, getGoogleDriveToken } from "@/lib/googleDriveAuth";
 
 const bodySchema = z.object({
@@ -30,7 +30,7 @@ export const POST = route(async (req) => {
   });
   const appFolderIds = new Set(appFolders.map((f) => f.value).filter((v): v is string => typeof v === "string"));
   const inAppFolder = (meta.parents ?? []).some((p) => appFolderIds.has(p));
-  if (!inAppFolder && !(await roleHasPermission(user.role, "manage_jobs"))) {
+  if (!inAppFolder && !(await userCan(user, "manage_jobs"))) {
     throw forbidden("You do not have permission to share this file");
   }
 

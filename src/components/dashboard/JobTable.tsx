@@ -132,7 +132,7 @@ export default function JobTable({ jobs, currentPage = 1, totalPages = 1 }: JobT
           </div>
           
           <div id="dynamic-jobs-table" className="flex flex-col">
-          {sorted.map(b => {
+          {sorted.map((b, rowIdx) => {
             const d = new Date(b.date);
             const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             
@@ -167,7 +167,7 @@ export default function JobTable({ jobs, currentPage = 1, totalPages = 1 }: JobT
             const locColor = locColors[Math.abs(locHash) % locColors.length];
 
             return (
-              <div key={b.id} className="flex items-center px-4 py-3.5 border-b border-gray-100 last:border-b-0 transition-colors hover:bg-slate-50 cursor-pointer" onClick={() => openJobDetails(b.id)}>
+              <div key={b.id} style={{ ["--i" as string]: Math.min(rowIdx, 10) }} className="animate-rise flex items-center px-4 py-3.5 border-b border-gray-100 last:border-b-0 transition-colors hover:bg-slate-50 cursor-pointer" onClick={() => openJobDetails(b.id)}>
                 <div className="flex-[2] flex items-center gap-3">
                   <div className={`w-[35px] h-[35px] rounded-full ${avatarColor} text-white flex items-center justify-center font-bold text-[0.85rem] shrink-0`}>{(b.title || 'U').charAt(0).toUpperCase()}</div>
                   <div className="flex flex-col justify-center">

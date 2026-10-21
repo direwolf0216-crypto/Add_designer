@@ -7,7 +7,7 @@ import type { Job } from "@/types";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { broadcastLater } from "@/lib/notifications";
-import { getSessionUser, roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { getSessionUser, type SessionUser, userCan } from "@/lib/auth/session";
 import type { Permission } from "@/lib/permissions";
 import { isProductionDone, saveJob, softDeleteJob, updateJob, type InstallmentInput } from "@/lib/services/jobs";
 import { notifyAssigned } from "@/lib/services/assignments";
@@ -23,7 +23,7 @@ type ActionError = { success: false; error: string };
 async function authorize(permission: Permission): Promise<SessionUser | ActionError> {
   const user = await getSessionUser();
   if (!user) return { success: false, error: "Unauthorized" };
-  if (!(await roleHasPermission(user.role, permission))) {
+  if (!(await userCan(user, permission))) {
     return { success: false, error: "You do not have permission to perform this action" };
   }
   return user;

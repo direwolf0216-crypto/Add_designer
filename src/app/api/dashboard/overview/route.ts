@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { route } from "@/lib/api/http";
 import { requirePermission } from "@/lib/auth/session";
@@ -29,6 +29,9 @@ const statusIs = (status: string): Prisma.StringFilter => ({ equals: status, mod
 const statusIsAny = (...statuses: string[]): Prisma.JobWhereInput[] => statuses.map((s) => ({ status: statusIs(s) }));
 
 type DailyRow = { day: string; type: string; total: number };
+
+const finishingStages = ["printing completed", "designing", "printing", "finishing in progress"];
+const FINISHING_WORK = /binding|lamination|framing/i;
 
 export const GET = route(async (req) => {
   const user = await requirePermission("view_analytics");
@@ -112,17 +115,34 @@ export const GET = route(async (req) => {
         AND ("date" AT TIME ZONE 'UTC') <= ${end}::timestamptz
       GROUP BY 1, 2`,
     prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where: txWhere }),
+    // Candidate finishing jobs, filtered in the database; only a handful are shown.
     prisma.job.findMany({
-      where: { ...scope, deletedAt: null, NOT: { OR: statusIsAny("delivered", "cancelled") } },
+      where: {
+        ...scope,
+        deletedAt: null,
+        NOT: { OR: statusIsAny("delivered", "cancelled") },
+        OR: [
+          ...["bind", "lamin", "fram"].map((word) => ({ category: { contains: word, mode: "insensitive" as const } })),
+          { customData: { path: ["fld_b_finishing_status"], not: Prisma.AnyNull } },
+          { customData: { path: ["fld_b_inclusions"], string_contains: "Bind" } },
+          ...finishingStages.map((stage) => ({ status: { equals: stage, mode: "insensitive" as const } })),
+        ],
+      },
       select: { id: true, date: true, status: true, category: true, customData: true, client: { select: { name: true } } },
       orderBy: { date: "asc" },
-      take: 500,
+      take: 25,
     }),
-    prisma.job.findMany({
-      where: { ...scope, deletedAt: null, date: { gte: today, lt: ninetyDaysOut } },
-      select: { date: true, order: { select: { package: true } } },
-      take: 5000,
-    }),
+    // Per-day package totals for the hot-date count, summed in the database (not 5,000 rows over the wire).
+    prisma.$queryRaw<{ day: string; total: number }[]>`
+      SELECT to_char(j."date", 'YYYY-MM-DD') AS day, COALESCE(SUM(o."package"), 0)::float8 AS total
+      FROM "Job" j
+      LEFT JOIN "Order" o ON o."jobId" = j."id"
+      WHERE j."deletedAt" IS NULL
+        AND j."date" >= ${today} AND j."date" < ${ninetyDaysOut}
+        ${Object.keys(scope).length > 0
+          ? Prisma.sql`AND EXISTS (SELECT 1 FROM "JobAssignment" a WHERE a."jobId" = j."id" AND a."userId" = ${user.id})`
+          : Prisma.empty}
+      GROUP BY 1`,
   ]);
 
   const periodIncome = round2(typeAgg.find((t) => t.type === "INCOME")?._sum.amount ?? 0);
@@ -141,8 +161,6 @@ export const GET = route(async (req) => {
   }
   const revenueChartData = Object.values(dailyDataMap).sort((a, b) => a.date.localeCompare(b.date));
 
-  const finishingStages = ["printing completed", "designing", "printing", "finishing in progress"];
-  const FINISHING_WORK = /binding|lamination|framing/i;
   const jobBreakdownData = jobsForChart
     .flatMap((job) => {
       const cd = asJsonObject(job.customData);
@@ -163,10 +181,7 @@ export const GET = route(async (req) => {
   const hotDateBenchmark = Number(prefs.hotDateBenchmark ?? prefs.hotDateThreshold ?? 50000) || 50000;
 
   const dateSums: Record<string, number> = {};
-  for (const job of upcomingAllJobs) {
-    const day = toBusinessISODate(job.date);
-    dateSums[day] = (dateSums[day] || 0) + (job.order?.package || 0);
-  }
+  for (const row of upcomingAllJobs) dateSums[row.day] = row.total;
   const hotDatesCount = Object.values(dateSums).filter((sum) => sum >= hotDateBenchmark).length;
 
   return NextResponse.json({

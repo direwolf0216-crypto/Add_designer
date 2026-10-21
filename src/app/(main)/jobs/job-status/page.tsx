@@ -2,10 +2,12 @@ import prisma from "@/lib/prisma";
 import { requirePageUser } from "@/lib/auth/session";
 import JobStatusClient from "./JobStatusClient";
 import { jobScope } from "@/lib/jobs/scope";
+import PageReveal from "@/components/motion/PageReveal";
+import type React from "react";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobStatusPage({
+async function JobStatusPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
@@ -17,8 +19,11 @@ export default async function JobStatusPage({
   
   const [dbJobs, teamUsers] = await Promise.all([
     prisma.job.findMany({
-      where: { ...scope, 
+      where: {
+        ...scope,
         deletedAt: null,
+        // No board tab shows delivered jobs (they map to fld_b_status "Delivered"), so don't ship them.
+        NOT: { status: { equals: "Delivered", mode: "insensitive" } },
       },
       select: {
         id: true,
@@ -83,4 +88,12 @@ export default async function JobStatusPage({
   });
 
   return <JobStatusClient jobs={serializedJobs as any} teamUsers={teamUsers} initialTab={initialTab} />;
+}
+
+export default async function JobStatusPage(props: React.ComponentProps<typeof JobStatusPageContent>) {
+  return (
+    <PageReveal>
+      <JobStatusPageContent {...props} />
+    </PageReveal>
+  );
 }

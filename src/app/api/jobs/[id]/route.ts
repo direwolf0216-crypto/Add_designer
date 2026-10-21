@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
-import { requireAdmin, requirePermission, requireUser, roleHasPermission } from "@/lib/auth/session";
+import { requireAdmin, requirePermission, requireUser, userCan } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { broadcastLater } from "@/lib/notifications";
 import { hardDeleteJob, isProductionDone, softDeleteJob, updateJob } from "@/lib/services/jobs";
@@ -50,7 +50,7 @@ function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown>
 export const GET = route<{ id: string }>(async (_req, { params }) => {
   const user = await requireUser();
   const { id } = await params;
-  const canSeePayments = await roleHasPermission(user.role, "view_transactions");
+  const canSeePayments = await userCan(user, "view_transactions");
 
   const job = await prisma.job.findFirst({
     where: { id, deletedAt: undefined, ...(await jobScope(user)) },

@@ -21,8 +21,9 @@ import { ExpenseHeatmapCard } from "@/features/transactions/overview/ExpenseHeat
 import { IncomeFlowChart } from "@/features/transactions/overview/IncomeFlowChart";
 import { NetTrendChart } from "@/features/transactions/overview/NetTrendChart";
 import { SmartInsightBanner } from "@/features/transactions/overview/SmartInsightBanner";
+import PageReveal from "@/components/motion/PageReveal";
 
-export default function OverviewPage() {
+function OverviewPageContent() {
   const { openTransactionForm, openTransactionDetails } = useGlobalForm();
   const { data, isLoading, layoutSchema, deleteTransaction } = useTransactionsOverview();
 
@@ -109,5 +110,13 @@ export default function OverviewPage() {
       {/* Smart Insight Banner */}
       <SmartInsightBanner highestExpenseCategory={highestExpenseCategory} />
     </div>
+  );
+}
+
+export default function OverviewPage() {
+  return (
+    <PageReveal>
+      <OverviewPageContent />
+    </PageReveal>
   );
 }

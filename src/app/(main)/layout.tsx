@@ -33,7 +33,7 @@ export default function MainLayout({
                 }}
               ></div>
 
-              <div className="relative z-50">
+              <div className="relative z-50" style={{ viewTransitionName: "app-topbar" }}>
                 <TopNavigation />
               </div>
               <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 relative z-10">

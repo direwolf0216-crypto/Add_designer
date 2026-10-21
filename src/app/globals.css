@@ -1696,3 +1696,88 @@ button {
   -webkit-text-fill-color: transparent;
   margin-top: 40px;
 }
+
+/* ===== Motion =====
+   View transitions run only on navigation; elements are composited (opacity/transform), so the live page
+   never reflows. Sidebar and top bar are anchored so only content moves. */
+:root {
+  --motion-exit: 120ms;
+  --motion-enter: 220ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.page-exit) {
+  animation: var(--motion-exit) ease-in both vt-fade reverse;
+}
+::view-transition-new(.page-enter) {
+  animation:
+    var(--motion-enter) var(--motion-ease) var(--motion-exit) both vt-fade,
+    320ms var(--motion-ease) both vt-rise;
+}
+::view-transition-old(.skeleton-exit) {
+  animation: 100ms ease-out both vt-fade reverse;
+}
+::view-transition-group(app-sidebar),
+::view-transition-group(app-topbar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(app-sidebar),
+::view-transition-old(app-topbar) {
+  display: none;
+}
+::view-transition-new(app-sidebar),
+::view-transition-new(app-topbar) {
+  animation: none;
+}
+@keyframes vt-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes vt-rise {
+  from { transform: translateY(8px); }
+  to { transform: translateY(0); }
+}
+
+/* Mount-only entrance for lists/cards: plays once when inserted, never on re-render. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-rise {
+  animation: rise-in 360ms var(--motion-ease) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+/* Skeleton shimmer (transform-only, GPU-friendly). */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(226 232 240 / 0.7);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+  animation: skeleton-shimmer 1.4s infinite;
+}
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  .animate-rise,
+  .skeleton::after {
+    animation: none !important;
+  }
+}

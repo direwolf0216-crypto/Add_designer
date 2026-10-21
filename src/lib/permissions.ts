@@ -76,3 +76,11 @@ export function resolvePermission(
   if (override) return override.enabled;
   return DEFAULT_MATRIX[role]?.[permission] ?? false;
 }
+
+/** All permissions a role holds given the DB override rows (ADMIN holds everything). */
+export function permissionsFromOverrides(
+  role: AppRole,
+  overrides: { role: string; permission: string; enabled: boolean }[]
+): Permission[] {
+  return PERMISSIONS.filter((p) => resolvePermission(role, p, overrides));
+}

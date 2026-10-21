@@ -42,7 +42,7 @@ export default function Sidebar() {
       )}
 
       {/* Sidebar Content */}
-      <aside className={`
+      <aside style={{ viewTransitionName: "app-sidebar" }} className={`
         fixed inset-y-0 left-0 z-[100] flex flex-col py-8 shadow-[4px_0_20px_-3px_rgba(0,0,0,0.5)]
         transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 overflow-visible
         bg-[#09090b] text-white border-r border-white/5

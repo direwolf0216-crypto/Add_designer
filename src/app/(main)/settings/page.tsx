@@ -4,6 +4,7 @@ import { useState, Suspense, useCallback, useMemo } from "react";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import PageReveal from "@/components/motion/PageReveal";
 
 // Each settings tab is code-split; only the open tab's bundle is downloaded.
 const tabLoading = () => <div className="h-40 animate-pulse rounded-2xl bg-white/60" aria-busy="true" />;
@@ -208,10 +209,18 @@ function SettingsPage() {
   );
 }
 
-export default function SettingsPageWrapper() {
+function SettingsPageWrapperContent() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading settings...</div>}>
       <SettingsPage />
     </Suspense>
+  );
+}
+
+export default function SettingsPageWrapper() {
+  return (
+    <PageReveal>
+      <SettingsPageWrapperContent />
+    </PageReveal>
   );
 }

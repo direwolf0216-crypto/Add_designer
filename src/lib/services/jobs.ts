@@ -5,7 +5,7 @@ import { computeBalance, parseAmount, round2 } from "@/lib/money";
 import { newJobNumber, newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { calendarDateToUtc } from "@/lib/dates";
 import { notFound } from "@/lib/api/http";
-import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { type SessionUser, userCan } from "@/lib/auth/session";
 import { jobScope } from "@/lib/jobs/scope";
 import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
@@ -211,7 +211,7 @@ export async function getJobBalance(jobId: string) {
 export async function saveJob(input: SaveJobInput, actor: Actor) {
   // Decided outside the transaction: users who can't see every job are put on jobs they create,
   // otherwise the job would vanish from their own lists.
-  const seesAllJobs = await roleHasPermission(actor.role, "view_all_jobs");
+  const seesAllJobs = await userCan(actor, "view_all_jobs");
   const scope = await jobScope(actor);
   // A unique-ref collision aborts the Postgres transaction, so the whole transaction is retried
   // (with fresh random refs) rather than the single insert.

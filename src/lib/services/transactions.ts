@@ -5,7 +5,7 @@ import prisma, { type TxClient } from "@/lib/prisma";
 import { round2 } from "@/lib/money";
 import { businessMonthRange, toBusinessISODate } from "@/lib/dates";
 import { refreshOrderTotals } from "@/lib/services/jobs";
-import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { type SessionUser, userCan } from "@/lib/auth/session";
 import { HttpError, badRequest, conflict, forbidden, notFound } from "@/lib/api/http";
 import { broadcastLater } from "@/lib/notifications";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
@@ -121,7 +121,7 @@ export function transactionData(item: TransactionItem) {
 /** Owners may change their own entries; anyone else needs manage_transactions. */
 export async function assertCanModifyTransaction(user: SessionUser, row: { userId: string | null }) {
   if (row.userId && row.userId === user.id) return;
-  if (await roleHasPermission(user.role, "manage_transactions")) return;
+  if (await userCan(user, "manage_transactions")) return;
   throw forbidden("You can only change transactions you recorded");
 }
 

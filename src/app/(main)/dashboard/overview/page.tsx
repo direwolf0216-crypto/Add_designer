@@ -15,6 +15,7 @@ import TaskAlerts from "@/components/dashboard/TaskAlerts";
 import RevenueTarget from "@/components/dashboard/RevenueTarget";
 import StatCards from "@/components/dashboard/StatCards";
 import { usePermissions } from "@/hooks/usePermissions";
+import PageReveal from "@/components/motion/PageReveal";
 
 // recharts is heavy; keep it out of the initial dashboard bundle.
 const RevenueChart = dynamic(() => import("@/components/dashboard/RevenueChart"), {
@@ -244,7 +245,7 @@ function DashboardSkeleton() {
   );
 }
 
-export default function OverviewPage() {
+function OverviewPageContent() {
   const [dateRange, setDateRange] = useState<{ startDate: Date; endDate: Date } | null>(null);
 
   return (
@@ -262,5 +263,13 @@ export default function OverviewPage() {
         <DashboardMetrics dateRange={dateRange} />
       </Suspense>
     </section>
+  );
+}
+
+export default function OverviewPage() {
+  return (
+    <PageReveal>
+      <OverviewPageContent />
+    </PageReveal>
   );
 }

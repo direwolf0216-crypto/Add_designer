@@ -18,7 +18,9 @@ function createBaseClient() {
 
   // The WebSocket (Pool) adapter supports interactive and batch transactions, which Prisma 7 uses
   // internally for nested writes and relation `connect`. The HTTP adapter does not.
-  const adapter = new PrismaNeon({ connectionString });
+  // Opening a connection costs several network round trips (WebSocket + TLS + auth), so keep a warm pool
+  // on the long-running server instead of dropping idle connections after the 30s default.
+  const adapter = new PrismaNeon({ connectionString, max: 20, idleTimeoutMillis: 5 * 60 * 1000 });
   return new PrismaClient({ adapter });
 }
 

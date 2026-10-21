@@ -7,13 +7,15 @@ import { requirePageUser } from "@/lib/auth/session";
 import { loadJobTablePage } from "@/lib/jobs/jobTablePage";
 import { jobScope } from "@/lib/jobs/scope";
 import { addDays, businessTodayUtc } from "@/lib/dates";
+import PageReveal from "@/components/motion/PageReveal";
+import type React from "react";
 
 export const dynamic = "force-dynamic";
 
 const NOT_CLOSED = { NOT: [{ status: { equals: "Delivered", mode: "insensitive" as const } }, { status: { equals: "Cancelled", mode: "insensitive" as const } }] };
 
 /** Jobs assigned to the signed-in user. */
-export default async function MyJobsPage({
+async function MyJobsPageContent({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -49,9 +51,9 @@ export default async function MyJobsPage({
       />
 
       <nav aria-label="My jobs filters" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {tiles.map((t) => (
+        {tiles.map((t, i) => (
+          <div key={t.label} className="animate-rise" style={{ ["--i" as string]: i }}>
           <StatCard
-            key={t.label}
             icon={t.icon}
             label={t.label}
             value={t.value}
@@ -59,6 +61,7 @@ export default async function MyJobsPage({
             href={t.id ? `/jobs/my-jobs?filter=${t.id}` : "/jobs/my-jobs"}
             selected={active === t.id}
           />
+          </div>
         ))}
       </nav>
 
@@ -74,5 +77,13 @@ export default async function MyJobsPage({
         </div>
       )}
     </div>
+  );
+}
+
+export default async function MyJobsPage(props: React.ComponentProps<typeof MyJobsPageContent>) {
+  return (
+    <PageReveal>
+      <MyJobsPageContent {...props} />
+    </PageReveal>
   );
 }

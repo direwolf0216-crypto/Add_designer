@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { route } from "@/lib/api/http";
-import { requireUser, roleHasPermission } from "@/lib/auth/session";
+import { requireUser, userCan } from "@/lib/auth/session";
 import { toBusinessISODate } from "@/lib/dates";
 import { jobScope } from "@/lib/jobs/scope";
 import { transactionJobScope } from "@/lib/jobs/scope";
@@ -28,7 +28,7 @@ export const GET = route(async (request) => {
   }
 
   const contains = { contains: query, mode: "insensitive" as const };
-  const canSeeTransactions = await roleHasPermission(user.role, "view_transactions");
+  const canSeeTransactions = await userCan(user, "view_transactions");
 
   const [jobs, transactions] = await Promise.all([
     prisma.job.findMany({

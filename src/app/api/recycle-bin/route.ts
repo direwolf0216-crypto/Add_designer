@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { intParam, parseJson, route } from "@/lib/api/http";
-import { requireAdmin, requireUser, roleHasPermission } from "@/lib/auth/session";
+import { requireAdmin, requireUser, userCan } from "@/lib/auth/session";
 import { businessRangeFromISO } from "@/lib/dates";
 import { deleteDriveFiles, forEachEntry, normalizeItemType, purgeItem, storedItemTypes } from "@/lib/services/recycleBin";
 
@@ -39,11 +39,11 @@ export const GET = route(async (req) => {
     conditions.push({ itemType: { in: type ? storedItemTypes(type) : [query.source] } });
   }
   // Trashed payments are financial records: only shown to users who can see transactions.
-  if (!(await roleHasPermission(user.role, "view_transactions"))) {
+  if (!(await userCan(user, "view_transactions"))) {
     conditions.push({ itemType: { notIn: TRANSACTION_TYPES } });
   }
   // Users limited to their assigned jobs only see trashed jobs they were assigned to.
-  if (!(await roleHasPermission(user.role, "view_all_jobs"))) {
+  if (!(await userCan(user, "view_all_jobs"))) {
     const assigned = await prisma.jobAssignment.findMany({ where: { userId: user.id }, select: { jobId: true }, take: 5000 });
     conditions.push({
       OR: [{ itemType: { notIn: storedItemTypes("job") } }, { itemId: { in: assigned.map((a) => a.jobId) } }],

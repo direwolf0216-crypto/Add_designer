@@ -88,11 +88,11 @@ export default function JobActivityFeed({ jobId }: { jobId: string }) {
         <section key={g.label}>
           <h4 className="mb-3 text-[11px] font-extrabold uppercase tracking-wider text-slate-400">{g.label}</h4>
           <ol className="relative flex flex-col gap-4 before:absolute before:bottom-2 before:left-[17px] before:top-2 before:w-px before:bg-slate-200">
-            {g.items.map((a) => {
+            {g.items.map((a, idx) => {
               const style = TYPE_STYLE[a.type] ?? { icon: "ph-dot-outline", chip: "bg-slate-100 text-slate-500 ring-slate-200" };
               const who = a.actor?.name || a.actor?.email || "System";
               return (
-                <li key={a.id} className="relative flex gap-3">
+                <li key={a.id} className="animate-rise relative flex gap-3" style={{ ["--i" as string]: Math.min(idx, 8) }}>
                   <span className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-4 ring-white ${style.chip}`}>
                     <i className={`ph-bold ${style.icon} text-[15px]`} aria-hidden="true"></i>
                   </span>

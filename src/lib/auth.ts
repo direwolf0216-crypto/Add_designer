@@ -8,7 +8,8 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { timingSafeEqual } from "crypto";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
-import { isRole } from "@/lib/permissions";
+import { isRole, permissionsFromOverrides } from "@/lib/permissions";
+import { resolveRolePermissions } from "@/lib/auth/session";
 
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
 const RECHECK_INTERVAL_MS = 60 * 1000; // re-read role/status from the DB at most once a minute
@@ -198,6 +199,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.sub = user.id;
         token.role = isRole(user.role) ? user.role : "STAFF";
+        token.permissions = await resolveRolePermissions(token.role);
         token.checkedAt = Date.now();
         token.revoked = false;
         return token;
@@ -208,14 +210,17 @@ export const authOptions: NextAuthOptions = {
 
       // Pick up role changes and deactivation/deletion without waiting for the session to expire.
       if (token.sub && !token.revoked && Date.now() - (token.checkedAt ?? 0) > RECHECK_INTERVAL_MS) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { role: true, status: true },
-        });
+        // One parallel round trip: the user's current role/status and the permission overrides.
+        const [dbUser, overrides] = await Promise.all([
+          prisma.user.findUnique({ where: { id: token.sub }, select: { role: true, status: true } }),
+          prisma.rolePermission.findMany({ select: { role: true, permission: true, enabled: true } }),
+        ]);
         if (!dbUser || dbUser.status === "INACTIVE") {
           token.revoked = true;
         } else {
           token.role = dbUser.role;
+          // Permission matrix edits apply within a minute, like role changes.
+          token.permissions = permissionsFromOverrides(dbUser.role, overrides);
         }
         token.checkedAt = Date.now();
       }
@@ -230,6 +235,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub;
         session.user.role = isRole(token.role) ? token.role : "STAFF";
+        session.user.permissions = token.permissions;
       }
       return session;
     },

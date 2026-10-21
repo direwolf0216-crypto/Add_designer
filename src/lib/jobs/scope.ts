@@ -2,14 +2,14 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import prisma, { type TxClient } from "@/lib/prisma";
 import { notFound } from "@/lib/api/http";
-import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { type SessionUser, userCan } from "@/lib/auth/session";
 
 /**
  * Which jobs a user may see. Users without `view_all_jobs` only see jobs assigned to them.
  * Merge into every Job query: `where: { ...(await jobScope(user)), ...rest }`.
  */
 export async function jobScope(user: Pick<SessionUser, "id" | "role">): Promise<Prisma.JobWhereInput> {
-  if (await roleHasPermission(user.role, "view_all_jobs")) return {};
+  if (await userCan(user, "view_all_jobs")) return {};
   return { assignments: { some: { userId: user.id } } };
 }
 

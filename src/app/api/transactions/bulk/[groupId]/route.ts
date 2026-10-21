@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { Transaction } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { route, parseJson, badRequest, forbidden, notFound } from "@/lib/api/http";
-import { requirePermission, roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { requirePermission, type SessionUser, userCan } from "@/lib/auth/session";
 import { newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { sumAmounts } from "@/lib/money";
 import { refreshOrderTotals } from "@/lib/services/jobs";
@@ -15,7 +15,7 @@ import {
 
 async function assertCanModifyGroup(user: SessionUser, rows: Transaction[]) {
   if (rows.every((row) => row.userId === user.id)) return;
-  if (await roleHasPermission(user.role, "manage_transactions")) return;
+  if (await userCan(user, "manage_transactions")) return;
   throw forbidden("You can only change transactions you recorded");
 }
 
