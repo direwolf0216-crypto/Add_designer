@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import AssigneePicker from "@/features/jobs/assignees/AssigneePicker";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import StatusSummaryCards from "@/features/jobs/status/StatusSummaryCards";
 import JobStatusTable from "@/features/jobs/status/JobStatusTable";
@@ -31,6 +33,7 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
   } = useJobStatusList({ initialJobs, teamUsers, initialTab });
 
   const { openJobDetails, openJobForm } = useGlobalForm();
+  const router = useRouter();
   // Nothing selects a row yet (rows open the global details modal), so the side panel stays hidden.
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -71,6 +74,12 @@ export default function JobStatusClient({ jobs: initialJobs, teamUsers = [], ini
             onOpenDetails={openJobDetails}
             onEdit={openJobForm}
             onDelete={setDeleteConfirmId}
+            renderAssignees={(job) => (
+              // Rows open the job on click; keep picker interactions inside the picker.
+              <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                <AssigneePicker jobId={job.id} assignees={job.assignments ?? []} onSaved={() => router.refresh()} />
+              </span>
+            )}
           />
 
           {/* Right Column - Detail Panel */}

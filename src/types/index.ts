@@ -17,7 +17,7 @@ export interface Job {
   inclusions?: any | null;
   notes?: string | null;
   attachments?: any | null;
-  assignees?: any | null;
+  assignees?: { userId: string; user: { id: string; name: string | null; image?: string | null } }[];
 }
 
 export interface FilterState {

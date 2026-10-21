@@ -24,6 +24,7 @@ export default function JobsLayoutClient({
   const isUpcoming = pathname === '/jobs/upcoming';
   const isJobStatus = pathname === '/jobs/job-status';
   const isTable = pathname === '/jobs/allJobs';
+  const isMyJobs = pathname === '/jobs/my-jobs';
   const hasActiveFilters = filters.categories.length > 0 || filters.statuses.length > 0 || filters.clientName || filters.location || filters.dateStart || filters.dateEnd || filters.amountMin || filters.amountMax;
 
   const [isExporting, setIsExporting] = React.useState(false);
@@ -203,6 +204,16 @@ export default function JobsLayoutClient({
           
           {/* Sub Navigation */}
           <div className="px-8 flex items-center gap-8 border-b border-slate-100 mt-2 relative z-10">
+            <Link
+              href="/jobs/my-jobs"
+              className={`pb-4 text-sm font-bold transition-colors border-b-2 ${
+                isMyJobs
+                  ? 'border-pink-500 text-pink-500'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              My Jobs
+            </Link>
             <Link
               href="/jobs/job-status"
               className={`pb-4 text-sm font-bold transition-colors border-b-2 ${

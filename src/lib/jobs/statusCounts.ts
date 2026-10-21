@@ -16,6 +16,7 @@ export interface StatusBoardJob {
   customData?: unknown;
   client?: { name?: string | null; phone?: string | null } | null;
   items?: unknown;
+  assignments?: { userId: string; user: { id: string; name: string | null; image?: string | null } }[];
   [key: string]: unknown;
 }
 

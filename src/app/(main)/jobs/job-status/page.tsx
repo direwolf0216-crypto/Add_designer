@@ -34,6 +34,7 @@ export default async function JobStatusPage({
         updatedAt: true,
         client: { select: { id: true, name: true, phone: true } },
         order: { select: { id: true, package: true, advance: true, due: true } },
+        assignments: { select: { userId: true, user: { select: { id: true, name: true, image: true } } } },
       },
       orderBy: [
         { date: 'desc' },

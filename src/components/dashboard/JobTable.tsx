@@ -5,6 +5,7 @@ import { Job } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useSystem } from '@/components/providers/SystemProvider';
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
+import AssigneeAvatars from "@/features/jobs/assignees/AssigneeAvatars";
 
 interface JobTableProps {
   jobs: Job[];
@@ -126,6 +127,7 @@ export default function JobTable({ jobs, currentPage = 1, totalPages = 1 }: JobT
             <div className="flex-[1.5]">Location</div>
             <div className="flex-[1]">Amount</div>
             <div className="flex-[1]">Status</div>
+            <div className="flex-[1]">Assigned</div>
             <div className="w-[40px] text-center"><i className="ph-bold ph-gear text-[1.1rem]"></i></div>
           </div>
           
@@ -193,6 +195,9 @@ export default function JobTable({ jobs, currentPage = 1, totalPages = 1 }: JobT
                     <div className={`w-2 h-2 rounded-full ${statusDotClass}`} style={customStatusStyle && {'backgroundColor': 'var(--status-bg)'}}></div>
                     <span className={`text-[0.7rem] font-bold ${statusTextClass}`} style={customStatusStyle && {'color': 'var(--status-text)'}}>{b.status}</span>
                   </div>
+                </div>
+                <div className="flex-[1] flex items-center">
+                  <AssigneeAvatars assignees={b.assignees ?? []} size={26} />
                 </div>
                 <div className="w-[40px] text-center text-slate-400 flex items-center justify-center hover:text-slate-900 transition-colors">
                   <i className="ph-bold ph-dots-three-vertical text-[1.2rem]"></i>
