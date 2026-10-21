@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import JobDetailsView, { type JobDetailsViewProps } from "./JobDetailsView";
 import JobActivityFeed from "@/features/jobs/activity/JobActivityFeed";
+import { hasFullAccess } from "@/lib/permissions";
 
 const ACTIVITY_TAB = {
   id: "activity",
@@ -17,6 +18,6 @@ const ACTIVITY_TAB = {
 /** Job details with the admin-only Activity tab (the activity API is admin-only as well). */
 export default function JobDetailsWithActivity(props: JobDetailsViewProps) {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = hasFullAccess(session?.user?.role);
   return <JobDetailsView {...props} extraTabs={isAdmin ? [ACTIVITY_TAB, ...(props.extraTabs ?? [])] : props.extraTabs} />;
 }

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { notFound, parseJson, route } from "@/lib/api/http";
-import { requireAdmin, requirePermission, requireUser } from "@/lib/auth/session";
+import { requireAdmin, requirePermission } from "@/lib/auth/session";
+import { jobScope } from "@/lib/jobs/scope";
 import { parseAmount, round2 } from "@/lib/money";
 import { refreshOrderTotals } from "@/lib/services/jobs";
 
@@ -15,11 +16,11 @@ const updateSchema = z.object({
 });
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
-  await requireUser();
+  const user = await requirePermission("view_amounts");
   const { id } = await params;
 
-  const order = await prisma.order.findUnique({
-    where: { id },
+  const order = await prisma.order.findFirst({
+    where: { id, job: await jobScope(user) },
     include: { job: { include: { client: true } } },
   });
   if (!order || order.job.deletedAt) throw notFound("Order not found");
@@ -29,6 +30,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
 
 export const PUT = route<{ id: string }>(async (req, { params }) => {
   await requirePermission("manage_jobs");
+  await requirePermission("view_amounts");
   const { id } = await params;
   const body = await parseJson(req, updateSchema);
 

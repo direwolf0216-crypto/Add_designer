@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
@@ -13,11 +13,19 @@ import JobFormExtras from "./JobFormExtras";
 import JobFormSection from "./JobFormSection";
 import { useJobFormState } from "./useJobFormState";
 import { useJobFormSubmit } from "./useJobFormSubmit";
+import { usePermissions } from "@/hooks/usePermissions";
+import { layoutWithoutMoney } from "@/lib/jobs/amounts";
 
 /** Create/edit job dialog driven by the JOB_FORM layout; opened through useGlobalForm().openJobForm. */
 function JobFormDialogInner() {
   const { isJobFormOpen, jobToEditId, jobInitialDate, closeJobForm } = useGlobalForm();
-  const state = useJobFormState({ isOpen: isJobFormOpen, jobToEditId, initialDate: jobInitialDate });
+  const loaded = useJobFormState({ isOpen: isJobFormOpen, jobToEditId, initialDate: jobInitialDate });
+  const { checkPermission } = usePermissions();
+  // Roles without "See amounts" get the form without its Financials section; the server keeps
+  // the stored price and payments when they save.
+  const canSeeAmounts = checkPermission("view_amounts");
+  const shownLayout = useMemo(() => (canSeeAmounts ? loaded.layoutSchema : layoutWithoutMoney(loaded.layoutSchema)), [canSeeAmounts, loaded.layoutSchema]);
+  const state = canSeeAmounts ? loaded : { ...loaded, layoutSchema: shownLayout };
   const { form, job, layoutSchema, teamUsers, allJobs, installments } = state;
   const { register, handleSubmit, watch, formState: { isSubmitting } } = form;
 

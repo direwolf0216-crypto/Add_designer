@@ -20,6 +20,7 @@ import JobTabs, { type JobDetailsTab } from "./JobTabs";
 import JobTimeline from "./JobTimeline";
 import { useJob } from "./useJob";
 import { useJobMutations } from "./useJobMutations";
+import { layoutWithoutMoney } from "@/lib/jobs/amounts";
 
 export type { JobDetailsTab } from "./JobTabs";
 
@@ -37,12 +38,15 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const { checkPermission } = usePermissions();
   const canManageTransactions = checkPermission("manage_transactions");
   const canManageJobs = checkPermission("manage_jobs");
+  // Without "See amounts" the API already strips money; hide the cards and rows that would show ₹0.
+  const canSeeAmounts = checkPermission("view_amounts");
   const { openJobForm, isJobDetailsOpen, jobDetailsId: contextJobId, closeJobDetails } = useGlobalForm();
 
   const jobDetailsId = standaloneJobId || contextJobId;
   const isVisible = standaloneJobId ? true : isJobDetailsOpen;
 
-  const { job, refreshJob, layoutSchema, teamUsers } = useJob(jobDetailsId, isVisible);
+  const { job, refreshJob, layoutSchema: fullLayout, teamUsers } = useJob(jobDetailsId, isVisible);
+  const layoutSchema = canSeeAmounts ? fullLayout : layoutWithoutMoney(fullLayout ?? null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [activeTabId, setActiveTabId] = useState(DETAILS_TAB.id);
   const mutations = useJobMutations({
@@ -73,12 +77,12 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6">
             <ClientCard job={job} />
-            <FinancialsCard financials={resolveFinancials(job)} />
+            {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} />}
           </div>
 
           {/* RIGHT COLUMN */}
           <div className="flex flex-col gap-6">
-            <JobSpecsCard entries={resolveSpecEntries(job, layoutSchema, JOB_DETAILS_FIELD_MAP, summary)} />
+            <JobSpecsCard entries={resolveSpecEntries(job, layoutSchema, JOB_DETAILS_FIELD_MAP, summary)} showAmounts={canSeeAmounts} />
           </div>
 
           {/* Dynamic Content Mapping (Sections not covered above) */}
@@ -122,7 +126,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
               <JobHeaderActions
                 job={job}
                 canManageJobs={canManageJobs}
-                canManageTransactions={canManageTransactions}
+                canManageTransactions={canManageTransactions && canSeeAmounts}
                 isExporting={mutations.isExporting}
                 isGeneratingInvoice={mutations.isGeneratingInvoice}
                 onEdit={() => {

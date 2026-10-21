@@ -7,11 +7,13 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { intParam, notFound, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser } from "@/lib/auth/session";
+import { requirePermission, requireUser, userCan } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { parseAmount } from "@/lib/money";
 import { broadcastLater } from "@/lib/notifications";
 import { saveJob } from "@/lib/services/jobs";
+import { hasFullAccess } from "@/lib/permissions";
+import { jobMoneyKeys, redactJobAmounts } from "@/lib/jobs/redact";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const fitsIn = (maxChars: number) => (value: unknown) => value === undefined || JSON.stringify(value).length <= maxChars;
@@ -77,10 +79,14 @@ export const GET = route(async (req) => {
   const offset = intParam(url, "offset", 0, 0, 1_000_000);
 
   // Trashed jobs are only listed for admins; `deletedAt: undefined` opts out of the soft-delete filter.
-  const includeDeleted = searchParams.get("includeDeleted") === "true" && user.role === "ADMIN";
+  const includeDeleted = searchParams.get("includeDeleted") === "true" && hasFullAccess(user.role);
   // List filters (categories, statuses, client, location, from, to, min, max) — same as the All Jobs page.
+  const canSeeAmounts = await userCan(user, "view_amounts");
+  const filters = parseJobFilters(searchParams);
+  // Filtering by a hidden amount would reveal it.
+  if (!canSeeAmounts) Object.assign(filters, { amountMin: "", amountMax: "" });
   const where: Prisma.JobWhereInput = {
-    ...buildJobWhere(parseJobFilters(searchParams)),
+    ...buildJobWhere(filters),
     ...(await jobScope(user)),
     deletedAt: includeDeleted ? undefined : null,
   };
@@ -129,7 +135,9 @@ export const GET = route(async (req) => {
     prisma.job.count({ where }),
   ]);
 
-  return NextResponse.json({ items: jobs, total, limit, offset }, { headers: { "Cache-Control": "private, no-store" } });
+  const keys = canSeeAmounts ? null : await jobMoneyKeys();
+  const items = keys ? jobs.map((j) => redactJobAmounts(j, keys)) : jobs;
+  return NextResponse.json({ items, total, limit, offset }, { headers: { "Cache-Control": "private, no-store" } });
 });
 
 export const POST = route(async (req) => {
@@ -184,8 +192,7 @@ export const POST = route(async (req) => {
     skipUserId: user.id,
   });
 
-  return NextResponse.json(
-    { ...job, client: { id: result.client.id, name: result.client.name }, order: result.order },
-    { status: 201, headers: { "Cache-Control": "private, no-store" } }
-  );
+  const created = { ...job, client: { id: result.client.id, name: result.client.name }, order: result.order };
+  const visible = (await userCan(user, "view_amounts")) ? created : redactJobAmounts(created, await jobMoneyKeys());
+  return NextResponse.json(visible, { status: 201, headers: { "Cache-Control": "private, no-store" } });
 });

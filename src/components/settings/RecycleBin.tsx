@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { FileX, Trash2, RotateCcw, ChevronLeft, ChevronRight, Check, X, Loader2 } from "lucide-react";
+import { hasFullAccess } from "@/lib/permissions";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -14,7 +15,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function RecycleBin() {
   const { data: session } = useSession();
   // Permanent deletion is admin-only on the server; hide the controls for everyone else.
-  const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = hasFullAccess(session?.user?.role);
 
 
   const [page, setPage] = useState(0);

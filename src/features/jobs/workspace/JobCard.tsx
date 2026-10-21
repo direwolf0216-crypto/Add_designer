@@ -22,7 +22,9 @@ type Props = {
 const CLOSED = /deliver|cancel/i;
 
 export default function JobCard({ job, today, stages = [], onMove, draggable = false, showStage = false }: Props) {
-  const paidPct = job.amount > 0 ? Math.min(100, Math.round((job.paid / job.amount) * 100)) : 0;
+  const amount = job.amount ?? 0;
+  const balance = job.balance ?? 0;
+  const paidPct = amount > 0 ? Math.min(100, Math.round(((job.paid ?? 0) / amount) * 100)) : 0;
   const closed = CLOSED.test(job.stage);
   const stageColor = stages.find((s) => s.label === job.stage)?.color;
 
@@ -83,13 +85,13 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
         <DueChip due={job.dueDate} today={today} closed={closed} />
       </div>
 
-      {job.amount > 0 && (
+      {amount > 0 && (
         <div className="pointer-events-none relative z-10 mt-3">
           <div className="mb-1 flex items-baseline justify-between text-[0.7rem] font-bold">
-            <Amount value={job.amount} maxChars={10} className="text-slate-800" />
-            {job.balance > 0 ? (
+            <Amount value={amount} maxChars={10} className="text-slate-800" />
+            {balance > 0 ? (
               <span className="text-rose-600">
-                <Amount value={job.balance} maxChars={9} /> due
+                <Amount value={balance} maxChars={9} /> due
               </span>
             ) : (
               <span className="text-emerald-600">Paid</span>

@@ -1,32 +1,22 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import useSWR from "swr";
-import { isPermission, isRole, resolvePermission } from "@/lib/permissions";
+import { hasFullAccess, isPermission } from "@/lib/permissions";
 
-type PermissionRow = { role: string; permission: string; enabled: boolean };
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
+/**
+ * UI gating from the permissions carried in the session (refreshed about once a minute).
+ * Every action is enforced again on the server.
+ */
 export function usePermissions() {
   const { data: session, status } = useSession();
+  const role = session?.user?.role;
+  const granted = session?.user?.permissions;
 
-  const { data: dbPermissions } = useSWR<PermissionRow[]>(
-    status === "authenticated" ? "/api/permissions" : null,
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  );
-
-  // UI gating only; every action is enforced again on the server.
   const checkPermission = (action: string): boolean => {
     if (status !== "authenticated") return false;
-    const role = session?.user?.role;
-    if (!isRole(role)) return false;
-    if (role === "ADMIN") return true;
-    if (!isPermission(action)) return false;
-    // Until the matrix loads, fall back to defaults so gated UI doesn't flicker.
-    return resolvePermission(role, action, Array.isArray(dbPermissions) ? dbPermissions : null);
+    if (hasFullAccess(role)) return true;
+    return isPermission(action) && (granted?.includes(action) ?? false);
   };
 
-  return { checkPermission };
+  return { checkPermission, role, isAdmin: hasFullAccess(role), isOwner: role === "OWNER" };
 }

@@ -94,7 +94,7 @@ export default function UserPicklist({ users, value, onChange, placeholder = "Se
                     <div className="flex flex-col">
                       <span className={`text-[0.85rem] font-bold ${isSelected ? 'text-orange-700' : (showAvailability && u.isBusy ? 'text-slate-400 line-through' : 'text-slate-700')}`}>{u.name}</span>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[0.6rem] font-semibold text-slate-400 uppercase tracking-wider">{u.role}</span>
+                        <span className="text-[0.6rem] font-semibold text-slate-400 uppercase tracking-wider">{u.roleName ?? u.role}</span>
                         {showAvailability && (
                           <>
                             <div className="w-1 h-1 rounded-full bg-slate-300"></div>

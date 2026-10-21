@@ -39,9 +39,8 @@ export function useJobFormData({ isOpen, jobToEditId, date }: JobFormDataArgs) {
   const layoutSchema = useLastLoaded(layoutData?.schema?.sections ? layoutData.schema : undefined) ?? null;
   const loadedUsers = useLastLoaded(usersData);
   const teamUsers: UserItem[] = loadedUsers
-    ? asList<{ id: string; name?: string; image?: string | null; role: string }>(loadedUsers)
-        .filter((u) => u.role !== "CLIENT")
-        .map((u) => ({ id: u.id, name: u.name || "Unknown", image: u.image, role: u.role }))
+    ? asList<{ id: string; name?: string; image?: string | null; role: string; roleKey?: string; roleName?: string }>(loadedUsers)
+        .map((u) => ({ id: u.id, name: u.name || "Unknown", image: u.image, role: u.role, roleKey: u.roleKey, roleName: u.roleName }))
     : [];
   const allJobs: AvailabilityJob[] = useLastLoaded(jobsData)?.items || [];
 

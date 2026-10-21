@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { intParam, notFound, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/session";
+import { jobScope } from "@/lib/jobs/scope";
 import { parseAmount, round2 } from "@/lib/money";
 import { refreshOrderTotals } from "@/lib/services/jobs";
 
@@ -16,11 +17,12 @@ const createSchema = z.object({
 });
 
 export const GET = route(async (req) => {
-  await requireUser();
+  // Orders are prices: only for roles that see amounts, and only for jobs the user can see.
+  const user = await requirePermission("view_amounts");
   const url = new URL(req.url);
 
   const orders = await prisma.order.findMany({
-    where: { job: { deletedAt: null } },
+    where: { job: { deletedAt: null, ...(await jobScope(user)) } },
     include: { job: { include: { client: true } } },
     orderBy: { createdAt: "desc" },
     take: intParam(url, "limit", 500, 1, 500),
@@ -32,6 +34,7 @@ export const GET = route(async (req) => {
 
 export const POST = route(async (req) => {
   await requirePermission("manage_jobs");
+  await requirePermission("view_amounts");
   const body = await parseJson(req, createSchema);
 
   const order = await prisma.$transaction(async (tx) => {

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { usePermissions } from "@/hooks/usePermissions";
-import type { WorkspaceData } from "@/lib/jobs/workspace";
+import type { WorkspaceData, WorkspaceJob } from "@/lib/jobs/workspace";
 import { downloadCsv, toCsv } from "@/lib/export/csv";
 import { saveTablesPdf } from "@/lib/export/pdf";
 import { toLocalISODate } from "@/lib/dates";
@@ -57,12 +57,12 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
     try {
       const res = await fetch(`/api/jobs/export?${searchParams.toString()}`);
       if (!res.ok) throw new Error();
-      const { jobs } = (await res.json()) as { jobs: WorkspaceData["list"] extends infer L ? (L extends { jobs: infer J } ? J : never) : never };
+      const { jobs, canSeeAmounts } = (await res.json()) as { jobs: WorkspaceJob[]; canSeeAmounts: boolean };
       if (!jobs.length) {
         toast.info("No jobs match the current filters");
         return;
       }
-      const head = ["Job #", "Client", "Phone", "Category", "Stage", "Due date", "Ordered", "Amount", "Balance", "Assigned to"];
+      const head = ["Job #", "Client", "Phone", "Category", "Stage", "Due date", "Ordered", ...(canSeeAmounts ? ["Amount", "Balance"] : []), "Assigned to"];
       const rows = jobs.map((j) => [
         j.jobNumber ?? "",
         j.clientName,
@@ -72,8 +72,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
         j.dueDate ?? "",
         j.orderDate,
         // jsPDF's built-in fonts have no rupee glyph; plain numbers are clearer in exports anyway.
-        String(j.amount),
-        String(j.balance),
+        ...(canSeeAmounts ? [String(j.amount ?? 0), String(j.balance ?? 0)] : []),
         j.assignees.map((a) => a.user.name).filter(Boolean).join(", "),
       ]);
       const name = `jobs-${toLocalISODate()}`;

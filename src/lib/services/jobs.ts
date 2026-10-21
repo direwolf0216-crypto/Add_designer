@@ -11,6 +11,8 @@ import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 import { syncAssignments } from "@/lib/services/assignments";
 import { deriveJobTracking } from "@/lib/jobs/tracking";
+import { keepStoredMoney, moneyKeys } from "@/lib/jobs/amounts";
+import type { FormLayout } from "@/lib/forms/types";
 
 /** Statuses that mean printing is done and finishing work should start. */
 export const PRODUCTION_DONE_STATUSES = ["Printing Completed", "Completed"];
@@ -47,7 +49,7 @@ export type SaveJobInput = {
   customData: Record<string, unknown>;
 };
 
-type Actor = Pick<SessionUser, "id" | "role">;
+type Actor = Pick<SessionUser, "id" | "role" | "permissions">;
 
 function snapshot(job: {
   category: string; date: Date; time: string; location: string; status: string; notes: string | null;
@@ -212,14 +214,13 @@ export async function getJobBalance(jobId: string) {
 export async function saveJob(input: SaveJobInput, actor: Actor) {
   // Decided outside the transaction: users who can't see every job are put on jobs they create,
   // otherwise the job would vanish from their own lists.
-  const seesAllJobs = await userCan(actor, "view_all_jobs");
-  const scope = await jobScope(actor);
+  const [seesAllJobs, seesAmounts, scope] = await Promise.all([userCan(actor, "view_all_jobs"), userCan(actor, "view_amounts"), jobScope(actor)]);
   // A unique-ref collision aborts the Postgres transaction, so the whole transaction is retried
   // (with fresh random refs) rather than the single insert.
-  return withUniqueRetry(() => saveJobOnce(input, actor, seesAllJobs, scope), () => "");
+  return withUniqueRetry(() => saveJobOnce(input, actor, seesAllJobs, seesAmounts, scope), () => "");
 }
 
-async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boolean, scope: Prisma.JobWhereInput) {
+async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boolean, seesAmounts: boolean, scope: Prisma.JobWhereInput) {
   const userId = actor.id;
   return prisma.$transaction(
     async (tx) => {
@@ -232,9 +233,12 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
 
       const client = await resolveClient(tx, input.client, existing?.clientId);
 
+      const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
+      const stored = (existing?.customData as Record<string, unknown> | null) ?? {};
+      // Without "See amounts" the money fields were never sent to this user: keep the stored ones.
       const customData: Record<string, unknown> = {
-        ...((existing?.customData as Record<string, unknown> | null) ?? {}),
-        ...input.customData,
+        ...stored,
+        ...(seesAmounts ? input.customData : keepStoredMoney(input.customData, stored, moneyKeys(layout?.schema as FormLayout | null))),
       };
       // Finishing work starts (as Pending) when printing is marked done, and is cleared otherwise.
       if (isProductionDone(input.status)) {
@@ -245,7 +249,6 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         delete customData.fld_b_finishing_status;
       }
 
-      const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
       const common = {
         // Board stage + due date as real columns (filterable, indexed), derived from the form data.
         ...deriveJobTracking(customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]),
@@ -279,16 +282,12 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
           },
         });
 
-      const installments = await syncInstallments(
-        tx,
-        job.id,
-        job.jobNumber || `#${job.id.slice(0, 8)}`,
-        client.name,
-        userId,
-        input.installments
-      );
+      // Price and payments are only changed by people who can see them.
+      const installments = seesAmounts
+        ? await syncInstallments(tx, job.id, job.jobNumber || `#${job.id.slice(0, 8)}`, client.name, userId, input.installments)
+        : ((existing?.order?.installments as InstallmentInput[] | null) ?? []);
 
-      const packageAmount = round2(input.packageAmount);
+      const packageAmount = seesAmounts ? round2(input.packageAmount) : existing?.order?.package ?? 0;
       const before = existing ? snapshot(existing, existing.client, existing.order?.package) : null;
       await tx.order.upsert({
         where: { jobId: job.id },
@@ -397,13 +396,17 @@ export async function updateJob(
   jobId: string,
   build: (existing: Prisma.JobGetPayload<{ include: { client: true; order: true } }>) => JobUpdate
 ) {
-  const scope = await jobScope(actor);
+  const [scope, seesAmounts] = await Promise.all([jobScope(actor), userCan(actor, "view_amounts")]);
   return prisma.$transaction(async (tx) => {
     const existing = await tx.job.findFirst({ where: { id: jobId, ...scope }, include: { client: true, order: true } });
     if (!existing) throw notFound("Job not found");
 
     const { assigneeIds, ...data } = build(existing);
     const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
+    if (data.customData && typeof data.customData === "object" && !seesAmounts) {
+      const stored = (existing.customData as Record<string, unknown> | null) ?? {};
+      data.customData = keepStoredMoney(data.customData as Record<string, unknown>, stored, moneyKeys(layout?.schema as FormLayout | null)) as Prisma.InputJsonValue;
+    }
     const tracking = deriveJobTracking(data.customData ?? existing.customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]);
     const job = await tx.job.update({ where: { id: jobId }, data: { ...data, ...tracking, updatedById: actor.id } });
     const assignmentChanges = assigneeIds ? await syncAssignments(tx, jobId, assigneeIds, actor.id) : { added: [], removed: [] };

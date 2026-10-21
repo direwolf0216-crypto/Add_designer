@@ -3,15 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useMobileNav } from "../providers/MobileNavProvider";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Sidebar() {
   const pathname = usePathname() || "";
-  const { data: session } = useSession();
   const { isSidebarOpen, closeSidebar } = useMobileNav();
   const [isCollapsed, setIsCollapsed] = useStoredBoolean('sidebar_collapsed');
+  const { checkPermission, isAdmin } = usePermissions();
 
   if (pathname.startsWith('/settings')) {
     return null;
@@ -19,16 +19,13 @@ export default function Sidebar() {
 
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
 
-  // Default to STAFF if role is undefined, or handle safely
-  const userRole = (session?.user as any)?.role || "STAFF";
-
   const navItems = [
-    { name: "Dashboard", path: "/dashboard/overview", icon: "ph-house", roles: ["ADMIN", "STAFF"] },
-    { name: "Jobs", path: "/jobs", icon: "ph-briefcase", roles: ["ADMIN", "STAFF", "DESIGNER"] },
-    { name: "Daily Ledger", path: "/transactions/overview", icon: "ph-file-text", roles: ["ADMIN", "STAFF"] },
+    { name: "Dashboard", path: "/dashboard/overview", icon: "ph-house", permission: "view_analytics" },
+    { name: "Jobs", path: "/jobs", icon: "ph-briefcase", permission: null },
+    { name: "Daily Ledger", path: "/transactions/overview", icon: "ph-file-text", permission: "view_transactions" },
   ];
 
-  const visibleNavItems = navItems.filter(item => item.roles.includes(userRole));
+  const visibleNavItems = navItems.filter((item) => !item.permission || checkPermission(item.permission));
 
   return (
     <>
@@ -198,7 +195,7 @@ export default function Sidebar() {
 
         {/* Settings Button */}
         <div className={`flex flex-col relative z-20 pb-4 w-full ${isCollapsed ? 'items-center mt-0' : 'mt-auto px-2 gap-3'}`}>
-          {userRole === "ADMIN" && (
+          {isAdmin && (
             <Link
               href="/settings"
               prefetch={true}

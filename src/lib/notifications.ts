@@ -117,23 +117,24 @@ export async function createNotification(params: NotificationParams) {
 export async function broadcastNotification(params: Omit<NotificationParams, "userId"> & { skipUserId?: string | null }) {
   const { skipUserId, ...notificationParams } = params;
   try {
-    const users = await prisma.user.findMany({
-      where: { status: "ACTIVE" },
-      select: { id: true, role: true },
-    });
-
-    const rolePermissions = await prisma.rolePermission.findMany({
-      where: { permission: `notify_${notificationParams.type}` },
-    });
-    const rolesEnabled = rolePermissions.filter((rp) => rp.enabled).map((rp) => rp.role);
-    // Admins receive notifications unless they explicitly turned this type off.
-    const adminPerm = rolePermissions.find((rp) => rp.role === "ADMIN");
-    if ((!adminPerm || adminPerm.enabled) && !rolesEnabled.includes("ADMIN")) rolesEnabled.push("ADMIN");
+    const permission = `notify_${notificationParams.type}`;
+    const [users, rolePermissions] = await Promise.all([
+      prisma.user.findMany({ where: { status: "ACTIVE" }, select: { id: true, role: true, customRole: { select: { permissions: true } } } }),
+      prisma.rolePermission.findMany({ where: { permission } }),
+    ]);
+    const rowFor = (role: string) => rolePermissions.find((rp) => rp.role === role)?.enabled;
+    // Owner and admins receive notifications unless the type was switched off for them; staff and
+    // custom roles only when it was switched on.
+    const wants = (user: (typeof users)[number]) => {
+      if (user.role === "OWNER" || user.role === "ADMIN") return rowFor(user.role) ?? rowFor("ADMIN") ?? true;
+      if (user.role === "STAFF") return rowFor("STAFF") ?? false;
+      return user.customRole?.permissions.includes(permission) ?? false;
+    };
 
     const results = await Promise.allSettled(
       users
         .filter((user) => !(skipUserId && user.id === skipUserId))
-        .filter((user) => rolesEnabled.includes(user.role))
+        .filter(wants)
         .map((user) => createNotification({ ...notificationParams, userId: user.id }))
     );
     return results.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []));

@@ -9,16 +9,14 @@ import { usePermissions } from "@/hooks/usePermissions";
 import AssigneeAvatars, { Avatar } from "./AssigneeAvatars";
 import type { JobAssignee } from "./types";
 
-export type AssignableUser = { id: string; name: string; image?: string | null; role: string };
-
-const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", STAFF: "Staff", DESIGNER: "Designer" };
+export type AssignableUser = { id: string; name: string; image?: string | null; role: string; roleName: string };
 
 /** Active team members for assignment pickers. */
 export function useAssignableUsers(enabled = true): AssignableUser[] {
   const { data } = useSWR(enabled ? "/api/users" : null, fetcher, { revalidateOnFocus: false });
-  return asList<{ id: string; name: string | null; image?: string | null; role: string; status?: string }>(data)
+  return asList<{ id: string; name: string | null; image?: string | null; role: string; roleName?: string; status?: string }>(data)
     .filter((u) => !u.status || u.status === "ACTIVE")
-    .map((u) => ({ id: u.id, name: u.name || "Unknown", image: u.image, role: u.role }));
+    .map((u) => ({ id: u.id, name: u.name || "Unknown", image: u.image, role: u.role, roleName: u.roleName ?? u.role }));
 }
 
 /** Searchable, multi-select list of team members. Controlled; used by the popover and the job form. */
@@ -58,7 +56,7 @@ export function AssigneeList({ users, selected, onToggle }: { users: AssignableU
                 <Avatar name={u.name} image={u.image} size={30} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold text-slate-800">{u.name}</span>
-                  <span className="text-[11px] font-semibold text-slate-400">{ROLE_LABEL[u.role] ?? u.role}</span>
+                  <span className="text-[11px] font-semibold text-slate-400">{u.roleName}</span>
                 </span>
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${isOn ? "border-orange-500 bg-orange-500 text-white" : "border-slate-300 bg-white"}`}

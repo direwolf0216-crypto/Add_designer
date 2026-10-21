@@ -7,6 +7,7 @@ import { getGoogleDriveToken } from "@/lib/googleDriveAuth";
 import { hardDeleteJob, refreshOrderTotals, restoreJob } from "@/lib/services/jobs";
 import { adjustProductOrder } from "@/lib/services/transactions";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
+import { hasFullAccess } from "@/lib/permissions";
 
 export type BinItemType = "job" | "transaction" | "TRANSACTION_GROUP" | "product-order";
 
@@ -208,7 +209,7 @@ export async function restoreItem(entry: RecycleBin, user: SessionUser) {
  * after this has committed (see deleteDriveFiles).
  */
 export async function purgeItem(entry: RecycleBin, user: SessionUser | null): Promise<{ driveFileIds: string[] }> {
-  if (user && user.role !== "ADMIN") throw forbidden();
+  if (user && !hasFullAccess(user.role)) throw forbidden();
   const type = normalizeItemType(entry.itemType);
   const files: string[] = [];
 

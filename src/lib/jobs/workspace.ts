@@ -120,13 +120,14 @@ export type WorkspaceJob = {
   dueDate: string | null; // yyyy-MM-dd
   orderDate: string;
   location: string;
-  amount: number;
-  paid: number;
-  balance: number;
+  /** null when the viewer's role can't see amounts. */
+  amount: number | null;
+  paid: number | null;
+  balance: number | null;
   assignees: { userId: string; user: { id: string; name: string | null; image: string | null } }[];
 };
 
-function toCard(r: CardRow, firstStage: string): WorkspaceJob {
+function toCard(r: CardRow, firstStage: string, showAmounts: boolean): WorkspaceJob {
   return {
     id: r.id,
     jobNumber: r.jobNumber,
@@ -137,9 +138,9 @@ function toCard(r: CardRow, firstStage: string): WorkspaceJob {
     dueDate: r.dueDate ? r.dueDate.toISOString().slice(0, 10) : null,
     orderDate: r.date.toISOString().slice(0, 10),
     location: r.location,
-    amount: r.order?.package ?? 0,
-    paid: r.order?.advance ?? 0,
-    balance: r.order?.due ?? 0,
+    amount: showAmounts ? r.order?.package ?? 0 : null,
+    paid: showAmounts ? r.order?.advance ?? 0 : null,
+    balance: showAmounts ? r.order?.due ?? 0 : null,
     assignees: r.assignments,
   };
 }
@@ -165,8 +166,10 @@ const SCHEDULE_DAYS = 14;
 
 /** Resolve the URL state into Prisma filters (shared by the workspace views and the export). */
 export async function buildWorkspaceQuery(user: SessionUser, raw: Raw) {
-  const canSeeAll = await userCan(user, "view_all_jobs");
+  const [canSeeAll, canSeeAmounts] = await Promise.all([userCan(user, "view_all_jobs"), userCan(user, "view_amounts")]);
   const params = parseWorkspaceParams(raw, canSeeAll);
+  // Sorting by a hidden amount would leak the ordering.
+  if (params.sort === "amount" && !canSeeAmounts) params.sort = "due";
   const [layout, visibility] = await Promise.all([
     prisma.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } }),
     jobScope(user),
@@ -203,18 +206,18 @@ export async function buildWorkspaceQuery(user: SessionUser, raw: Raw) {
   // Stats ignore the quick-filter focus (they are the focus buttons) but respect everything else.
   const filtered: Prisma.JobWhereInput = { ...base, AND: [...((base.AND as Prisma.JobWhereInput[]) ?? []), ...filters] };
   const where: Prisma.JobWhereInput = { ...filtered, AND: [...(filtered.AND as Prisma.JobWhereInput[]), focus] };
-  return { canSeeAll, params, stages, firstStage, readyStage, categories, today, visibility, mine, filtered, where };
+  return { canSeeAll, canSeeAmounts, params, stages, firstStage, readyStage, categories, today, visibility, mine, filtered, where };
 }
 
 /** Rows for CSV/PDF export with the current filters (capped). */
 export async function loadWorkspaceExport(user: SessionUser, raw: Raw, limit = 5000) {
-  const { where, firstStage, params } = await buildWorkspaceQuery(user, raw);
+  const { where, firstStage, params, canSeeAmounts } = await buildWorkspaceQuery(user, raw);
   const rows = await prisma.job.findMany({ where, select: CARD_SELECT, orderBy: ORDER[params.sort](params.dir), take: limit });
-  return rows.map((r) => toCard(r, firstStage));
+  return { canSeeAmounts, jobs: rows.map((r) => toCard(r, firstStage, canSeeAmounts)) };
 }
 
 export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
-  const { canSeeAll, params, stages, firstStage, readyStage, categories, today, visibility, mine, filtered, where } = await buildWorkspaceQuery(user, raw);
+  const { canSeeAll, canSeeAmounts, params, stages, firstStage, readyStage, categories, today, visibility, mine, filtered, where } = await buildWorkspaceQuery(user, raw);
 
   const statsWhere = (extra: Prisma.JobWhereInput) => ({ ...filtered, AND: [...(filtered.AND as Prisma.JobWhereInput[]), extra] });
   const statsPromise = Promise.all([
@@ -242,7 +245,7 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
           prisma.job.count({ where: colWhere }),
           prisma.job.findMany({ where: colWhere, select: CARD_SELECT, orderBy: ORDER.due("asc"), take: expanded ? BOARD_EXPANDED : BOARD_CARDS }),
         ]);
-        return { stage: s.label, color: s.color, count, jobs: rows.map((r) => toCard(r, firstStage)), expanded };
+        return { stage: s.label, color: s.color, count, jobs: rows.map((r) => toCard(r, firstStage, canSeeAmounts)), expanded };
       })
     );
   } else if (params.view === "list") {
@@ -250,7 +253,7 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
       prisma.job.count({ where }),
       prisma.job.findMany({ where, select: CARD_SELECT, orderBy: ORDER[params.sort](params.dir), skip: (params.page - 1) * LIST_PAGE, take: LIST_PAGE }),
     ]);
-    listData = { jobs: rows.map((r) => toCard(r, firstStage)), total, page: params.page, pageSize: LIST_PAGE };
+    listData = { jobs: rows.map((r) => toCard(r, firstStage, canSeeAmounts)), total, page: params.page, pageSize: LIST_PAGE };
   } else {
     const end = addDays(today, SCHEDULE_DAYS);
     const scheduleWhere = (extra: Prisma.JobWhereInput) => ({ ...where, AND: [...(where.AND as Prisma.JobWhereInput[]), ACTIVE, extra] });
@@ -261,9 +264,9 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
     ]);
     const byDay = new Map<string, WorkspaceJob[]>();
     for (let i = 0; i < SCHEDULE_DAYS; i++) byDay.set(addDays(today, i).toISOString().slice(0, 10), []);
-    for (const r of upcomingRows) byDay.get(r.dueDate!.toISOString().slice(0, 10))?.push(toCard(r, firstStage));
+    for (const r of upcomingRows) byDay.get(r.dueDate!.toISOString().slice(0, 10))?.push(toCard(r, firstStage, canSeeAmounts));
     schedule = {
-      overdue: overdueRows.map((r) => toCard(r, firstStage)),
+      overdue: overdueRows.map((r) => toCard(r, firstStage, canSeeAmounts)),
       days: [...byDay].map(([date, jobs]) => ({ date, jobs })),
       undated,
     };
@@ -272,6 +275,7 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
   return {
     params,
     canSeeAll,
+    canSeeAmounts,
     stages,
     categories,
     stats: await statsPromise,

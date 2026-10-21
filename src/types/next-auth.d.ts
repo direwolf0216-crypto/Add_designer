@@ -6,6 +6,9 @@ declare module "next-auth" {
     user: DefaultSession["user"] & {
       id: string;
       role: AppRole;
+      customRoleId?: string | null;
+      /** Custom role name (null for built-in roles). */
+      roleName?: string | null;
       permissions?: Permission[];
     };
   }
@@ -19,6 +22,8 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     role?: AppRole;
+    customRoleId?: string | null;
+    roleName?: string | null;
     permissions?: Permission[];
     /** Epoch ms of the last time role/status were re-read from the database. */
     checkedAt?: number;

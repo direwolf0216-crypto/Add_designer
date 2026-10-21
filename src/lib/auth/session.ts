@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { forbidden, unauthorized } from "@/lib/api/http";
-import { isRole, PERMISSIONS, permissionsFromOverrides, resolvePermission, type AppRole, type Permission } from "@/lib/permissions";
+import { hasFullAccess, isRole, resolvePermissions, type AppRole, type Permission } from "@/lib/permissions";
 
 export type SessionUser = {
   id: string;
   role: AppRole;
+  customRoleId?: string | null;
   name?: string | null;
   email?: string | null;
   /** Permissions resolved into the session token (refreshed with role/status every minute). */
@@ -20,7 +21,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const session = await getServerSession(authOptions);
   const user = session?.user;
   if (!user?.id || !isRole(user.role)) return null;
-  return { id: user.id, role: user.role, name: user.name, email: user.email, permissions: user.permissions };
+  return { id: user.id, role: user.role, customRoleId: user.customRoleId ?? null, name: user.name, email: user.email, permissions: user.permissions };
 }
 
 /** Throws 401 unless signed in. */
@@ -30,36 +31,44 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
-/** Throws 403 unless the signed-in user is an ADMIN. */
+/** Throws 403 unless the signed-in user is the Owner or an Admin. */
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
-  if (user.role !== "ADMIN") throw forbidden();
+  if (!hasFullAccess(user.role)) throw forbidden();
   return user;
 }
 
-/** Whether a role currently holds a permission (DB override, else default matrix). Not cached: tiny table. */
-export async function roleHasPermission(role: AppRole, permission: Permission): Promise<boolean> {
-  if (role === "ADMIN") return true;
-  const override = await prisma.rolePermission.findUnique({
-    where: { role_permission: { role, permission } },
-  });
-  return resolvePermission(role, permission, override ? [override] : null);
+/** Throws 403 unless the signed-in user is the Owner. */
+export async function requireOwner(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "OWNER") throw forbidden("Only the owner can do this");
+  return user;
 }
 
-/** Every permission a role currently holds, in one query (used to fill the session token). */
-export async function resolveRolePermissions(role: AppRole): Promise<Permission[]> {
-  if (role === "ADMIN") return [...PERMISSIONS];
-  return permissionsFromOverrides(role, await prisma.rolePermission.findMany({ where: { role } }));
+/** Every permission a user currently holds, read fresh from the database (one round trip). */
+export async function loadUserPermissions(userId: string) {
+  const [user, staffOverrides] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true, status: true, customRoleId: true, customRole: { select: { name: true, permissions: true } } } }),
+    prisma.rolePermission.findMany({ where: { role: "STAFF" }, select: { role: true, permission: true, enabled: true } }),
+  ]);
+  if (!user) return null;
+  return {
+    role: user.role as AppRole,
+    status: user.status,
+    customRoleId: user.customRoleId,
+    roleName: user.customRole?.name ?? null,
+    permissions: resolvePermissions(user.role as AppRole, user.customRole?.permissions, staffOverrides),
+  };
 }
 
 /**
  * Whether a user holds a permission. Uses the permissions carried in the session (no DB round trip);
  * falls back to a lookup when they are missing (e.g. tokens issued before this field existed).
  */
-export async function userCan(user: Pick<SessionUser, "role" | "permissions">, permission: Permission): Promise<boolean> {
-  if (user.role === "ADMIN") return true;
+export async function userCan(user: Pick<SessionUser, "id" | "role" | "permissions">, permission: Permission): Promise<boolean> {
+  if (hasFullAccess(user.role)) return true;
   if (user.permissions) return user.permissions.includes(permission);
-  return roleHasPermission(user.role, permission);
+  return (await loadUserPermissions(user.id))?.permissions.includes(permission) ?? false;
 }
 
 /** Throws 401/403 unless the signed-in user holds `permission`. */

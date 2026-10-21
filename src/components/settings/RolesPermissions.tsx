@@ -1,207 +1,264 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
-import { fetcher } from "@/lib/swr";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PERMISSIONS, type Permission } from "@/lib/permissions";
+import type { RoleSummary } from "@/lib/services/roles";
+import { roleIcon, useRoles } from "./RoleSelect";
+import PermissionList from "./roles/PermissionList";
+import RoleDialog from "./roles/RoleDialog";
+import DeleteRoleDialog from "./roles/DeleteRoleDialog";
 
-interface RolePermission {
-  id: string;
-  role: string;
-  permission: string;
-  enabled: boolean;
+type Draft = { name: string; description: string; permissions: Permission[] };
+
+const draftOf = (r: RoleSummary): Draft => ({ name: r.name, description: r.description ?? "", permissions: [...r.permissions] });
+const sameDraft = (a: Draft, b: Draft) =>
+  a.name.trim() === b.name.trim() && a.description.trim() === b.description.trim() && a.permissions.length === b.permissions.length && a.permissions.every((p) => b.permissions.includes(p));
+
+function RoleItem({ r, on, onSelect }: { r: RoleSummary; on: boolean; onSelect: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={on}
+        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors ${on ? "bg-slate-900 text-white shadow-md" : "text-slate-700 hover:bg-slate-100/80"}`}
+      >
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${on ? "bg-white/15" : "bg-white text-slate-500 ring-1 ring-slate-200"}`}>
+          <i className={`ph-bold ${roleIcon(r)} text-[15px]`} aria-hidden="true"></i>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-bold">{r.name}</span>
+          <span className={`block text-[11px] font-semibold ${on ? "text-white/60" : "text-slate-400"}`}>
+            {r.userCount} {r.userCount === 1 ? "person" : "people"}
+          </span>
+        </span>
+        {r.locked && <i className={`ph-bold ph-lock-simple text-xs ${on ? "text-white/50" : "text-slate-300"}`} aria-label="Full access"></i>}
+      </button>
+    </li>
+  );
 }
 
-const PERMISSION_LABELS: Record<string, { label: string; description: string; icon: string }> = {
-  manage_jobs: { label: "Manage Jobs", description: "Create, edit, and delete jobs", icon: "ph-calendar-blank" },
-  view_transactions: { label: "View Transactions", description: "View financial transaction history", icon: "ph-eye" },
-  manage_transactions: { label: "Manage Transactions", description: "Create, edit, and delete transactions", icon: "ph-file-text" },
-  view_analytics: { label: "View Analytics", description: "Access analytics and reports", icon: "ph-chart-bar" },
-  manage_users: { label: "Manage Users", description: "Invite, edit, and remove team members", icon: "ph-users-three" },
-  view_designs: { label: "View Designs", description: "View design proofs and artwork", icon: "ph-palette" },
-  manage_designs: { label: "Manage Designs", description: "Upload and manage design proofs", icon: "ph-paint-brush" },
-  view_export_analytics: { label: "Export Reports", description: "Export dashboard and ledger reports", icon: "ph-download-simple" },
-  view_all_jobs: { label: "View All Jobs", description: "See every job, not only the ones assigned to them", icon: "ph-briefcase" },
-};
 
-const ROLES = ["ADMIN", "STAFF", "DESIGNER"] as const;
-
-const ROLE_DISPLAY: Record<string, { label: string; color: string; bg: string }> = {
-  ADMIN: { label: "Admin", color: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
-  STAFF: { label: "Staff", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
-  DESIGNER: { label: "Designer", color: "text-violet-700", bg: "bg-violet-50 border-violet-200" },
-};
-
+/** Settings → Roles & Permissions: Owner, Admin and Staff plus custom roles (create, duplicate, edit, delete). */
 export default function RolesPermissions() {
-  const { data, isLoading: loading, mutate } = useSWR<RolePermission[]>("/api/permissions", fetcher, {
-    revalidateOnFocus: false,
-    shouldRetryOnError: false,
-    onError: () => toast.error("Failed to load permissions"),
-  });
-  const permissions = Array.isArray(data) ? data : [];
-  // Local (optimistic) edits go straight into the SWR cache; the PUT below persists them.
-  const setPermissions = (update: (prev: RolePermission[]) => RolePermission[]) =>
-    mutate((prev) => update(Array.isArray(prev) ? prev : []), { revalidate: false });
-  const [updatingKeys, setUpdatingKeys] = useState<Set<string>>(new Set());
+  const { roles, mutate, isLoading } = useRoles();
+  const [selectedKey, setSelectedKey] = useState("STAFF");
+  const selected = roles.find((r) => r.key === selectedKey) ?? roles.find((r) => r.key === "STAFF") ?? roles[0];
 
-  const isEnabled = (role: string, permission: string): boolean => {
-    const perm = permissions.find((p) => p.role === role && p.permission === permission);
-    return perm?.enabled ?? false;
-  };
+  // Draft edits for the selected role; reset when another role is picked or the server copy changes.
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draftFor, setDraftFor] = useState<RoleSummary | null>(null);
+  if (selected && selected !== draftFor) {
+    setDraftFor(selected);
+    setDraft(draftOf(selected));
+  }
+  const dirty = !!selected && !!draft && !sameDraft(draft, draftOf(selected));
 
-  const handleToggle = async (role: string, permission: string) => {
-    if (role === "ADMIN") return; // ADMIN is locked
+  const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState<{ from: RoleSummary | null } | null>(null);
+  const [deleting, setDeleting] = useState<RoleSummary | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-    const key = `${role}-${permission}`;
-    const currentValue = isEnabled(role, permission);
+  const toggle = (p: Permission) =>
+    setDraft((d) => (d ? { ...d, permissions: d.permissions.includes(p) ? d.permissions.filter((x) => x !== p) : PERMISSIONS.filter((x) => x === p || d.permissions.includes(x)) } : d));
 
-    // Optimistic update
-    setPermissions((prev) =>
-      prev.map((p) =>
-        p.role === role && p.permission === permission ? { ...p, enabled: !currentValue } : p
-      )
-    );
-
-    setUpdatingKeys((prev) => new Set(prev).add(key));
-
+  const save = async () => {
+    if (!selected || !draft) return;
+    setSaving(true);
     try {
-      const res = await fetch("/api/permissions", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, permission, enabled: !currentValue }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to update");
-      }
-    } catch {
-      // Revert on failure
-      setPermissions((prev) =>
-        prev.map((p) =>
-          p.role === role && p.permission === permission ? { ...p, enabled: currentValue } : p
-        )
-      );
-      toast.error("Failed to update permission");
+      const body = selected.kind === "custom" ? { name: draft.name, description: draft.description || null, permissions: draft.permissions } : { permissions: draft.permissions };
+      const res = await fetch(`/api/roles/${selected.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error((await res.json()).error || "Couldn't save the role");
+      await mutate();
+      toast.success(`Saved ${draft.name.trim() || selected.name}`, { description: "People with this role get the change within a minute." });
+    } catch (err) {
+      toast.error((err as Error).message);
     } finally {
-      setUpdatingKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
+      setSaving(false);
     }
   };
 
-  if (loading) {
+  if (isLoading && roles.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
-        <div className="flex items-center justify-center gap-3 text-slate-400">
-          <div className="w-5 h-5 border-2 border-slate-300 border-t-orange-500 rounded-full animate-spin"></div>
-          Loading permissions...
-        </div>
+      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+        <div className="h-72 animate-pulse rounded-3xl bg-slate-100" />
+        <div className="h-[28rem] animate-pulse rounded-3xl bg-slate-100" />
       </div>
     );
   }
 
-  const permissionKeys = Object.keys(PERMISSION_LABELS);
+  const system = roles.filter((r) => r.kind === "system");
+  const custom = roles.filter((r) => r.kind === "custom");
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-7 py-6 border-b border-gray-100">
-        <h2 className="text-xl font-bold text-slate-900">Roles & Permissions</h2>
-        <p className="text-slate-500 text-sm mt-0.5">
-          Configure what each role can access. Admin permissions are locked and always enabled.
-        </p>
-      </div>
-
-      {/* Permission Matrix */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left px-7 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[280px]">
-                Permission
-              </th>
-              {ROLES.map((role) => {
-                const display = ROLE_DISPLAY[role];
-                return (
-                  <th key={role} className="px-4 py-4 text-center w-[140px]">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${display.bg} ${display.color}`}>
-                      {role === "ADMIN" && <i className="ph-fill ph-crown text-[0.65rem]"></i>}
-                      {display.label}
-                    </span>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {permissionKeys.map((permKey) => {
-              const perm = PERMISSION_LABELS[permKey];
-              return (
-                <tr key={permKey} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-7 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                        <i className={`ph-fill ${perm.icon} text-slate-500 text-sm`}></i>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{perm.label}</p>
-                        <p className="text-[0.7rem] text-slate-400">{perm.description}</p>
-                      </div>
-                    </div>
-                  </td>
-                  {ROLES.map((role) => {
-                    const enabled = isEnabled(role, permKey);
-                    const isAdmin = role === "ADMIN";
-                    const key = `${role}-${permKey}`;
-                    const isUpdating = updatingKeys.has(key);
-
-                    return (
-                      <td key={role} className="px-4 py-4 text-center">
-                        <button
-                          onClick={() => handleToggle(role, permKey)}
-                          disabled={isAdmin || isUpdating}
-                          className={`relative w-11 h-6 rounded-full transition-all duration-200 ${
-                            isAdmin
-                              ? "cursor-not-allowed opacity-70"
-                              : "cursor-pointer hover:shadow-md"
-                          } ${
-                            enabled
-                              ? isAdmin
-                                ? "bg-orange-400"
-                                : "bg-green-500 shadow-sm"
-                              : "bg-slate-200"
-                          }`}
-                          title={isAdmin ? "Admin permissions are locked" : `Toggle ${perm.label}`}
-                        >
-                          <span
-                            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 flex items-center justify-center ${
-                              enabled ? "translate-x-5" : "translate-x-0"
-                            }`}
-                          >
-                            {isAdmin && enabled && (
-                              <i className="ph-fill ph-lock-simple text-[0.5rem] text-orange-400"></i>
-                            )}
-                          </span>
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Footer Note */}
-      <div className="px-7 py-4 bg-slate-50 border-t border-gray-100">
-        <div className="flex items-center gap-2 text-[0.75rem] text-slate-400">
-          <i className="ph ph-info text-sm"></i>
-          <span>Changes are saved automatically. Admin role permissions cannot be modified.</span>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900">Roles & Permissions</h2>
+          <p className="mt-1 text-sm text-slate-500">Owner, Admin and Staff come built in. Create your own roles or duplicate one to start from its permissions.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setCreating({ from: null })}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 hover:shadow-md"
+        >
+          <i className="ph-bold ph-plus" aria-hidden="true"></i>
+          New role
+        </button>
       </div>
+
+      <div className="grid items-start gap-5 md:grid-cols-[260px_1fr]">
+        <nav aria-label="Roles" className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/80 p-2.5 md:sticky md:top-4">
+          <div>
+            <p className="px-3 pt-1 pb-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Built in</p>
+            <ul className="flex flex-col gap-0.5">
+              {system.map((r) => <RoleItem key={r.key} r={r} on={r.key === selected?.key} onSelect={() => setSelectedKey(r.key)} />)}
+            </ul>
+          </div>
+          <div>
+            <p className="px-3 pb-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Custom</p>
+            {custom.length ? (
+              <ul className="flex flex-col gap-0.5">
+                {custom.map((r) => <RoleItem key={r.key} r={r} on={r.key === selected?.key} onSelect={() => setSelectedKey(r.key)} />)}
+              </ul>
+            ) : (
+              <button type="button" onClick={() => setCreating({ from: null })} className="mx-1 mb-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-2xl border border-dashed border-slate-200 px-3 py-3 text-left text-xs font-semibold text-slate-400 transition-colors hover:border-orange-300 hover:text-orange-600">
+                <i className="ph-bold ph-plus-circle text-base" aria-hidden="true"></i>
+                Create your first custom role
+              </button>
+            )}
+          </div>
+        </nav>
+
+        {selected && draft && (
+          <section key={selected.key} className="animate-rise relative flex flex-col gap-5 rounded-3xl border border-slate-200/80 bg-white/80 p-5 backdrop-blur md:p-6">
+            <header className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white shadow-lg shadow-slate-900/20">
+                <i className={`ph-bold ${roleIcon(selected)} text-xl`} aria-hidden="true"></i>
+              </span>
+              <div className="min-w-0 flex-1">
+                {selected.kind === "custom" ? (
+                  <>
+                    <input
+                      value={draft.name}
+                      onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                      maxLength={40}
+                      aria-label="Role name"
+                      className="-mx-1.5 w-full rounded-lg bg-transparent px-1.5 text-xl font-black text-slate-900 hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    />
+                    <input
+                      value={draft.description}
+                      onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                      maxLength={200}
+                      placeholder="Add a description"
+                      aria-label="Role description"
+                      className="-mx-1.5 mt-0.5 w-full rounded-lg bg-transparent px-1.5 text-sm text-slate-500 placeholder:text-slate-300 hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xl font-black text-slate-900">{selected.name}</h3>
+                    <p className="text-sm text-slate-500">{selected.description}</p>
+                  </>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    {selected.userCount} {selected.userCount === 1 ? "person" : "people"}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    {selected.locked ? "Full access" : `${draft.permissions.length} of ${PERMISSIONS.length} permissions`}
+                  </span>
+                </div>
+              </div>
+
+              <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+                <PopoverTrigger aria-label="Role actions" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-900">
+                  <i className="ph-bold ph-dots-three text-lg" aria-hidden="true"></i>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="!w-48 !gap-0 !rounded-2xl !p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setCreating({ from: selected });
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <i className="ph-bold ph-copy" aria-hidden="true"></i>
+                    Duplicate
+                  </button>
+                  {selected.kind === "custom" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setDeleting(selected);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                    >
+                      <i className="ph-bold ph-trash" aria-hidden="true"></i>
+                      Delete role
+                    </button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </header>
+
+            {selected.locked && (
+              <p className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-amber-100">
+                <i className="ph-bold ph-lock-simple" aria-hidden="true"></i>
+                {selected.key === "OWNER"
+                  ? "The owner always has full access and is the only one who can manage admins."
+                  : "Admins always have full access, so nobody gets locked out of settings."}
+              </p>
+            )}
+
+            <PermissionList granted={draft.permissions} onToggle={selected.locked ? undefined : toggle} />
+
+            {dirty && (
+              <div className="animate-rise sticky bottom-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-[0_20px_50px_-15px_rgba(15,23,42,0.6)]">
+                <span className="text-sm font-semibold text-white/80">Unsaved changes</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setDraft(draftOf(selected))} className="rounded-lg px-3 py-1.5 text-sm font-bold text-white/70 hover:text-white">
+                    Discard
+                  </button>
+                  <button type="button" onClick={save} disabled={saving || !draft.name.trim()} className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:opacity-50">
+                    {saving && <i className="ph-bold ph-circle-notch animate-spin" aria-hidden="true"></i>}
+                    Save
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      {creating && (
+        <RoleDialog
+          roles={roles}
+          from={creating.from}
+          onClose={() => setCreating(null)}
+          onCreated={async (key) => {
+            setCreating(null);
+            await mutate();
+            setSelectedKey(key);
+          }}
+        />
+      )}
+      {deleting && (
+        <DeleteRoleDialog
+          role={deleting}
+          roles={roles}
+          onClose={() => setDeleting(null)}
+          onDeleted={async () => {
+            setDeleting(null);
+            setSelectedKey("STAFF");
+            await mutate();
+          }}
+        />
+      )}
     </div>
   );
 }

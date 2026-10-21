@@ -47,13 +47,23 @@ export function defaultsToFirstOption(field: FormField): boolean {
 export interface PicklistUser {
   id: string;
   role: string;
+  /** "OWNER" | "ADMIN" | "STAFF" | "custom:<id>" (from /api/users). */
+  roleKey?: string;
+  roleName?: string;
+}
+
+/** Whether a user matches a role chosen in a picklist's settings, including choices saved before custom roles. */
+function hasRole(u: PicklistUser, key: string) {
+  if (key === (u.roleKey ?? u.role)) return true;
+  if (key === "ADMIN" && u.role === "OWNER") return true; // the owner was an admin before
+  return (key === "DESIGNER" || key === "PHOTOGRAPHER") && u.roleName === "Designer";
 }
 
 /** Users a user-picklist field offers, honouring its role/user restriction. */
 export function filterUsersForField<U extends PicklistUser>(users: U[], config?: UserPicklistConfig): U[] {
   if (!config) return users;
   if (config.mode === "ROLES" && config.roles && config.roles.length > 0) {
-    return users.filter((u) => config.roles!.includes(u.role));
+    return users.filter((u) => config.roles!.some((key) => hasRole(u, key)));
   }
   if (config.mode === "USERS" && config.userIds && config.userIds.length > 0) {
     return users.filter((u) => config.userIds!.includes(u.id));

@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useMobileNav } from "../providers/MobileNavProvider";
+import { hasFullAccess, roleLabel } from "@/lib/permissions";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -133,9 +134,9 @@ export default function TopNavigation() {
 
   const userName = session?.user?.name || "Team Member";
   const userEmail = session?.user?.email || "user@example.com";
-  const userRole = (session?.user as any)?.role || "STAFF";
+  const userRole = session?.user?.role || "STAFF";
   const userInitials = userName.substring(0, 2).toUpperCase();
-  const isPressOwner = userRole === "ADMIN";
+  const isPressOwner = hasFullAccess(userRole);
 
   const getNotificationIcon = (type: string) => {
     return (
@@ -148,11 +149,6 @@ export default function TopNavigation() {
     );
   };
 
-  const roleLabels: Record<string, string> = {
-    ADMIN: "Admin",
-    STAFF: "Staff",
-    DESIGNER: "Designer",
-  };
 
   let title = "Add designer";
   if (pathname.includes("jobs")) title = ""; // Removed to avoid duplication with the new Jobs banner
@@ -437,7 +433,7 @@ export default function TopNavigation() {
                   <div className="flex flex-col overflow-hidden w-full">
                     <span className="font-bold text-[0.95rem] text-slate-900 leading-tight truncate">{userName}</span>
                     <span className="text-[0.75rem] text-slate-500 truncate">{userEmail}</span>
-                    <span className="text-[0.65rem] text-slate-500 mt-1 truncate">Role: <strong className="text-slate-700">{roleLabels[userRole] || userRole}</strong></span>
+                    <span className="text-[0.65rem] text-slate-500 mt-1 truncate">Role: <strong className="text-slate-700">{roleLabel(userRole, session?.user?.roleName)}</strong></span>
                   </div>
                 </div>
 

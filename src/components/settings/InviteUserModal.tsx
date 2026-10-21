@@ -3,17 +3,12 @@
 import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import RoleSelect from "./RoleSelect";
 
 interface InviteUserModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const ROLES = [
-  { value: "STAFF", label: "Staff", description: "Can manage jobs and view transactions" },
-  { value: "DESIGNER", label: "Designer", description: "Works on design deliverables; no financial access" },
-  { value: "ADMIN", label: "Admin", description: "Full access to all features" },
-];
 
 const noopSubscribe = () => () => {};
 
@@ -189,36 +184,7 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">
                     Assign Role
                   </label>
-                  <div className="space-y-2">
-                    {ROLES.map((r) => (
-                      <label
-                        key={r.value}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                          role === r.value
-                            ? "border-orange-300 bg-orange-50 shadow-sm"
-                            : "border-gray-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value={r.value}
-                          checked={role === r.value}
-                          onChange={(e) => setRole(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          role === r.value ? "border-orange-500" : "border-gray-300"
-                        }`}>
-                          {role === r.value && <div className="w-2 h-2 rounded-full bg-orange-500"></div>}
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold text-slate-900">{r.label}</span>
-                          <p className="text-[0.7rem] text-slate-500">{r.description}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
+                  <RoleSelect value={role} onChange={setRole} />
                 </div>
               </div>
 

@@ -166,6 +166,9 @@ model User {
   phone              String?
   pushNotifications  Boolean            @default(true)
   role               Role               @default(STAFF)
+  /// Set exactly when role is CUSTOM (enforced by a check constraint).
+  customRoleId       String?
+  customRole         CustomRole?        @relation(fields: [customRoleId], references: [id], onDelete: Restrict)
   status             UserStatus         @default(ACTIVE)
   whatsappNotifs     Boolean            @default(false)
   notificationPrefs  Json?
@@ -183,6 +186,18 @@ model User {
   jobActivities      JobActivity[]
 
   @@index([status])
+  @@index([customRoleId])
+}
+
+/// A role an admin builds from scratch or clones from another role. Holds its own permission list.
+model CustomRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
 }
 
 model UserIntegration {
@@ -365,10 +380,12 @@ model CategoryBudget {
   @@index([category, month, year])
 }
 
+/// OWNER (exactly one, full access), ADMIN (full access), STAFF (editable defaults), CUSTOM (see User.customRole).
 enum Role {
+  OWNER
   ADMIN
   STAFF
-  DESIGNER @map("PHOTOGRAPHER")
+  CUSTOM
 }
 
 enum UserStatus {

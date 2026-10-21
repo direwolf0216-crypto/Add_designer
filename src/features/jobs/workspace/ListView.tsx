@@ -27,6 +27,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
   const { sort, dir } = data.params;
   const pages = Math.max(1, Math.ceil(list.total / list.pageSize));
   const stageColor = (stage: string) => data.stages.find((s) => s.label === stage)?.color;
+  const columns = data.canSeeAmounts ? COLUMNS : COLUMNS.filter((c) => c.key !== "amount");
 
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/85 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.35)] backdrop-blur">
@@ -34,7 +35,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
       <table className="hidden w-full table-fixed text-left md:table">
         <thead>
           <tr className="border-b border-slate-100 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">
-            {COLUMNS.map((c) => {
+            {columns.map((c) => {
               const active = c.key && sort === c.key;
               return (
                 <th key={c.label} scope="col" className={`px-4 py-3 ${c.className}`} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
@@ -84,20 +85,22 @@ export default function ListView({ data }: { data: WorkspaceData }) {
               <td className="px-4 py-3">
                 <DueChip due={job.dueDate} today={data.today} closed={/deliver|cancel/i.test(job.stage)} />
               </td>
-              <td className="px-4 py-3 text-right">
-                <Amount value={job.amount} className="block text-sm font-extrabold text-slate-900" />
-                {job.amount > 0 && (
-                  <span className={`text-[0.7rem] font-bold ${job.balance > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                    {job.balance > 0 ? (
-                      <>
-                        <Amount value={job.balance} maxChars={9} /> due
-                      </>
-                    ) : (
-                      "Paid"
-                    )}
-                  </span>
-                )}
-              </td>
+              {job.amount !== null && (
+                <td className="px-4 py-3 text-right">
+                  <Amount value={job.amount} className="block text-sm font-extrabold text-slate-900" />
+                  {job.amount > 0 && (
+                    <span className={`text-[0.7rem] font-bold ${(job.balance ?? 0) > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                      {(job.balance ?? 0) > 0 ? (
+                        <>
+                          <Amount value={job.balance ?? 0} maxChars={9} /> due
+                        </>
+                      ) : (
+                        "Paid"
+                      )}
+                    </span>
+                  )}
+                </td>
+              )}
               <td className="px-4 py-3">
                 <AssigneeAvatars assignees={job.assignees.map((a) => ({ ...a, user: { ...a.user, image: a.user.image ?? undefined } }))} size={26} />
               </td>

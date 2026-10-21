@@ -31,12 +31,18 @@ async function main() {
 
   const password = await bcrypt.hash(process.env.PERF_USER_PASSWORD ?? "PerfTest#2026", 12);
   const users: { id: string }[] = [];
-  for (const [email, name, role] of [
-    ["perf.admin@perf.test", "Perf Admin", "ADMIN"],
-    ["perf.staff@perf.test", "Perf Staff", "STAFF"],
-    ["perf.designer@perf.test", "Perf Designer", "DESIGNER"],
+  const designer = await prisma.customRole.upsert({
+    where: { name: "Designer" },
+    update: {},
+    create: { name: "Designer", description: "Works on design deliverables", permissions: ["view_designs", "manage_designs"] },
+  });
+  for (const [email, name, role, customRoleId] of [
+    ["perf.admin@perf.test", "Perf Admin", "ADMIN", null],
+    ["perf.staff@perf.test", "Perf Staff", "STAFF", null],
+    ["perf.designer@perf.test", "Perf Designer", "CUSTOM", designer.id],
   ] as const) {
-    users.push(await prisma.user.upsert({ where: { email }, update: { role, status: "ACTIVE", password }, create: { email, name, role, status: "ACTIVE", password } }));
+    const data = { role, customRoleId, status: "ACTIVE" as const, password };
+    users.push(await prisma.user.upsert({ where: { email }, update: data, create: { email, name, ...data } }));
   }
 
   const clientCount = Math.ceil(JOBS / 5);

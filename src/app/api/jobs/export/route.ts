@@ -7,6 +7,5 @@ import { loadWorkspaceExport } from "@/lib/jobs/workspace";
 export const GET = route(async (req) => {
   const user = await requireUser();
   const params = Object.fromEntries(new URL(req.url).searchParams);
-  const jobs = await loadWorkspaceExport(user, params);
-  return NextResponse.json({ jobs }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(await loadWorkspaceExport(user, params), { headers: { "Cache-Control": "private, no-store" } });
 });

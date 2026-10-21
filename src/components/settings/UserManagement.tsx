@@ -14,22 +14,19 @@ interface User {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: "ADMIN" | "STAFF" | "DESIGNER";
+  role: "OWNER" | "ADMIN" | "STAFF" | "CUSTOM";
+  roleKey: string;
+  roleName: string;
   status: "ACTIVE" | "PENDING" | "INACTIVE";
   invitedAt: string | null;
   tempPassword?: string;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Admin",
-  STAFF: "Staff",
-  DESIGNER: "Designer",
-};
-
 const ROLE_BADGES: Record<string, { bg: string; text: string; icon: string }> = {
+  OWNER: { bg: "bg-amber-50", text: "text-amber-700", icon: "ph-crown-simple" },
   ADMIN: { bg: "bg-orange-50", text: "text-orange-600", icon: "ph-shield-check" },
   STAFF: { bg: "bg-[#eff6ff]", text: "text-blue-600", icon: "ph-users" },
-  DESIGNER: { bg: "bg-violet-50", text: "text-violet-600", icon: "ph-paint-brush" },
+  CUSTOM: { bg: "bg-violet-50", text: "text-violet-600", icon: "ph-identification-badge" },
 };
 
 const AVATAR_COLORS = [
@@ -66,7 +63,8 @@ export default function UserManagement() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
 
-  const currentUserId = (session?.user as any)?.id;
+  const currentUserId = session?.user?.id;
+  const viewerIsOwner = session?.user?.role === "OWNER";
 
   const getInitials = (name: string | null) => {
     if (!name) return "??";
@@ -121,15 +119,15 @@ export default function UserManagement() {
             users.map((user) => {
               const isCurrentUser = user.id === currentUserId;
               const statusStyle = STATUS_STYLES[user.status] || STATUS_STYLES.ACTIVE;
-              const isSuperAdmin = user.email === "nithyavishalr@gmail.com";
-              const isEditable = isCurrentUser || !isSuperAdmin;
+              // Only the owner manages admins, and nobody but the owner edits the owner (enforced server-side too).
+              const isEditable = isCurrentUser || (user.role !== "OWNER" && (user.role !== "ADMIN" || viewerIsOwner));
 
               return (
                 <div
                   key={user.id}
                   onClick={() => {
                     if (!isEditable) {
-                      toast.error("This master admin cannot be edited by others.");
+                      toast.error(user.role === "OWNER" ? "Only the owner can edit the owner's account." : "Only the owner can edit admins.");
                       return;
                     }
                     setEditTarget(user);
@@ -139,12 +137,12 @@ export default function UserManagement() {
                   } ${
                     isCurrentUser ? "bg-[#fcfaff] border-purple-100 shadow-sm hover:border-purple-200" : "bg-white border-gray-100 shadow-sm " + (isEditable ? "hover:border-orange-100" : "")
                   }`}
-                  title={isEditable ? "Click to edit user" : "Cannot edit master admin"}
+                  title={isEditable ? "Click to edit user" : user.role === "OWNER" ? "The owner's account" : "Only the owner can edit admins"}
                 >
                   {/* Avatar */}
                   <div className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 relative ${getAvatarColor(user.name)}`}>
                     {getInitials(user.name)}
-                    {user.role === "ADMIN" && (
+                    {user.role === "OWNER" && (
                       <i className="ph-fill ph-crown absolute -top-1 -left-1 text-orange-400 text-[0.65rem] bg-white rounded-full p-0.5 shadow-sm"></i>
                     )}
                   </div>
@@ -158,7 +156,7 @@ export default function UserManagement() {
                       {ROLE_BADGES[user.role] && (
                         <div className={`flex items-center gap-1 px-1.5 py-[0.1rem] rounded text-[0.55rem] font-bold uppercase tracking-wide w-fit ${ROLE_BADGES[user.role].bg} ${ROLE_BADGES[user.role].text}`}>
                           <i className={`ph ${ROLE_BADGES[user.role].icon} text-xs`}></i>
-                          {ROLE_LABELS[user.role] || user.role}
+                          {user.roleName}
                         </div>
                       )}
                       {isCurrentUser && (

@@ -30,6 +30,7 @@ export interface BuilderUser {
   id: string;
   name: string;
   role: string;
+  roleName?: string;
 }
 
 export function useLayoutBuilder() {

@@ -1,5 +1,7 @@
 "use client";
 
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 import type { FormField } from "@/lib/layout-builder/types";
 import type { BuilderUser } from "../useLayoutBuilder";
 
@@ -9,10 +11,12 @@ interface UserPicklistConfigEditorProps {
   onChange: (updates: Partial<FormField>) => void;
 }
 
-const ROLE_OPTIONS = ['ADMIN', 'STAFF', 'DESIGNER'];
+const FALLBACK_ROLES = [{ key: "OWNER", name: "Owner" }, { key: "ADMIN", name: "Admin" }, { key: "STAFF", name: "Staff" }];
 
 /** USER_PICKLIST / MULTI_USER_PICKLIST: which users the pick-list offers, and availability display. */
 export default function UserPicklistConfigEditor({ field: selectedField, users: allUsers, onChange: updateSelectedField }: UserPicklistConfigEditorProps) {
+  const { data } = useSWR<{ roles: { key: string; name: string }[] }>("/api/roles", fetcher, { revalidateOnFocus: false });
+  const roleOptions = data?.roles ?? FALLBACK_ROLES;
   return (
     <div className="pt-4 border-t border-gray-100">
       <label className="text-[0.75rem] font-bold text-slate-600 flex items-center gap-1 mb-3">
@@ -59,7 +63,7 @@ export default function UserPicklistConfigEditor({ field: selectedField, users: 
 
       {selectedField.userPicklistConfig?.mode === 'ROLES' && (
         <div className="bg-slate-50 border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
-          {ROLE_OPTIONS.map(role => (
+          {roleOptions.map(({ key: role, name }) => (
             <label key={role} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -71,7 +75,7 @@ export default function UserPicklistConfigEditor({ field: selectedField, users: 
                   updateSelectedField({ userPicklistConfig: { ...selectedField.userPicklistConfig!, roles: newRoles } });
                 }}
               />
-              <span className="text-sm font-semibold text-slate-700">{role}</span>
+              <span className="text-sm font-semibold text-slate-700">{name}</span>
             </label>
           ))}
         </div>
@@ -94,7 +98,7 @@ export default function UserPicklistConfigEditor({ field: selectedField, users: 
               />
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-slate-700">{user.name}</span>
-                <span className="text-[0.6rem] font-bold text-slate-400 uppercase">{user.role}</span>
+                <span className="text-[0.6rem] font-bold text-slate-400 uppercase">{user.roleName ?? user.role}</span>
               </div>
             </label>
           ))}

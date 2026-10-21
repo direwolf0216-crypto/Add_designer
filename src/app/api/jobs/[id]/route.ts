@@ -9,6 +9,7 @@ import { broadcastLater } from "@/lib/notifications";
 import { hardDeleteJob, isProductionDone, softDeleteJob, updateJob } from "@/lib/services/jobs";
 import { notifyAssigned } from "@/lib/services/assignments";
 import { assertJobVisible, jobScope } from "@/lib/jobs/scope";
+import { jobMoneyKeys, redactJobAmounts } from "@/lib/jobs/redact";
 
 const fitsIn = (maxChars: number) => (value: unknown) => value === undefined || JSON.stringify(value).length <= maxChars;
 const optionalText = (max: number) => z.string().trim().max(max).optional();
@@ -50,7 +51,8 @@ function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown>
 export const GET = route<{ id: string }>(async (_req, { params }) => {
   const user = await requireUser();
   const { id } = await params;
-  const canSeePayments = await userCan(user, "view_transactions");
+  const [canSeeLedger, canSeeAmounts] = await Promise.all([userCan(user, "view_transactions"), userCan(user, "view_amounts")]);
+  const canSeePayments = canSeeLedger && canSeeAmounts;
 
   const job = await prisma.job.findFirst({
     where: { id, deletedAt: undefined, ...(await jobScope(user)) },
@@ -68,10 +70,10 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
   });
   if (!job || job.deletedAt) throw notFound("Job not found");
 
-  return NextResponse.json(
-    { ...job, transactions: job.transactions ?? [] },
-    { headers: { "Cache-Control": "private, no-store" } }
-  );
+  const full = { ...job, transactions: job.transactions ?? [] };
+  return NextResponse.json(canSeeAmounts ? full : redactJobAmounts(full, await jobMoneyKeys()), {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 });
 
 export const PUT = route<{ id: string }>(async (req, { params }) => {
@@ -124,7 +126,8 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
     skipUserId: user.id,
   });
 
-  return NextResponse.json(updated, { headers: { "Cache-Control": "private, no-store" } });
+  const visible = (await userCan(user, "view_amounts")) ? updated : redactJobAmounts(updated, await jobMoneyKeys());
+  return NextResponse.json(visible, { headers: { "Cache-Control": "private, no-store" } });
 });
 
 export const DELETE = route<{ id: string }>(async (req, { params }) => {

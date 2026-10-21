@@ -131,15 +131,16 @@ export async function saveJobAction(formData: FormData) {
 
     revalidatePath("/jobs", "layout");
     revalidatePath("/dashboard", "layout");
+    const showAmounts = await userCan(user, "view_amounts");
     return {
       success: true as const,
       data: {
         ...validated,
         id: result.job.id,
         jobNumber: result.job.jobNumber,
-        installments: JSON.stringify(result.installments),
-        advance: String(result.order?.advance ?? 0),
-        due: String(result.order?.due ?? 0),
+        ...(showAmounts
+          ? { installments: JSON.stringify(result.installments), advance: String(result.order?.advance ?? 0), due: String(result.order?.due ?? 0) }
+          : { installments: "[]", package: "", advance: "", due: "" }),
       } as unknown as Job,
     };
   } catch (error) {

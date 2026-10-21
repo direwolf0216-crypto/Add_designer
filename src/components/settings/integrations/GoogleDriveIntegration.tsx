@@ -6,6 +6,7 @@ import { fetcher } from "@/lib/swr";
 import { signIn, useSession, getProviders } from "next-auth/react";
 import { toast } from "sonner";
 import { useSearchParams, useRouter } from "next/navigation";
+import { hasFullAccess } from "@/lib/permissions";
 
 export default function GoogleDriveIntegration() {
   const { data: session } = useSession();
@@ -73,7 +74,7 @@ export default function GoogleDriveIntegration() {
     }
   };
 
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const isAdmin = hasFullAccess(session?.user?.role);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 overflow-hidden">

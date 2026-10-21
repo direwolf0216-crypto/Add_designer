@@ -13,8 +13,6 @@ import { useWorkspaceUrl } from "./url";
 
 type Pane = "stage" | "category" | "due" | "assignee";
 
-const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", STAFF: "Staff", DESIGNER: "Designer" };
-
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 
 function duePresets(today: string) {
@@ -73,7 +71,7 @@ export default function FiltersMenu({ data }: { data: WorkspaceData }) {
   const categoryOptions: FilterOption[] = data.categories.map((c) => ({ value: c, label: c }));
   const assigneeOptions: FilterOption[] = [
     { value: "unassigned", label: "Unassigned", leading: <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-400"><i className="ph-bold ph-user-circle-dashed text-sm" aria-hidden="true"></i></span> },
-    ...users.map((u) => ({ value: u.id, label: u.name, hint: ROLE_LABEL[u.role] ?? u.role, leading: <Avatar name={u.name} image={u.image} size={24} ring={false} /> })),
+    ...users.map((u) => ({ value: u.id, label: u.name, hint: u.roleName, leading: <Avatar name={u.name} image={u.image} size={24} ring={false} /> })),
   ];
 
   const presets = duePresets(data.today);
