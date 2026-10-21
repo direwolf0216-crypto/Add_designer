@@ -2,6 +2,7 @@
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { TransactionFilterDraft } from "@/lib/transactions/filters";
+import DatePickerInput from "@/components/ui/DatePickerInput";
 
 interface TransactionFiltersDialogProps {
   open: boolean;
@@ -35,27 +36,11 @@ export function TransactionFiltersDialog({ open, onOpenChange, value: tempFilter
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">From</label>
-                <div className="relative">
-                  <i className="ph-bold ph-calendar absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
-                  <input
-                    type="date"
-                    value={tempFilters.dateFrom}
-                    onChange={e => onChange({...tempFilters, dateFrom: e.target.value})}
-                    className="w-full h-12 pl-9 pr-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                  />
-                </div>
+                <DatePickerInput value={tempFilters.dateFrom || null} onChange={(v) => onChange({ ...tempFilters, dateFrom: v })} placeholder="Select date" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">To</label>
-                <div className="relative">
-                  <i className="ph-bold ph-calendar absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
-                  <input
-                    type="date"
-                    value={tempFilters.dateTo}
-                    onChange={e => onChange({...tempFilters, dateTo: e.target.value})}
-                    className="w-full h-12 pl-9 pr-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                  />
-                </div>
+                <DatePickerInput value={tempFilters.dateTo || null} onChange={(v) => onChange({ ...tempFilters, dateTo: v })} placeholder="Select date" />
               </div>
             </div>
           </div>

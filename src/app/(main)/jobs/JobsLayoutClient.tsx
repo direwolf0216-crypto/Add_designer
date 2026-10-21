@@ -174,7 +174,7 @@ export default function JobsLayoutClient({
         doc.save(`jobs_export_${toLocalISODate()}.pdf`);
       }
     } catch (error) {
-      alert("Failed to export schedule.");
+      toast.error("Failed to export schedule.");
     } finally {
       setIsExporting(false);
     }

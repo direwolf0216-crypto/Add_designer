@@ -105,7 +105,7 @@ export default function OverdueJobBanners() {
             </div>
             <div>
               <p className="text-[15px] font-bold text-slate-800">
-                📦 {job.client?.name}&apos;s delivery date passed on {format(new Date(job.date), "MMM d, yyyy")}
+                <i className="ph-bold ph-package mr-1 align-[-2px]" aria-hidden="true"></i>{job.client?.name}&apos;s delivery date passed on {format(new Date(job.date), "MMM d, yyyy")}
               </p>
             </div>
           </div>

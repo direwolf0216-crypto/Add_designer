@@ -4,6 +4,7 @@ import { SystemProvider } from "@/components/providers/SystemProvider";
 import { MobileNavProvider } from "@/components/providers/MobileNavProvider";
 import { GlobalFormProvider } from "@/components/providers/GlobalFormProvider";
 import GlobalModals from "@/components/layout/GlobalModals";
+import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 import UpcomingJobsBanner from "@/components/layout/UpcomingJobsBanner";
 
 import React from "react";
@@ -17,6 +18,7 @@ export default function MainLayout({
     <SystemProvider>
       <MobileNavProvider>
           <GlobalFormProvider>
+          <ConfirmDialogProvider>
             <Sidebar />
             <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-transparent relative">
               {/* Colorful Background Patterns */}
@@ -43,6 +45,7 @@ export default function MainLayout({
             <GlobalModals />
             <UpcomingJobsBanner />
 
+          </ConfirmDialogProvider>
           </GlobalFormProvider>
       </MobileNavProvider>
     </SystemProvider>

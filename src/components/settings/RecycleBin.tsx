@@ -5,7 +5,7 @@ import { invalidateAll } from "@/lib/swr";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { FileX, Trash2, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileX, Trash2, RotateCcw, ChevronLeft, ChevronRight, Check, X, Loader2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -325,16 +325,18 @@ export default function RecycleBin() {
                             disabled={isDeletingId === item.id}
                             className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm disabled:opacity-50"
                             title="Confirm"
+                            aria-label="Confirm permanent delete"
                           >
-                            <span className="text-xs px-1 font-bold">{isDeletingId === item.id ? '...' : '✓'}</span>
+                            {isDeletingId === item.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
                             disabled={isDeletingId === item.id}
                             className="p-1.5 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
                             title="Cancel"
+                            aria-label="Cancel"
                           >
-                            <span className="text-xs px-1 font-bold">✕</span>
+                            <X size={16} strokeWidth={2.5} />
                           </button>
                         </div>
                       ) : (

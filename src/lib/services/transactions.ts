@@ -279,7 +279,7 @@ export async function notifyIfBudgetExceeded(userId: string, category: string, d
   if (spent <= budget.monthlyLimit) return;
   broadcastLater({
     title: "Budget Exceeded",
-    message: `⚠️ ${category} budget exceeded by ₹${round2(spent - budget.monthlyLimit).toLocaleString("en-IN")}.`,
+    message: `${category} budget exceeded by ₹${round2(spent - budget.monthlyLimit).toLocaleString("en-IN")}.`,
     type: "BUDGET_EXCEEDED",
     actionUrl: "/settings",
     entityId: budget.id,

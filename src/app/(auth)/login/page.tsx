@@ -88,22 +88,22 @@ function LoginForm() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 my-4 max-w-xl text-center">
           
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="text-[#d946ef] text-xl mb-1">⚡</div>
+            <div className="text-[#d946ef] text-xl mb-1"><i className="ph-fill ph-lightning" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Fast Service</div>
           </div>
 
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="text-[#3b82f6] text-xl mb-1">🛡️</div>
+            <div className="text-[#3b82f6] text-xl mb-1"><i className="ph-fill ph-shield-check" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Premium Quality</div>
           </div>
 
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="text-[#eab308] text-xl mb-1">🎨</div>
+            <div className="text-[#eab308] text-xl mb-1"><i className="ph-fill ph-palette" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Custom Designs</div>
           </div>
 
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="text-[#22c55e] text-xl mb-1">💚</div>
+            <div className="text-[#22c55e] text-xl mb-1"><i className="ph-fill ph-heart" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Customer Satisfaction</div>
           </div>
 

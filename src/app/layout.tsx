@@ -6,7 +6,7 @@ import "@phosphor-icons/web/bold";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { cn } from "@/lib/utils";
-import { Toaster } from "sonner";
+import AppToaster from "@/components/ui/app-toaster";
 
 // All app fonts load once here via next/font (self-hosted, no render-blocking @import).
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -29,7 +29,7 @@ export default function RootLayout({
       <body className={cn("flex h-[100dvh] fixed inset-0 w-full overflow-hidden bg-slate-50 text-slate-900 antialiased", inter.className)}>
         <AuthProvider>
           {children}
-          <Toaster position="top-right" richColors closeButton />
+          <AppToaster />
         </AuthProvider>
       </body>
     </html>

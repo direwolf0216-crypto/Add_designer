@@ -39,7 +39,7 @@ export const GET = route(async () => {
     .filter((o) => o.status === "exceeded")
     .map((o) => ({
       category: o.category,
-      message: `⚠️ ${o.category} budget exceeded by ₹${round2(o.spent - o.limit).toLocaleString("en-IN")}`,
+      message: `${o.category} budget exceeded by ₹${round2(o.spent - o.limit).toLocaleString("en-IN")}`,
     }));
 
   return NextResponse.json({ overview, alerts });

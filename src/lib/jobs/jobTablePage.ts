@@ -22,7 +22,10 @@ export async function loadJobTablePage(user: SessionUser, params: Params, extraW
   if (filter === "today_tomorrow") where.date = { gte: today, lt: addDays(today, 2) };
   else if (filter === "next_7_days") where.date = { gte: today, lt: addDays(today, 7) };
   else if (filter === "hot_dates") where.date = { gte: today };
-  else if (filter === "overdue") where.date = { lt: today };
+  else if (filter === "overdue") {
+    where.date = { lt: today };
+    where.NOT = [{ status: { equals: "Delivered", mode: "insensitive" } }, { status: { equals: "Cancelled", mode: "insensitive" } }];
+  }
 
   const [rows, total] = await Promise.all([
     prisma.job.findMany({
