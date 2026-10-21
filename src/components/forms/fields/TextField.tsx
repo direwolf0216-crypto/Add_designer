@@ -1,0 +1,53 @@
+import { asText, type FieldProps } from "./types";
+
+const JOB_INPUT =
+  "flex h-[45px] w-full rounded-xl border bg-white pl-10 pr-4 py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
+
+/** Single-line input; the fallback for every field type a form does not render specially. */
+export default function TextField({
+  field,
+  value,
+  onChange,
+  register,
+  error,
+  variant,
+  fallbackPlaceholder,
+  inputType,
+}: FieldProps & { fallbackPlaceholder?: string; inputType?: string }) {
+  const typeAttr = inputType || (field.type === "EMAIL" ? "email" : "text");
+
+  if (variant === "transaction") {
+    return (
+      <input
+        type="text"
+        value={asText(value)}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder || `Enter ${field.name}...`}
+        className={`flex h-[45px] w-full rounded-xl border bg-white px-4 py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 shadow-sm ${error ? "border-red-400" : "border-slate-200"}`}
+      />
+    );
+  }
+
+  if (variant === "jobRepeatable") {
+    return (
+      <input
+        type={typeAttr}
+        autoComplete="new-password"
+        className={`${JOB_INPUT} border-gray-200`}
+        value={asText(value)}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder || `e.g. Enter ${field.name}...`}
+      />
+    );
+  }
+
+  return (
+    <input
+      type={typeAttr}
+      autoComplete="new-password"
+      className={`${JOB_INPUT} ${error ? "border-red-500" : "border-gray-200"}`}
+      {...register}
+      placeholder={field.placeholder || fallbackPlaceholder || `e.g. Enter ${field.name}...`}
+    />
+  );
+}
