@@ -54,8 +54,8 @@ export const GET = route(async (req) => {
 
   const [
     totalJobs,
-    upcomingShoots,
-    pendingRetouch,
+    upcomingJobs,
+    pendingProofs,
     activeOrders,
     totalActiveOrders,
     unconfirmedJobsCount,
@@ -139,20 +139,21 @@ export const GET = route(async (req) => {
   }
   const revenueChartData = Object.values(dailyDataMap).sort((a, b) => a.date.localeCompare(b.date));
 
-  const albumStages = ["shoot completed", "designing", "printing", "album work in progress"];
+  const finishingStages = ["printing completed", "designing", "printing", "finishing in progress"];
+  const FINISHING_WORK = /binding|lamination|framing/i;
   const jobBreakdownData = jobsForChart
     .flatMap((job) => {
       const cd = asJsonObject(job.customData);
       const inclusions = cd.fld_b_inclusions;
-      const isAlbum =
-        job.category === "Album" ||
-        (Array.isArray(inclusions) || typeof inclusions === "string" ? inclusions.includes("Album") : false) ||
-        !!cd.album_status ||
-        !!cd.fld_b_album_status;
-      const qualifies = isAlbum || albumStages.includes((job.status || "").trim().toLowerCase());
-      const albumStatus = typeof cd.fld_b_album_status === "string" && cd.fld_b_album_status ? cd.fld_b_album_status : "Pending";
-      if (!qualifies || albumStatus.trim().toLowerCase() === "delivered") return [];
-      return [{ id: job.id, clientName: job.client?.name || "Unknown", status: albumStatus, date: job.date }];
+      const inclusionList = Array.isArray(inclusions) ? inclusions : typeof inclusions === "string" ? [inclusions] : [];
+      const isFinishing =
+        FINISHING_WORK.test(job.category || "") ||
+        inclusionList.some((item) => typeof item === "string" && FINISHING_WORK.test(item)) ||
+        !!cd.fld_b_finishing_status;
+      const qualifies = isFinishing || finishingStages.includes((job.status || "").trim().toLowerCase());
+      const finishingStatus = typeof cd.fld_b_finishing_status === "string" && cd.fld_b_finishing_status ? cd.fld_b_finishing_status : "Pending";
+      if (!qualifies || finishingStatus.trim().toLowerCase() === "delivered") return [];
+      return [{ id: job.id, clientName: job.client?.name || "Unknown", status: finishingStatus, date: job.date }];
     })
     .slice(0, 5);
 
@@ -168,8 +169,8 @@ export const GET = route(async (req) => {
 
   return NextResponse.json({
     totalJobs,
-    upcomingShoots,
-    pendingRetouch,
+    upcomingJobs,
+    pendingProofs,
     topOrder: activeOrders[0] || null,
     totalActiveOrders,
     transactions,

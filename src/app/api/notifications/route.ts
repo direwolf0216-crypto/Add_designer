@@ -10,8 +10,8 @@ const REMINDER_TYPES: NotificationType[] = [
   NotificationType.JOB_STATUS_STALE,
   NotificationType.PAYMENT_DUE_REMINDER,
   NotificationType.ADVANCE_NOT_COLLECTED,
-  NotificationType.GALLERY_NOT_DELIVERED,
-  NotificationType.ALBUM_PENDING_REMINDER,
+  NotificationType.PROOF_NOT_DELIVERED,
+  NotificationType.FINISHING_PENDING_REMINDER,
 ];
 
 const querySchema = z.object({

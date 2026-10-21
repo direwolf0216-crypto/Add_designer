@@ -77,7 +77,7 @@ export const POST = route(async (req) => {
   const dateStr = cleanName(formData.get("date"), "", 40) || todayFolderName();
 
   const getFolders = async () => {
-    const rootFid = await getOrCreateFolder("Kanakkupulla", null, accessToken, user.id);
+    const rootFid = await getOrCreateFolder("Add designer", null, accessToken, user.id);
     const modFid = await getOrCreateFolder(moduleName, rootFid, accessToken, user.id);
     const catFid = await getOrCreateFolder(categoryName, modFid, accessToken, user.id);
     return getOrCreateFolder(dateStr, catFid, accessToken, user.id);

@@ -26,7 +26,7 @@ export default async function JobStatusPage({
         time: true,
         location: true,
         status: true,
-        albumStatus: true,
+        finishingStatus: true,
         customData: true,
         createdAt: true,
         updatedAt: true,

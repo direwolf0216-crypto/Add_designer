@@ -10,13 +10,13 @@ export interface VerticalStatusStepperProps {
   updatedAt?: string;
 }
 
-const eventStepMap: Record<string, any> = {
+const jobStepMap: Record<string, any> = {
   'pending': { icon: 'ph-clock', colorClass: 'text-indigo-600', ringClass: 'ring-indigo-100', bgClass: 'bg-indigo-50', lineClass: 'bg-indigo-500' },
   'confirmed': { icon: 'ph-check-circle', colorClass: 'text-emerald-600', ringClass: 'ring-emerald-100', bgClass: 'bg-emerald-50', lineClass: 'bg-emerald-500' },
-  'shoot completed': { icon: 'ph-camera', colorClass: 'text-red-500', ringClass: 'ring-red-100', bgClass: 'bg-red-50', lineClass: 'bg-red-500' }
+  'printing completed': { icon: 'ph-printer', colorClass: 'text-red-500', ringClass: 'ring-red-100', bgClass: 'bg-red-50', lineClass: 'bg-red-500' }
 };
 
-const albumStepMap: Record<string, any> = {
+const finishingStepMap: Record<string, any> = {
   'pending': { icon: 'ph-clock', colorClass: 'text-emerald-500', ringClass: 'ring-emerald-100', bgClass: 'bg-emerald-50', lineClass: 'bg-emerald-500' },
   'designing': { icon: 'ph-pencil-simple', colorClass: 'text-blue-500', ringClass: 'ring-blue-100', bgClass: 'bg-blue-50', lineClass: 'bg-blue-500' },
   'sent for printing': { icon: 'ph-paper-plane-tilt', colorClass: 'text-purple-500', ringClass: 'ring-purple-100', bgClass: 'bg-purple-50', lineClass: 'bg-purple-500' },
@@ -25,8 +25,8 @@ const albumStepMap: Record<string, any> = {
 };
 
 export default function VerticalStatusStepper({ steps, currentStatus, sectionTitle, onStatusChange, isUpdating, updatedAt }: VerticalStatusStepperProps) {
-  const isAlbum = sectionTitle?.toLowerCase().includes('album') || sectionTitle?.toLowerCase().includes('print');
-  const stepMap = isAlbum ? albumStepMap : eventStepMap;
+  const isFinishing = sectionTitle?.toLowerCase().includes('finishing') || sectionTitle?.toLowerCase().includes('print');
+  const stepMap = isFinishing ? finishingStepMap : jobStepMap;
   
   const currentIndex = steps.findIndex(s => s.toLowerCase() === currentStatus?.toLowerCase());
   const activeIndex = currentIndex === -1 ? 0 : currentIndex;
@@ -72,7 +72,7 @@ export default function VerticalStatusStepper({ steps, currentStatus, sectionTit
               {/* Step Label */}
               <div className="ml-4 flex flex-col justify-center min-h-[26px]">
                 <div className={cn("font-bold text-[10px] uppercase tracking-wider leading-none", (isActive || isPast) ? "text-slate-800" : "text-slate-400")}>
-                  {step.toLowerCase() === 'shoot completed' ? 'Job Completed' : step}
+                  {step}
                 </div>
                 {updatedAt && (isActive || isPast) && (
                   <div className="text-[9px] text-slate-400 font-medium leading-none mt-1">

@@ -1,5 +1,5 @@
-// Centralized Icon Pack for Kanakkupulla using Phosphor Icons
-// These icons cover photography, albums, gifts, frames, key chains, mugs, daily transactions, and existing system icons.
+// Centralized Icon Pack for Add designer using Phosphor Icons
+// These icons cover printing, stationery & cards, finishing, merchandise, daily transactions, and existing system icons.
 // They can be consumed by Icon Pickers in layout editors or dynamic fields.
 
 export interface AppIcon {
@@ -10,22 +10,31 @@ export interface AppIcon {
 }
 
 export const APP_ICONS: AppIcon[] = [
-  // --- Photography & Media ---
-  { id: "photo-camera", className: "ph-camera", label: "Camera", category: "Photography" },
-  { id: "photo-aperture", className: "ph-aperture", label: "Aperture / Lens", category: "Photography" },
-  { id: "photo-film", className: "ph-film-strip", label: "Film Strip", category: "Photography" },
-  { id: "photo-video", className: "ph-video-camera", label: "Video Camera", category: "Photography" },
-  { id: "photo-image", className: "ph-image", label: "Image / Photo", category: "Photography" },
-  { id: "photo-gallery", className: "ph-images", label: "Gallery", category: "Photography" },
-  { id: "photo-drone", className: "ph-airplane", label: "Drone / Aerial", category: "Photography" },
+  // --- Printing ---
+  { id: "print-printer", className: "ph-printer", label: "Printing", category: "Printing" },
+  { id: "print-flex", className: "ph-flag-banner", label: "Flex / Banner", category: "Printing" },
+  { id: "print-vinyl", className: "ph-paint-roller", label: "Vinyl Printing", category: "Printing" },
+  { id: "print-offset", className: "ph-stack", label: "Offset Printing", category: "Printing" },
+  { id: "print-screen", className: "ph-paint-brush", label: "Screen Printing", category: "Printing" },
+  { id: "print-canvas", className: "ph-bounding-box", label: "Board / Signage", category: "Printing" },
+  { id: "print-design", className: "ph-palette", label: "Design", category: "Printing" },
+  { id: "print-image", className: "ph-image", label: "Artwork / Image", category: "Printing" },
+  { id: "print-copy", className: "ph-copy", label: "Xerox / Copies", category: "Printing" },
+  { id: "print-document", className: "ph-file-text", label: "Printout / Document", category: "Printing" },
 
-  // --- Albums & Printing ---
-  { id: "album-book", className: "ph-book", label: "Closed Album", category: "Albums & Prints" },
-  { id: "album-open", className: "ph-book-open", label: "Open Album", category: "Albums & Prints" },
-  { id: "album-bookmark", className: "ph-book-bookmark", label: "Premium Album", category: "Albums & Prints" },
-  { id: "print-printer", className: "ph-printer", label: "Printing", category: "Albums & Prints" },
-  { id: "print-frame", className: "ph-frame-corners", label: "Photo Frame", category: "Albums & Prints" },
-  { id: "print-canvas", className: "ph-bounding-box", label: "Canvas / Board", category: "Albums & Prints" },
+  // --- Stationery & Cards ---
+  { id: "card-visiting", className: "ph-identification-card", label: "Visiting Card", category: "Stationery & Cards" },
+  { id: "card-id", className: "ph-identification-badge", label: "ID Card", category: "Stationery & Cards" },
+  { id: "card-invitation", className: "ph-envelope-open", label: "Invitation", category: "Stationery & Cards" },
+  { id: "card-sticker", className: "ph-sticker", label: "Sticker", category: "Stationery & Cards" },
+  { id: "card-book", className: "ph-book-open", label: "Book Printing", category: "Stationery & Cards" },
+
+  // --- Finishing ---
+  { id: "finish-binding", className: "ph-book-bookmark", label: "Binding", category: "Finishing" },
+  { id: "finish-lamination", className: "ph-book", label: "Lamination", category: "Finishing" },
+  { id: "finish-frame", className: "ph-frame-corners", label: "Framing", category: "Finishing" },
+  { id: "finish-cutting", className: "ph-scissors", label: "Cutting", category: "Finishing" },
+  { id: "finish-measure", className: "ph-ruler", label: "Size / Measurement", category: "Finishing" },
 
   // --- Gifts & Merchandise ---
 
@@ -52,16 +61,16 @@ export const APP_ICONS: AppIcon[] = [
   // --- System & UI Basics (Already Used) ---
   { id: "sys-user", className: "ph-user", label: "User", category: "System" },
   { id: "sys-user-circle", className: "ph-user-circle", label: "Client Profile", category: "System" },
-  { id: "sys-users", className: "ph-users", label: "Team / Crew", category: "System" },
-  { id: "sys-cal-blank", className: "ph-calendar-blank", label: "Event Date", category: "System" },
-  { id: "sys-cal-check", className: "ph-calendar-check", label: "Confirmed Event", category: "System" },
+  { id: "sys-users", className: "ph-users", label: "Team / Staff", category: "System" },
+  { id: "sys-cal-blank", className: "ph-calendar-blank", label: "Job Date", category: "System" },
+  { id: "sys-cal-check", className: "ph-calendar-check", label: "Confirmed Job", category: "System" },
   { id: "sys-pencil", className: "ph-pencil-circle", label: "Edit / Design", category: "System" },
   { id: "sys-dots", className: "ph-dots-three-circle", label: "Other / Misc", category: "System" },
   { id: "sys-trend-up", className: "ph-trend-up", label: "Income Trend", category: "System" },
   { id: "sys-trend-down", className: "ph-trend-down", label: "Expense Trend", category: "System" },
   { id: "sys-arrow-in", className: "ph-arrow-down-left", label: "Money In", category: "System" },
   { id: "sys-arrow-out", className: "ph-arrow-up-right", label: "Money Out", category: "System" },
-  { id: "sys-buildings", className: "ph-buildings", label: "Office / Studio", category: "System" },
+  { id: "sys-buildings", className: "ph-buildings", label: "Office / Press", category: "System" },
   { id: "sys-envelope", className: "ph-envelope", label: "Email", category: "System" },
   { id: "sys-phone", className: "ph-phone", label: "Phone", category: "System" }
 ];

@@ -33,35 +33,35 @@ model Order {
 }
 
 model Job {
-  id               String        @id @default(cuid())
-  clientId         String
-  category         String        @default("Wedding")
-  date             DateTime
-  time             String
-  location         String
-  status           String        @default("Confirmed")
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  contractUrl      String?
-  galleryUrl       String?
-  attachments      Json?
-  jobNumber        String?       @unique
-  createdById      String?
-  customData       Json?
-  deletedAt        DateTime?
-  inclusions       Json?
-  notes            String?
-  packageName      String?
-  photographers    Json?
-  updatedById      String?
-  galleryDelivered Boolean       @default(false)
-  albumStatus      AlbumStatus   @default(PENDING)
-  client           Client        @relation(fields: [clientId], references: [id])
-  createdBy        User?         @relation("JobCreatedBy", fields: [createdById], references: [id])
-  updatedBy        User?         @relation("JobUpdatedBy", fields: [updatedById], references: [id])
-  order            Order?
-  invoice          Invoice?
-  transactions     Transaction[]
+  id              String          @id @default(cuid())
+  clientId        String
+  category        String          @default("General Printing")
+  date            DateTime
+  time            String
+  location        String
+  status          String          @default("Confirmed")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  contractUrl     String?
+  proofUrl        String?         @map("galleryUrl")
+  attachments     Json?
+  jobNumber       String?         @unique
+  createdById     String?
+  customData      Json?
+  deletedAt       DateTime?
+  inclusions      Json?
+  notes           String?
+  packageName     String?
+  assignees       Json?           @map("photographers")
+  updatedById     String?
+  proofDelivered  Boolean         @default(false) @map("galleryDelivered")
+  finishingStatus FinishingStatus @default(PENDING) @map("albumStatus")
+  client          Client          @relation(fields: [clientId], references: [id])
+  createdBy       User?           @relation("JobCreatedBy", fields: [createdById], references: [id])
+  updatedBy       User?           @relation("JobUpdatedBy", fields: [updatedById], references: [id])
+  order           Order?
+  invoice         Invoice?
+  transactions    Transaction[]
 
   @@index([clientId])
   @@index([status])
@@ -357,7 +357,7 @@ model CategoryBudget {
 enum Role {
   ADMIN
   STAFF
-  PHOTOGRAPHER
+  DESIGNER @map("PHOTOGRAPHER")
 }
 
 enum UserStatus {
@@ -366,10 +366,13 @@ enum UserStatus {
   INACTIVE
 }
 
-enum AlbumStatus {
+/// Post-press finishing (binding, lamination, framing, cutting).
+enum FinishingStatus {
   PENDING
   IN_PROGRESS
   DELIVERED
+
+  @@map("AlbumStatus")
 }
 
 enum NotificationType {
@@ -380,14 +383,14 @@ enum NotificationType {
   ORDER_CREATED
   ORDER_STATUS_CHANGED
   ORDER_DELIVERED
-  GALLERY_DELIVERED
+  PROOF_DELIVERED            @map("GALLERY_DELIVERED")
   HOT_DATE_ALERT
   ORDER_STATUS_STALE
   JOB_STATUS_STALE
   PAYMENT_DUE_REMINDER
   ADVANCE_NOT_COLLECTED
-  GALLERY_NOT_DELIVERED
-  ALBUM_PENDING_REMINDER
+  PROOF_NOT_DELIVERED        @map("GALLERY_NOT_DELIVERED")
+  FINISHING_PENDING_REMINDER @map("ALBUM_PENDING_REMINDER")
   BUDGET_EXCEEDED
 }
 

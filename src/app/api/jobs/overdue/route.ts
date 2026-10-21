@@ -4,7 +4,7 @@ import { route } from "@/lib/api/http";
 import { requireUser } from "@/lib/auth/session";
 import { businessTodayUtc } from "@/lib/dates";
 
-/** Confirmed jobs whose (IST) shoot date has passed without being marked done. */
+/** Confirmed jobs whose (IST) job date has passed without being marked done. */
 export const GET = route(async () => {
   await requireUser();
 

@@ -14,8 +14,8 @@ export const jobSchema = z.object({
   due: z.string().optional(),
   installments: z.string().optional(),
   status: z.string(),
-  albumStatus: z.string().optional().or(z.literal("")),
-  galleryDelivered: z.union([z.boolean(), z.string()]).optional(),
+  finishingStatus: z.string().optional().or(z.literal("")),
+  proofDelivered: z.union([z.boolean(), z.string()]).optional(),
 }).catchall(z.any());
 
 export type JobFormData = z.infer<typeof jobSchema>;

@@ -120,7 +120,7 @@ export default function JobsLayoutClient({
             escapeCsv(b.order?.advance),
             escapeCsv(b.order?.due),
             escapeCsv(b.order?.installments),
-            escapeCsv(cdata?.fld_b_assigned_operator || b.photographers),
+            escapeCsv(cdata?.fld_b_assigned_operator || b.assignees),
             escapeCsv(cdata?.fld_print_quantity || ''),
             escapeCsv(cdata?.fld_print_paper_type || ''),
             escapeCsv(cdata?.fld_print_gsm || ''),

@@ -21,7 +21,7 @@ function assertCron(req: Request) {
   }
 }
 
-function photographerIds(value: unknown): string[] {
+function assigneeIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((p) => (typeof p === "string" ? p : p && typeof p === "object" ? (p as { id?: unknown }).id : undefined))
@@ -49,7 +49,7 @@ export const GET = route(async (req) => {
       id: true,
       category: true,
       location: true,
-      photographers: true,
+      assignees: true,
       client: { select: { name: true } },
     },
     take: 500,
@@ -59,16 +59,16 @@ export const GET = route(async (req) => {
     return NextResponse.json({ success: true, message: "No jobs for tomorrow." });
   }
 
-  const assigned = [...new Set(upcomingJobs.flatMap((j) => photographerIds(j.photographers)))];
+  const assigned = [...new Set(upcomingJobs.flatMap((j) => assigneeIds(j.assignees)))];
   const [admins, activeAssigned] = await Promise.all([
     prisma.user.findMany({ where: { role: "ADMIN", status: "ACTIVE" }, select: { id: true } }),
     prisma.user.findMany({ where: { id: { in: assigned }, status: "ACTIVE" }, select: { id: true } }),
   ]);
   const activeIds = new Set(activeAssigned.map((u) => u.id));
 
-  // Assigned photographers get the reminder; jobs with nobody (active) assigned go to the admins.
+  // Assigned assignees get the reminder; jobs with nobody (active) assigned go to the admins.
   const sends = upcomingJobs.flatMap((job) => {
-    const crew = photographerIds(job.photographers).filter((id) => activeIds.has(id));
+    const crew = assigneeIds(job.assignees).filter((id) => activeIds.has(id));
     const recipients = crew.length > 0 ? [...new Set(crew)] : admins.map((a) => a.id);
     return recipients.map((userId) => ({ job, userId }));
   });
@@ -77,11 +77,11 @@ export const GET = route(async (req) => {
   for (let i = 0; i < sends.length; i += BATCH_SIZE) {
     const results = await Promise.all(
       sends.slice(i, i + BATCH_SIZE).map(async ({ job, userId }) => {
-        if (!(await claimReminder(`SHOOT_TOMORROW:${job.id}:${userId}:${today}`))) return null;
+        if (!(await claimReminder(`JOB_DUE_TOMORROW:${job.id}:${userId}:${today}`))) return null;
         return createNotification({
           userId,
-          title: "Shoot Tomorrow!",
-          message: `Reminder: ${job.category} shoot for ${job.client.name} is scheduled for tomorrow at ${job.location || "TBD"}.`,
+          title: "Job Due Tomorrow!",
+          message: `Reminder: ${job.category} job for ${job.client.name} is due tomorrow at ${job.location || "TBD"}.`,
           type: "HOT_DATE_ALERT",
           actionUrl: `/jobs/details/${job.id}`,
           entityId: job.id,

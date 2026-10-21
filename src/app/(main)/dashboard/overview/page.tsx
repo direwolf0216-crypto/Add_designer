@@ -23,12 +23,12 @@ const RevenueChart = dynamic(() => import("@/components/dashboard/RevenueChart")
 });
 
 const CATEGORY_ICONS: Record<string, string> = {
-  "Photography Session": "ph-camera",
+  "Printing Job": "ph-printer",
   "Equipment": "ph-wrench",
   "Utilities": "ph-lightning",
   "Rent": "ph-house",
   "Software": "ph-code",
-  "Travel": "ph-airplane",
+  "Travel": "ph-bus",
   "Marketing": "ph-megaphone",
   "Misc": "ph-dots-three-circle",
 };
@@ -73,8 +73,8 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
 
   const {
     totalJobs,
-    upcomingShoots,
-    pendingRetouch,
+    upcomingJobs,
+    pendingProofs,
     totalActiveOrders,
     transactions,
     periodIncome,
@@ -91,7 +91,7 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
     <>
       <div className="flex flex-col lg:flex-row gap-6 mb-6">
         <div className="flex-1 lg:w-[65%] min-w-0 flex flex-col">
-          <TaskAlerts unconfirmedCount={unconfirmedJobsCount} pendingRetouch={pendingRetouch} />
+          <TaskAlerts unconfirmedCount={unconfirmedJobsCount} pendingProofs={pendingProofs} />
           <StatCards />
           {canViewAnalytics && (
             <RevenueChart data={revenueChartData} periodIncome={periodIncome} periodExpense={periodExpense} />
@@ -112,26 +112,26 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
           </div>
 
           <div className="flex-1 flex flex-col gap-2.5 mt-1">
-            {(!upcomingShoots || upcomingShoots.length === 0) ? (
+            {(!upcomingJobs || upcomingJobs.length === 0) ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-400">
                 <i className="ph ph-calendar-blank text-3xl mb-2 opacity-50"></i>
                 <p className="font-medium text-sm">No upcoming jobs.</p>
               </div>
             ) : (
-              upcomingShoots.slice(0, 3).map((shoot: any) => (
-                <div key={shoot.id} onClick={() => openJobDetails(shoot.id)} className="bg-gradient-to-r from-orange-50/50 to-amber-50/50 hover:from-orange-50 hover:to-amber-50 rounded-2xl p-3 border border-orange-100/50 flex items-center justify-between cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10">
+              upcomingJobs.slice(0, 3).map((job: any) => (
+                <div key={job.id} onClick={() => openJobDetails(job.id)} className="bg-gradient-to-r from-orange-50/50 to-amber-50/50 hover:from-orange-50 hover:to-amber-50 rounded-2xl p-3 border border-orange-100/50 flex items-center justify-between cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white shadow-sm text-orange-500 flex items-center justify-center shrink-0 border border-orange-100/50">
                       <i className="ph-fill ph-printer text-xl"></i>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-slate-800 font-extrabold text-[0.85rem] truncate max-w-[140px] uppercase tracking-tight">{shoot.client?.name}</span>
+                      <span className="text-slate-800 font-extrabold text-[0.85rem] truncate max-w-[140px] uppercase tracking-tight">{job.client?.name}</span>
                       <span className="text-slate-500 font-bold text-[0.65rem] flex items-center gap-1">
                         <i className="ph-bold ph-calendar-blank text-slate-400"></i>
-                        {new Date(shoot.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}, {shoot.time}
+                        {new Date(job.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}, {job.time}
                       </span>
                       <span className="text-slate-400 font-bold text-[0.6rem] uppercase tracking-widest flex items-center gap-1 mt-0.5">
-                        <i className="ph-bold ph-map-pin text-slate-300"></i> {shoot.location}
+                        <i className="ph-bold ph-map-pin text-slate-300"></i> {job.location}
                       </span>
                     </div>
                   </div>
@@ -139,7 +139,7 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
                     <span className="text-orange-600 text-[0.6rem] font-black bg-white shadow-sm px-2 py-0.5 rounded-md uppercase tracking-wider border border-orange-100">Pending</span>
                     <div className="flex flex-col items-end">
                       <span className="text-slate-400 text-[0.6rem] font-bold uppercase tracking-widest">Amount</span>
-                      <span className="text-slate-800 font-black text-[0.95rem] tracking-tight">₹{shoot.order?.package?.toLocaleString('en-IN') || '0'}</span>
+                      <span className="text-slate-800 font-black text-[0.95rem] tracking-tight">₹{job.order?.package?.toLocaleString('en-IN') || '0'}</span>
                     </div>
                   </div>
                 </div>

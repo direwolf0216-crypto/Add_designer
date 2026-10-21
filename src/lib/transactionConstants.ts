@@ -2,7 +2,10 @@
 // Import from here everywhere — never hardcode inline.
 
 export const TRANSACTION_CATEGORIES = [
-  "Photography Session",
+  "Printing Job",
+  "Paper Purchase",
+  "Ink/Toner",
+  "Maintenance",
   "Equipment",
   "Utilities",
   "Rent",
@@ -21,8 +24,8 @@ export const TRANSACTION_CATEGORIES = [
   "E-Sevai",
   "Passport Photo",
   "Frame Sales",
-  "Editing Charges",
-  "Album Payment"
+  "Design Charges",
+  "Binding & Finishing"
 ] as const;
 
 export type TransactionCategory = (typeof TRANSACTION_CATEGORIES)[number];

@@ -203,6 +203,9 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
+      // Sessions issued before the PHOTOGRAPHER -> DESIGNER rename.
+      if ((token.role as string | undefined) === "PHOTOGRAPHER") token.role = "DESIGNER";
+
       // Pick up role changes and deactivation/deletion without waiting for the session to expire.
       if (token.sub && !token.revoked && Date.now() - (token.checkedAt ?? 0) > RECHECK_INTERVAL_MS) {
         const dbUser = await prisma.user.findUnique({

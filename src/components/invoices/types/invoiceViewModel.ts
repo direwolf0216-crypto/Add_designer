@@ -31,10 +31,10 @@ export interface InvoiceViewModel {
   formattedInvoiceDate: string;
   formattedDueDate: string;
   
-  eventDate: string;
-  venue: string;
+  jobDate: string;
+  location: string;
   packageName: string;
-  photographers: string;
+  assignees: string;
   
   status: InvoiceStatus;
   statusText: string;

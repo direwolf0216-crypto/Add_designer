@@ -298,7 +298,7 @@ function LoginForm() {
                 <p className="text-[0.925rem] text-slate-500 mb-8 leading-relaxed">
                   Your account has been successfully created, but it is currently waiting for an Administrator to approve it. 
                   <br/><br/>
-                  Please check back later or contact the Studio Owner.
+                  Please check back later or contact the business owner.
                 </p>
                 <button 
                   onClick={() => setShowPendingPopup(false)}

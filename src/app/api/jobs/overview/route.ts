@@ -5,11 +5,11 @@ import { route } from "@/lib/api/http";
 import { requireUser } from "@/lib/auth/session";
 import { businessTodayUtc } from "@/lib/dates";
 import { round2 } from "@/lib/money";
-import { SHOOT_DONE_STATUSES } from "@/lib/services/jobs";
+import { PRODUCTION_DONE_STATUSES } from "@/lib/services/jobs";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_PREFS = { currencySymbol: "₹", hotDateBenchmark: 50000 };
-const ALBUM_WORK_STATUSES = ["designing", "printing", "album work in progress"];
+const FINISHING_WORK_STATUSES = ["designing", "printing", "finishing in progress"];
 
 const NOT_CANCELLED: Prisma.JobWhereInput = {
   NOT: [
@@ -39,7 +39,7 @@ export const GET = route(async () => {
   const today = businessTodayUtc();
   const day = (offset: number) => new Date(today.getTime() + offset * DAY_MS);
 
-  const [setting, dbJobs, immediateShoots, thisWeekShoots, unconfirmedShoots, pendingDueAgg, albumJobs] = await Promise.all([
+  const [setting, dbJobs, immediateJobs, thisWeekJobs, unconfirmedJobs, pendingDueAgg, finishingJobs] = await Promise.all([
     prisma.systemSetting.findUnique({ where: { key: "UI_PREFERENCES" } }),
     prisma.job.findMany({
       where: { deletedAt: null, date: { gte: day(-30) } },
@@ -69,14 +69,14 @@ export const GET = route(async () => {
       _sum: { due: true },
       where: { job: { deletedAt: null, date: { gte: today, lt: day(14) }, ...NOT_CANCELLED } },
     }),
-    // Albums start once the shoot is done and stay open until delivered.
+    // Finishing starts once printing is done and stays open until delivered.
     prisma.job.findMany({
       where: {
         deletedAt: null,
-        galleryDelivered: false,
-        OR: [...SHOOT_DONE_STATUSES, ...ALBUM_WORK_STATUSES].map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),
+        proofDelivered: false,
+        OR: [...PRODUCTION_DONE_STATUSES, ...FINISHING_WORK_STATUSES].map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),
       },
-      select: { status: true, albumStatus: true, customData: true },
+      select: { status: true, finishingStatus: true, customData: true },
       take: 5000,
     }),
   ]);
@@ -112,15 +112,15 @@ export const GET = route(async () => {
     .map(([date, s]) => ({ date, totalAmount: s.totalPackage, count: s.count }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  let albumInProgressCount = 0;
-  let pendingAlbumWorksCount = 0;
-  for (const b of albumJobs) {
-    const album = lower(readCustomData(b.customData).fld_b_album_status);
-    if (album === "delivered") continue;
+  let finishingInProgressCount = 0;
+  let pendingFinishingCount = 0;
+  for (const b of finishingJobs) {
+    const finishing = lower(readCustomData(b.customData).fld_b_finishing_status);
+    if (finishing === "delivered") continue;
     const inProgress =
-      ALBUM_WORK_STATUSES.includes(lower(b.status)) || b.albumStatus === "IN_PROGRESS" || (album !== "" && album !== "pending");
-    if (inProgress) albumInProgressCount++;
-    else pendingAlbumWorksCount++;
+      FINISHING_WORK_STATUSES.includes(lower(b.status)) || b.finishingStatus === "IN_PROGRESS" || (finishing !== "" && finishing !== "pending");
+    if (inProgress) finishingInProgressCount++;
+    else pendingFinishingCount++;
   }
 
   return NextResponse.json(
@@ -128,13 +128,13 @@ export const GET = route(async () => {
       jobs,
       prefs,
       metrics: {
-        immediateShoots,
-        thisWeekShoots,
+        immediateJobs,
+        thisWeekJobs,
         pendingDueAmount: round2(pendingDueAgg._sum.due ?? 0),
-        unconfirmedShoots,
+        unconfirmedJobs,
         hotDates,
-        albumInProgressCount,
-        pendingAlbumWorksCount,
+        finishingInProgressCount,
+        pendingFinishingCount,
       },
     },
     { headers: { "Cache-Control": "private, no-store" } }

@@ -48,7 +48,7 @@ export default function InvoiceDocument({ viewModel }: InvoiceDocumentProps) {
       author="Add designer"
       subject="Invoice for Printing Services"
       creator="Add designer"
-      producer="Kanakkupulla"
+      producer="Add designer"
     >
       <Page size="A4" style={styles.page}>
         <View style={styles.watermarkContainer} fixed>

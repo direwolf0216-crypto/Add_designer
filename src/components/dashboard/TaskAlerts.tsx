@@ -7,7 +7,7 @@ import { fetcher } from "@/lib/swr";
 
 interface TaskAlertsProps {
   unconfirmedCount?: number;
-  pendingRetouch?: number;
+  pendingProofs?: number;
 }
 
 const DISMISS_PREFIX = 'dismissed_alert_';
@@ -54,9 +54,9 @@ function pruneDismissedAlerts() {
   } catch {}
 }
 
-export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingRetouch: propRetouch }: TaskAlertsProps = {}) {
+export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingProofs: propProofs }: TaskAlertsProps = {}) {
   const { data: rawAlerts } = useSWR<any>('/api/dashboard/alerts', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
-  const shouldFetchOverview = propUnconfirmed === undefined && propRetouch === undefined;
+  const shouldFetchOverview = propUnconfirmed === undefined && propProofs === undefined;
   const { data: overviewData } = useSWR<any>(shouldFetchOverview ? '/api/dashboard/overview' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
 
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>(readDismissedAlerts);
@@ -69,14 +69,14 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingR
 
   const alerts = (Array.isArray(rawAlerts) ? rawAlerts : []).filter((a: any) => !dismissedAlerts.includes(a.id));
   const unconfirmedCount = propUnconfirmed ?? (overviewData?.unconfirmedJobsCount || 0);
-  const pendingRetouch = propRetouch ?? (overviewData?.pendingRetouch || 0);
+  const pendingProofs = propProofs ?? (overviewData?.pendingProofs || 0);
 
   const handleDismiss = (id: string) => {
     markAlertDismissed(id);
     setDismissedAlerts(prev => [...prev, id]);
   };
 
-  if (!isMounted || (alerts.length === 0 && unconfirmedCount === 0 && pendingRetouch === 0)) return null;
+  if (!isMounted || (alerts.length === 0 && unconfirmedCount === 0 && pendingProofs === 0)) return null;
 
   return (
     <div className="bg-white rounded-[20px] p-5 md:p-6 border border-gray-100 shadow-sm mb-6">
@@ -88,15 +88,15 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingR
       </div>
 
       <div className="flex flex-col gap-3">
-        {pendingRetouch > 0 && (
+        {pendingProofs > 0 && (
           <div className="bg-orange-50/50 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm border border-orange-100/50 transition-all hover:bg-orange-50">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
                 <i className="ph-bold ph-warning text-lg"></i>
               </div>
               <div>
-                <p className="text-[0.95rem] font-bold text-slate-900">Deliverables Due</p>
-                <p className="text-[0.8rem] font-medium text-slate-500">{pendingRetouch} gallery deliveries are pending</p>
+                <p className="text-[0.95rem] font-bold text-slate-900">Proofs Due</p>
+                <p className="text-[0.8rem] font-medium text-slate-500">{pendingProofs} proof deliveries are pending</p>
               </div>
             </div>
             <Link href="/jobs/allJobs" className="shrink-0 px-4 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-[0.75rem] font-bold hover:bg-orange-50 transition-colors">

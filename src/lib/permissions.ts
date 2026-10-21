@@ -1,6 +1,6 @@
 // Shared by the client (UI gating) and the server (enforcement). Keep free of server-only imports.
 
-export const ROLES = ["ADMIN", "STAFF", "PHOTOGRAPHER"] as const;
+export const ROLES = ["ADMIN", "STAFF", "DESIGNER"] as const;
 export type AppRole = (typeof ROLES)[number];
 
 export const PERMISSIONS = [
@@ -9,8 +9,8 @@ export const PERMISSIONS = [
   "manage_transactions",
   "view_analytics",
   "manage_users",
-  "view_galleries",
-  "manage_galleries",
+  "view_designs",
+  "manage_designs",
   "view_export_analytics",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -23,8 +23,8 @@ export const DEFAULT_MATRIX: Record<AppRole, Record<Permission, boolean>> = {
     manage_transactions: true,
     view_analytics: true,
     manage_users: true,
-    view_galleries: true,
-    manage_galleries: true,
+    view_designs: true,
+    manage_designs: true,
     view_export_analytics: true,
   },
   STAFF: {
@@ -33,18 +33,18 @@ export const DEFAULT_MATRIX: Record<AppRole, Record<Permission, boolean>> = {
     manage_transactions: false,
     view_analytics: true,
     manage_users: false,
-    view_galleries: true,
-    manage_galleries: false,
+    view_designs: true,
+    manage_designs: false,
     view_export_analytics: false,
   },
-  PHOTOGRAPHER: {
+  DESIGNER: {
     manage_jobs: false,
     view_transactions: false,
     manage_transactions: false,
     view_analytics: false,
     manage_users: false,
-    view_galleries: true,
-    manage_galleries: true,
+    view_designs: true,
+    manage_designs: true,
     view_export_analytics: false,
   },
 };

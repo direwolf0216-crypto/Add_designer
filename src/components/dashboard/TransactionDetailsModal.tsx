@@ -61,8 +61,11 @@ const money = (value: number) =>
 
 const getCategoryIcon = (category: string) => {
   const value = category.toLowerCase();
-  if (value.includes("photo")) return "ph-camera";
   if (value.includes("print") || value.includes("xerox")) return "ph-printer";
+  if (value.includes("passport") || value === "pp") return "ph-identification-badge";
+  if (value.includes("design")) return "ph-paint-brush";
+  if (value.includes("binding") || value.includes("finishing") || value.includes("frame")) return "ph-book-bookmark";
+  if (value.includes("paper") || value.includes("ink") || value.includes("toner")) return "ph-stack";
   if (value.includes("travel") || value.includes("bus")) return "ph-bus";
   if (value.includes("salary") || value.includes("wage")) return "ph-money";
   if (value.includes("tea") || value.includes("food") || value.includes("coffee")) return "ph-coffee";

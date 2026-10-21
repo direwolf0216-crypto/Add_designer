@@ -6,7 +6,7 @@ import { HttpError, route } from "@/lib/api/http";
 import { businessTodayUtc, toBusinessISODate } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import { claimReminder, createNotification } from "@/lib/notifications";
-import { SHOOT_DONE_STATUSES } from "@/lib/services/jobs";
+import { PRODUCTION_DONE_STATUSES } from "@/lib/services/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +19,8 @@ const BATCH_SIZE = 10;
 const REMINDER_TYPES: NotificationType[] = [
   "PAYMENT_DUE_REMINDER",
   "ADVANCE_NOT_COLLECTED",
-  "GALLERY_NOT_DELIVERED",
-  "ALBUM_PENDING_REMINDER",
+  "PROOF_NOT_DELIVERED",
+  "FINISHING_PENDING_REMINDER",
 ];
 
 /** Fails closed: without CRON_SECRET configured nothing is authorized. */
@@ -41,7 +41,7 @@ const NOT_CANCELLED: Prisma.JobWhereInput = {
   ],
 };
 
-function albumStatusOf(customData: Prisma.JsonValue | null): string {
+function finishingStatusOf(customData: Prisma.JsonValue | null): string {
   let cd: unknown = customData;
   if (typeof cd === "string") {
     try {
@@ -50,7 +50,7 @@ function albumStatusOf(customData: Prisma.JsonValue | null): string {
       cd = null;
     }
   }
-  const value = cd && typeof cd === "object" ? (cd as Record<string, unknown>).fld_b_album_status : undefined;
+  const value = cd && typeof cd === "object" ? (cd as Record<string, unknown>).fld_b_finishing_status : undefined;
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
@@ -64,8 +64,8 @@ export const GET = route(async (req) => {
       key: {
         in: [
           "reminder_threshold_advance",
-          "reminder_threshold_gallery",
-          "reminder_threshold_album",
+          "reminder_threshold_proof",
+          "reminder_threshold_finishing",
           "reminder_threshold_payment_due",
         ],
       },
@@ -78,8 +78,8 @@ export const GET = route(async (req) => {
   };
   const thresholds = {
     advance: threshold("reminder_threshold_advance", 7),
-    gallery: threshold("reminder_threshold_gallery", 14),
-    album: threshold("reminder_threshold_album", 30),
+    proof: threshold("reminder_threshold_proof", 14),
+    finishing: threshold("reminder_threshold_finishing", 30),
     paymentDue: threshold("reminder_threshold_payment_due", 3),
   };
 
@@ -93,7 +93,7 @@ export const GET = route(async (req) => {
   const admins = await prisma.user.findMany({ where: { role: "ADMIN", status: "ACTIVE" }, select: { id: true } });
   if (admins.length === 0) return NextResponse.json({ success: true, notificationsCreated: 0 });
 
-  const [advanceMissing, galleryCandidates, albumCandidates, dueJobs] = await Promise.all([
+  const [advanceMissing, proofPendingJobs, finishingPendingJobs, dueJobs] = await Promise.all([
     // Jobs without an Order have collected nothing either.
     prisma.job.findMany({
       where: {
@@ -110,8 +110,8 @@ export const GET = route(async (req) => {
       where: {
         deletedAt: null,
         ...NOT_CANCELLED,
-        galleryDelivered: false,
-        date: { gte: day(-(thresholds.gallery + LOOKBACK_DAYS)), lt: day(-thresholds.gallery) },
+        proofDelivered: false,
+        date: { gte: day(-(thresholds.proof + LOOKBACK_DAYS)), lt: day(-thresholds.proof) },
       },
       select: { id: true, date: true, customData: true, client: { select: { name: true } } },
       orderBy: { date: "asc" },
@@ -120,9 +120,9 @@ export const GET = route(async (req) => {
     prisma.job.findMany({
       where: {
         deletedAt: null,
-        galleryDelivered: false,
-        OR: SHOOT_DONE_STATUSES.map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),
-        date: { gte: day(-(thresholds.album + LOOKBACK_DAYS)), lt: day(-thresholds.album) },
+        proofDelivered: false,
+        OR: PRODUCTION_DONE_STATUSES.map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),
+        date: { gte: day(-(thresholds.finishing + LOOKBACK_DAYS)), lt: day(-thresholds.finishing) },
       },
       select: { id: true, date: true, customData: true, client: { select: { name: true } } },
       orderBy: { date: "asc" },
@@ -147,30 +147,30 @@ export const GET = route(async (req) => {
       type: "ADVANCE_NOT_COLLECTED" as const,
       job,
       title: "Advance Missing",
-      message: `No advance collected for ${job.client?.name} shoot on ${calendarDate(job.date)}.`,
+      message: `No advance collected for ${job.client?.name}'s job due on ${calendarDate(job.date)}.`,
     })),
-    // The album being marked Delivered also counts as the gallery being handed over.
-    ...galleryCandidates
-      .filter((job) => albumStatusOf(job.customData) !== "delivered")
+    // Finishing being marked Delivered also counts as the proof being handed over.
+    ...proofPendingJobs
+      .filter((job) => finishingStatusOf(job.customData) !== "delivered")
       .map((job) => ({
-        type: "GALLERY_NOT_DELIVERED" as const,
+        type: "PROOF_NOT_DELIVERED" as const,
         job,
-        title: "Gallery Pending",
-        message: `Gallery not delivered for ${job.client?.name} (event was ${thresholds.gallery}+ days ago).`,
+        title: "Proof Pending",
+        message: `Proof pending for ${job.client?.name} (job was ${thresholds.proof}+ days ago).`,
       })),
-    ...albumCandidates
-      .filter((job) => ["", "pending"].includes(albumStatusOf(job.customData)))
+    ...finishingPendingJobs
+      .filter((job) => ["", "pending"].includes(finishingStatusOf(job.customData)))
       .map((job) => ({
-        type: "ALBUM_PENDING_REMINDER" as const,
+        type: "FINISHING_PENDING_REMINDER" as const,
         job,
-        title: "Album Pending",
-        message: `Album status still PENDING for ${job.client?.name} (event was ${thresholds.album}+ days ago).`,
+        title: "Finishing Pending",
+        message: `Finishing still pending for ${job.client?.name} (job was ${thresholds.finishing}+ days ago).`,
       })),
     ...dueJobs.map((job) => ({
       type: "PAYMENT_DUE_REMINDER" as const,
       job,
       title: "Payment Due Soon",
-      message: `${formatINR(job.order?.due ?? 0)} due for ${job.client?.name}'s shoot on ${calendarDate(job.date)}.`,
+      message: `${formatINR(job.order?.due ?? 0)} due for ${job.client?.name}'s job on ${calendarDate(job.date)}.`,
     })),
   ];
 

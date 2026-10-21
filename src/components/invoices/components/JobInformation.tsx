@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { InvoiceViewModel } from '../types/invoiceViewModel';
-import { CalendarIcon, LocationIcon, PackageIcon, CameraIcon } from '../icons';
+import { CalendarIcon, LocationIcon, PackageIcon, PrinterIcon } from '../icons';
 import { colors, typography, radius } from '../theme/invoiceTheme';
 
 const styles = StyleSheet.create({
@@ -73,15 +73,15 @@ const styles = StyleSheet.create({
   }
 });
 
-interface EventInformationProps {
+interface JobInformationProps {
   viewModel: InvoiceViewModel;
 }
 
-export const EventInformation = ({ viewModel }: EventInformationProps) => (
+export const JobInformation = ({ viewModel }: JobInformationProps) => (
   <View style={styles.container}>
     <View style={styles.innerContainer}>
       <View style={styles.titleWrapper}>
-        <Text style={styles.titleText}>EVENT INFORMATION</Text>
+        <Text style={styles.titleText}>JOB INFORMATION</Text>
       </View>
       <View style={styles.itemCol}>
         <View style={styles.iconWrapper}>
@@ -89,7 +89,7 @@ export const EventInformation = ({ viewModel }: EventInformationProps) => (
         </View>
         <View style={styles.textWrapper}>
           <Text style={styles.label}>DELIVERY DATE</Text>
-          <Text style={styles.value}>{viewModel.eventDate}</Text>
+          <Text style={styles.value}>{viewModel.jobDate}</Text>
         </View>
       </View>
 
@@ -98,8 +98,8 @@ export const EventInformation = ({ viewModel }: EventInformationProps) => (
           <LocationIcon color={colors.gold} size={12} />
         </View>
         <View style={styles.textWrapper}>
-          <Text style={styles.label}>VENUE</Text>
-          <Text style={styles.value}>{viewModel.venue}</Text>
+          <Text style={styles.label}>LOCATION</Text>
+          <Text style={styles.value}>{viewModel.location}</Text>
         </View>
       </View>
 
@@ -115,11 +115,11 @@ export const EventInformation = ({ viewModel }: EventInformationProps) => (
 
       <View style={styles.itemCol}>
         <View style={styles.iconWrapper}>
-          <CameraIcon color={colors.gold} size={12} />
+          <PrinterIcon color={colors.gold} size={12} />
         </View>
         <View style={styles.textWrapper}>
-          <Text style={styles.label}>PHOTOGRAPHER</Text>
-          <Text style={styles.value}>{viewModel.photographers}</Text>
+          <Text style={styles.label}>DESIGNER</Text>
+          <Text style={styles.value}>{viewModel.assignees}</Text>
         </View>
       </View>
     </View>

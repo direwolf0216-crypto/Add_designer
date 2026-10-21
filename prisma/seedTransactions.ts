@@ -20,18 +20,18 @@ async function main() {
       amount: 15000.00,
       type: "INCOME",
       date: new Date(),
-      category: "Photography",
+      category: "Printing Job",
       paymentMode: "Bank Transfer",
-      description: "Wedding Job Deposit - Ref: #WP-882",
+      description: "Flex banner advance - Ref: #FX-882",
       status: "SETTLED"
     },
     {
       amount: 4250.00,
       type: "EXPENSE",
       date: new Date(),
-      category: "Equipment",
+      category: "Paper Purchase",
       paymentMode: "UPI",
-      description: "Studio Print Supplies - Amazon Business",
+      description: "Paper & ink purchase - Sri Murugan Traders",
       status: "SETTLED"
     },
     {
@@ -47,9 +47,9 @@ async function main() {
       amount: 12000.00,
       type: "INCOME",
       date: new Date(new Date().setDate(new Date().getDate() - 1)),
-      category: "Photography",
+      category: "Printing Job",
       paymentMode: "Cash",
-      description: "Pre-wedding Shoot Advance",
+      description: "Invitation card printing advance - 500 cards",
       status: "SETTLED"
     },
     {

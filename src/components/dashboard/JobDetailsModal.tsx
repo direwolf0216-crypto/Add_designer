@@ -13,7 +13,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import {
   Trash2, Receipt, FileText, Upload, Wallet,
   Clock, MapPin, Tag, UserCircle, Calendar, Link as LinkIcon, Phone, Mail, Info,
-  Camera, Image as ImageIcon, LayoutList, Users, FolderOpen, Package,
+  Image as ImageIcon, LayoutList, Users, FolderOpen, Package,
   BookOpen, Maximize, Images, Activity, Edit3,
   ArrowLeft,
   Printer,
@@ -25,11 +25,11 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const getSectionIcon = (title: string) => {
   const t = (title || '').toLowerCase();
-  if (t.includes('event')) return <Camera className="w-5 h-5 text-indigo-500" />;
-  if (t.includes('album') || t.includes('deliverable') || t.includes('photo')) return <ImageIcon className="w-5 h-5 text-emerald-500" />;
+  if (t.includes('job') || t.includes('print')) return <Printer className="w-5 h-5 text-indigo-500" />;
+  if (t.includes('finishing') || t.includes('deliverable') || t.includes('proof')) return <ImageIcon className="w-5 h-5 text-emerald-500" />;
   if (t.includes('payment') || t.includes('finance')) return <Wallet className="w-5 h-5 text-emerald-500" />;
   if (t.includes('client') || t.includes('contact') || t.includes('detail')) return <UserCircle className="w-5 h-5 text-blue-500" />;
-  if (t.includes('team') || t.includes('crew') || t.includes('assign')) return <Users className="w-5 h-5 text-orange-500" />;
+  if (t.includes('team') || t.includes('staff') || t.includes('assign')) return <Users className="w-5 h-5 text-orange-500" />;
   return <LayoutList className="w-5 h-5 text-slate-500" />;
 }
 
@@ -39,7 +39,7 @@ const getFieldIcon = (field: any) => {
   let icon = <Info className="w-4 h-4" />;
   let color = "slate";
 
-  if (name.includes('album type') || name.includes('book')) { icon = <BookOpen className="w-5 h-5" />; color = "emerald"; }
+  if (name.includes('binding') || name.includes('book')) { icon = <BookOpen className="w-5 h-5" />; color = "emerald"; }
   else if (name.includes('photo') || name.includes('image') || name.includes('picture') || name.includes('pic')) { icon = <Images className="w-5 h-5" />; color = "indigo"; }
   else if (name.includes('status') || name.includes('state')) { icon = <Activity className="w-5 h-5" />; color = "orange"; }
   else if (name.includes('size') || name.includes('dimension')) { icon = <Maximize className="w-5 h-5" />; color = "blue"; }
@@ -49,7 +49,7 @@ const getFieldIcon = (field: any) => {
   else if (name.includes('note') || name.includes('remark') || name.includes('description')) { icon = <FileText className="w-5 h-5" />; color = "yellow"; }
   else if (name.includes('date')) { icon = <Calendar className="w-5 h-5" />; color = "blue"; }
   else if (name.includes('time')) { icon = <Clock className="w-5 h-5" />; color = "purple"; }
-  else if (name.includes('user') || name.includes('person') || name.includes('designer') || name.includes('photographer')) { icon = <Images className="w-5 h-5" />; color = "indigo"; } // changed to Images and indigo to match screenshot
+  else if (name.includes('user') || name.includes('person') || name.includes('designer') || name.includes('operator')) { icon = <Images className="w-5 h-5" />; color = "indigo"; } // changed to Images and indigo to match screenshot
   else if (name.includes('amount') || name.includes('price') || name.includes('cost')) { icon = <Wallet className="w-5 h-5" />; color = "emerald"; }
   else if (name.includes('category')) { icon = <FolderOpen className="w-5 h-5" />; color = "violet"; }
   else if (name.includes('inclusion') || name.includes('package') || name.includes('item')) { icon = <Package className="w-5 h-5" />; color = "amber"; }
@@ -119,7 +119,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const [isAlbumStatusDropdownOpen, setIsAlbumStatusDropdownOpen] = useState(false);
+  const [isFinishingStatusDropdownOpen, setIsFinishingStatusDropdownOpen] = useState(false);
   const { data: layoutRes } = useSWR(isVisible ? "/api/settings/layouts/JOB_FORM" : null, fetcher);
   const { data: usersRes } = useSWR(isVisible ? "/api/users" : null, fetcher);
 
@@ -130,16 +130,16 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
     fld_b_client: 'title', fld_b_phone: 'phone', fld_b_email: 'email',
     fld_b_date: 'date', fld_b_time: 'time', fld_b_category: 'category', fld_b_job_category: 'category',
     fld_b_location: 'location', fld_b_status: 'status', fld_b_package: 'package', fld_b_advance: 'advance',
-    fld_gallery_delivered: 'galleryDelivered'
+    fld_proof_delivered: 'proofDelivered'
   };
 
   const statusField = layoutSchema?.sections?.flatMap((s: any) => s.fields).find((f: any) => f.id === 'fld_b_status') || layoutSchema?.sections?.flatMap((s: any) => s.fields).find((f: any) => f.type === 'STATUS_PICKER');
   const isStatusPicker = statusField?.type === 'STATUS_PICKER';
   const statusOptions = isStatusPicker ? (statusField.statusOptions || []) : [];
 
-  const albumStatusField = layoutSchema?.sections?.flatMap((s: any) => s.fields).find((f: any) => f.id === 'fld_b_album_status');
-  const isAlbumStatusPicker = albumStatusField?.type === 'STATUS_PICKER';
-  const albumStatusOptions = isAlbumStatusPicker ? (albumStatusField.statusOptions || []) : [];
+  const finishingStatusField = layoutSchema?.sections?.flatMap((s: any) => s.fields).find((f: any) => f.id === 'fld_b_finishing_status');
+  const isFinishingStatusPicker = finishingStatusField?.type === 'STATUS_PICKER';
+  const finishingStatusOptions = isFinishingStatusPicker ? (finishingStatusField.statusOptions || []) : [];
 
   const currentOpt = isStatusPicker ? statusOptions.find((o: any) => o.label === job?.status) : null;
 
@@ -161,7 +161,7 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
       setIsStatusDropdownOpen(false);
       refreshJob();
 
-      // Globally invalidate SWR keys so Jobs list, Calendar, Dashboard, and Album Status sync instantly
+      // Globally invalidate SWR keys so Jobs list, Calendar, Dashboard, and Finishing Status sync instantly
       invalidateJobs();
       router.refresh();
     } else {
@@ -289,8 +289,8 @@ export default function JobDetailsModal({ standaloneJobId }: { standaloneJobId?:
     return null;
   };
 
-  const albumDesignerId = getDynamicFieldId(['operator', 'assigned operator', 'designer']);
-  const albumDesignerVal = albumDesignerId ? job?.customData?.[albumDesignerId] : null;
+  const assignedDesignerId = getDynamicFieldId(['operator', 'assigned operator', 'designer']);
+  const assignedDesignerVal = assignedDesignerId ? job?.customData?.[assignedDesignerId] : null;
 
   const focusAmountFieldId = (() => {
     if (!layoutSchema || !layoutSchema.sections) return null;

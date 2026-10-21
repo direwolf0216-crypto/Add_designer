@@ -108,7 +108,7 @@ function ResetPasswordForm() {
 
       <div className="text-center mb-8">
         <h1 className="text-[1.4rem] font-extrabold text-slate-900 tracking-tight">Create New Password</h1>
-        <p className="text-xs text-slate-500 font-medium mt-1">Set a strong password for your studio account</p>
+        <p className="text-xs text-slate-500 font-medium mt-1">Set a strong password for your Add designer account</p>
       </div>
 
       {error && (

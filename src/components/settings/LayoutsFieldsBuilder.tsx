@@ -1183,7 +1183,7 @@ export default function LayoutsFieldsBuilder() {
                               <div className="absolute bottom-full -left-4 mb-2 w-64 p-2.5 bg-slate-800 text-white text-[0.75rem] font-medium rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none text-left leading-relaxed">
                                 Prevent changing status to a value that represents a future stage.
                                 <div className="mt-1.5 pt-1.5 border-t border-slate-700/50 text-slate-300 italic text-[0.7rem]">
-                                  Example: If the event date is tomorrow, &quot;Shoot completed&quot; cannot be selected today.
+                                  Example: If the job date is tomorrow, &quot;Printing Completed&quot; cannot be selected today.
                                 </div>
                                 <div className="absolute top-full left-5 border-4 border-transparent border-t-slate-800"></div>
                               </div>
@@ -1324,7 +1324,7 @@ export default function LayoutsFieldsBuilder() {
 
                     {selectedField.userPicklistConfig?.mode === 'ROLES' && (
                       <div className="bg-slate-50 border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
-                        {['ADMIN', 'STAFF', 'PHOTOGRAPHER'].map(role => (
+                        {['ADMIN', 'STAFF', 'DESIGNER'].map(role => (
                           <label key={role} className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
@@ -1457,7 +1457,7 @@ export default function LayoutsFieldsBuilder() {
                                 type="text"
                                 value={textValues}
                                 onChange={(e) => updateSelectedField({ visibilityRule: { ...selectedField.visibilityRule!, values: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
-                                placeholder="e.g. Flex Printing, Event"
+                                placeholder="e.g. Flex Printing, Visiting Cards"
                                 className="w-full text-sm font-semibold text-slate-800 bg-white border border-gray-300 rounded-lg h-[40px] px-3 outline-none focus:border-orange-500 transition-all"
                               />
                             );

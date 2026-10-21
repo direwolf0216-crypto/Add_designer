@@ -204,7 +204,7 @@ function CalendarWidgetInner() {
   };
 
   // Vertical layout logic
-  const getVerticalEvents = (dateString: string) => {
+  const getVerticalJobBlocks = (dateString: string) => {
     const dayJobs = jobs.filter((b: Job) => b.date === dateString);
     return dayJobs.map((b: Job) => {
       let startHour = 10;
@@ -257,7 +257,7 @@ function CalendarWidgetInner() {
 
       return {
         header: <div key={d} className="schedule-header-cell" style={{ color: isToday ? "var(--brand-orange)" : "" }}>{d} {loopDate.getDate()}</div>,
-        column: <div key={d} className="day-column" onClick={handleColClick}>{getVerticalEvents(dateString)}</div>
+        column: <div key={d} className="day-column" onClick={handleColClick}>{getVerticalJobBlocks(dateString)}</div>
       };
     });
 
@@ -298,7 +298,7 @@ function CalendarWidgetInner() {
             <div className="schedule-header-cell" style={{ color: isToday ? "var(--brand-orange)" : "" }}>{dayName}, {currentDate.toLocaleString('default', { month: 'short' })} {currentDate.getDate()}, {currentDate.getFullYear()}</div>
           </div>
           <div className="schedule-body" style={{ gridTemplateColumns: "1fr" }}>
-            <div className="day-column" onClick={handleColClick}>{getVerticalEvents(dateString)}</div>
+            <div className="day-column" onClick={handleColClick}>{getVerticalJobBlocks(dateString)}</div>
           </div>
         </div>
       </>

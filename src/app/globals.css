@@ -553,7 +553,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
 }
 
-/* List Items (Shoots) */
+/* List Items (Jobs) */
 .list-item {
   display: flex;
   align-items: center;
@@ -1667,7 +1667,7 @@ button {
   }
 }
 /* Top navigation wordmark */
-.studio-brand {
+.brand-wordmark {
   font-family: var(--font-brand-script), cursive;
   font-weight: 400;
   font-size: 5.8rem;
@@ -1684,7 +1684,7 @@ button {
   margin-top: -15px;
   margin-bottom: -10px;
 }
-.studio-brand-accent {
+.brand-wordmark-accent {
   font-family: var(--font-brand-accent), sans-serif;
   font-weight: 500;
   font-size: 1.2rem;

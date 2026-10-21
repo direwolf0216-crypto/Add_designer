@@ -1,4 +1,4 @@
-// Business-timezone date helpers. The studio operates in IST, but servers usually run in UTC and
+// Business-timezone date helpers. The press operates in IST, but servers usually run in UTC and
 // `toISOString()` is UTC, so "today" computed naively is wrong between 00:00 and 05:30 IST.
 // Safe to import from client and server code.
 import { TZDate } from "@date-fns/tz";

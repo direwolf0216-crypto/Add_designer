@@ -59,7 +59,7 @@ export default function DeleteUserModal({ user, onClose, onConfirm }: DeleteUser
 
           <h3 className="text-lg font-bold text-slate-900 mb-1">Remove Team Member?</h3>
           <p className="text-sm text-slate-500 mb-6">
-            This action cannot be undone. The user will lose all access to your studio.
+            This action cannot be undone. The user will lose all access to your press.
           </p>
 
           {/* User Card */}

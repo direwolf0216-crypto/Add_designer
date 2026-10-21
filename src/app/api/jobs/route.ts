@@ -40,17 +40,17 @@ const createSchema = z
       .array(z.object({ amount, date: dateString.optional(), paymentMode: optionalText(50) }))
       .max(50)
       .optional(),
-    albumStatus: z
+    finishingStatus: z
       .string()
       .transform((v) => v.toUpperCase())
       .pipe(z.enum(["PENDING", "IN_PROGRESS", "DELIVERED"]))
       .optional(),
-    galleryDelivered: z.boolean().optional(),
-    galleryUrl: httpUrl,
+    proofDelivered: z.boolean().optional(),
+    proofUrl: httpUrl,
     contractUrl: httpUrl,
     inclusions: z.unknown().refine(fitsIn(20_000), "Inclusions are too large").optional(),
     attachments: z.array(z.unknown()).max(100).refine(fitsIn(100_000), "Attachments are too large").optional(),
-    photographers: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Photographers list is too large").optional(),
+    assignees: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Assigned staff list is too large").optional(),
     customData: z
       .record(z.string().max(100), z.unknown())
       .refine((o) => Object.keys(o).length <= 200, "Too many custom fields")
@@ -140,23 +140,23 @@ export const POST = route(async (req) => {
       status: body.status || "Confirmed",
       packageAmount: parseAmount(body.packageAmount ?? 0),
       installments: body.installments ?? [],
-      albumStatus: body.albumStatus,
-      galleryDelivered: body.galleryDelivered,
+      finishingStatus: body.finishingStatus,
+      proofDelivered: body.proofDelivered,
       packageName: body.packageName,
       notes: body.notes,
       inclusions: body.inclusions,
       attachments: body.attachments,
-      photographers: body.photographers,
+      assignees: body.assignees,
       customData: body.customData ?? {},
     },
     user.id
   );
 
   let job = result.job;
-  if (body.galleryUrl !== undefined || body.contractUrl !== undefined) {
+  if (body.proofUrl !== undefined || body.contractUrl !== undefined) {
     job = await prisma.job.update({
       where: { id: job.id },
-      data: { galleryUrl: body.galleryUrl, contractUrl: body.contractUrl },
+      data: { proofUrl: body.proofUrl, contractUrl: body.contractUrl },
     });
   }
 

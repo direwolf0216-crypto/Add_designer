@@ -10,14 +10,14 @@ import { initFonts } from '@/components/invoices/theme/invoiceTheme';
 import { buildInvoiceViewModel } from '@/components/invoices/utils/invoiceLogic';
 
 const INVOICE_SETTING_KEYS = [
-  'studio_upi_id',
-  'studio_bank_name',
-  'studio_name',
-  'studio_phone',
-  'studio_email',
-  'studio_address',
-  'studio_instagram',
-  'studio_website',
+  'business_upi_id',
+  'business_bank_name',
+  'business_name',
+  'business_phone',
+  'business_email',
+  'business_address',
+  'business_instagram',
+  'business_website',
 ];
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
@@ -46,8 +46,8 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
   }
 
   let qrCodeDataUrl = '';
-  if (settings.studio_upi_id) {
-    const upi = new URLSearchParams({ pa: settings.studio_upi_id, pn: settings.studio_bank_name || 'Studio' });
+  if (settings.business_upi_id) {
+    const upi = new URLSearchParams({ pa: settings.business_upi_id, pn: settings.business_bank_name || 'Add designer' });
     qrCodeDataUrl = await QRCode.toDataURL(`upi://pay?${upi.toString()}`, {
       margin: 1,
       width: 200,

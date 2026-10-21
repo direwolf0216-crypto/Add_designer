@@ -58,11 +58,11 @@ export default function JobBreakdown({ data = [] }: JobBreakdownProps) {
             <i className="ph-bold ph-book-open text-xl"></i>
           </div>
           <div>
-            <h3 className="text-[1.05rem] font-black text-slate-800 tracking-tight leading-tight">Album Tracking</h3>
-            <p className="text-slate-400 text-[0.7rem] font-medium mt-0.5">Track upcoming album releases</p>
+            <h3 className="text-[1.05rem] font-black text-slate-800 tracking-tight leading-tight">Finishing Tracking</h3>
+            <p className="text-slate-400 text-[0.7rem] font-medium mt-0.5">Track upcoming finishing work</p>
           </div>
         </div>
-        <Link href="/jobs/album-status" className="text-[0.75rem] font-bold text-indigo-600 bg-indigo-50/80 px-3 py-1.5 rounded-xl hover:bg-indigo-100 flex items-center gap-1 transition-colors shrink-0">
+        <Link href="/jobs/job-status" className="text-[0.75rem] font-bold text-indigo-600 bg-indigo-50/80 px-3 py-1.5 rounded-xl hover:bg-indigo-100 flex items-center gap-1 transition-colors shrink-0">
           View All <i className="ph-bold ph-arrow-right"></i>
         </Link>
       </div>
@@ -72,13 +72,13 @@ export default function JobBreakdown({ data = [] }: JobBreakdownProps) {
         {(!data || data.length === 0) ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-400">
             <i className="ph ph-books text-3xl mb-2 opacity-50"></i>
-            <p className="font-medium text-sm">No albums pending for period.</p>
+            <p className="font-medium text-sm">No finishing work pending for period.</p>
           </div>
         ) : (
-          data.slice(0, 5).map((album, index) => {
+          data.slice(0, 5).map((item, index) => {
             return (
-              <React.Fragment key={album.id}>
-                <div onClick={() => openJobDetails(album.id)} className="flex items-center justify-between group py-2 px-3 -mx-3 rounded-2xl hover:bg-white cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10 border border-transparent hover:border-slate-50">
+              <React.Fragment key={item.id}>
+                <div onClick={() => openJobDetails(item.id)} className="flex items-center justify-between group py-2 px-3 -mx-3 rounded-2xl hover:bg-white cursor-pointer transition-all duration-300 hover:shadow-[0_8px_20px_rgb(0,0,0,0.06)] hover:-translate-y-0.5 hover:scale-[1.01] relative z-10 border border-transparent hover:border-slate-50">
                   <div className="flex items-center gap-3">
                     
                     {/* Icon Container */}
@@ -89,16 +89,16 @@ export default function JobBreakdown({ data = [] }: JobBreakdownProps) {
                     </div>
 
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[#0f172a] font-extrabold text-[0.8rem] truncate max-w-[150px] uppercase tracking-tight">{album.clientName}</span>
+                      <span className="text-[#0f172a] font-extrabold text-[0.8rem] truncate max-w-[150px] uppercase tracking-tight">{item.clientName}</span>
                       <span className="text-slate-400 text-[0.65rem] font-bold flex items-center gap-1">
                         <i className="ph-bold ph-calendar-blank text-[0.75rem]"></i>
-                        {new Date(album.date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/')}
+                        {new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/')}
                       </span>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4 pl-2">
-                    {getStatusBadge(album.status)}
+                    {getStatusBadge(item.status)}
                     <i className="ph-bold ph-caret-right text-slate-300 group-hover:text-slate-500 transition-colors text-base"></i>
                   </div>
                 </div>

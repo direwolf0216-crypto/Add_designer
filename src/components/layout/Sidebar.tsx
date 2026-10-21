@@ -25,7 +25,7 @@ export default function Sidebar() {
   const navItems = [
     { name: "Dashboard", path: "/dashboard/overview", icon: "ph-house", roles: ["ADMIN", "STAFF"] },
     { name: "Jobs", path: "/jobs/job-status", icon: "ph-calendar-blank", roles: ["ADMIN", "STAFF"] },
-    { name: "Daily Kanakku", path: "/transactions/overview", icon: "ph-file-text", roles: ["ADMIN", "STAFF"] },
+    { name: "Daily Ledger", path: "/transactions/overview", icon: "ph-file-text", roles: ["ADMIN", "STAFF"] },
   ];
 
   const visibleNavItems = navItems.filter(item => item.roles.includes(userRole));
@@ -118,11 +118,11 @@ export default function Sidebar() {
           {visibleNavItems.map((item) => {
             const isActive = pathname.startsWith(item.path) ||
               (item.name === "Jobs" && pathname.startsWith("/jobs")) ||
-              (item.name === "Daily Kanakku" && pathname.startsWith("/transactions"));
+              (item.name === "Daily Ledger" && pathname.startsWith("/transactions"));
 
             // Shorter names for collapsed state to match the design
             const displayName = isCollapsed ?
-              (item.name === "Dashboard" ? "Home" : item.name === "Daily Kanakku" ? "Daily" : item.name) :
+              (item.name === "Dashboard" ? "Home" : item.name === "Daily Ledger" ? "Daily" : item.name) :
               item.name;
 
             return (

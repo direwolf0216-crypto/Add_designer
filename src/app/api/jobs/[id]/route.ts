@@ -6,7 +6,7 @@ import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
 import { requireAdmin, requirePermission, requireUser, roleHasPermission } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { broadcastLater } from "@/lib/notifications";
-import { hardDeleteJob, isShootDone, softDeleteJob } from "@/lib/services/jobs";
+import { hardDeleteJob, isProductionDone, softDeleteJob } from "@/lib/services/jobs";
 
 const fitsIn = (maxChars: number) => (value: unknown) => value === undefined || JSON.stringify(value).length <= maxChars;
 const optionalText = (max: number) => z.string().trim().max(max).optional();
@@ -19,13 +19,13 @@ const updateSchema = z.object({
   time: optionalText(50),
   location: optionalText(500),
   status: z.string().trim().min(1).max(100).optional(),
-  galleryUrl: httpUrl,
+  proofUrl: httpUrl,
   contractUrl: httpUrl,
   packageName: optionalText(200),
   notes: optionalText(5000),
   inclusions: z.unknown().refine(fitsIn(20_000), "Inclusions are too large").optional(),
   attachments: z.array(z.unknown()).max(100).refine(fitsIn(100_000), "Attachments are too large").optional(),
-  photographers: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Photographers list is too large").optional(),
+  assignees: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Assigned staff list is too large").optional(),
   customData: z
     .record(z.string().max(100), z.unknown())
     .refine((o) => Object.keys(o).length <= 200, "Too many custom fields")
@@ -79,8 +79,8 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
   let customData: Record<string, unknown> | undefined;
   if (body.customData || body.status !== undefined) {
     customData = { ...readCustomData(existing.customData), ...body.customData };
-    if (body.status !== undefined && isShootDone(body.status) && !customData.fld_b_album_status) {
-      customData.fld_b_album_status = "Pending";
+    if (body.status !== undefined && isProductionDone(body.status) && !customData.fld_b_finishing_status) {
+      customData.fld_b_finishing_status = "Pending";
     }
     if (!fitsIn(MAX_CUSTOM_DATA_CHARS * 2)(customData)) throw badRequest("Custom data is too large");
   }
@@ -95,13 +95,13 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
       time: body.time,
       location: body.location,
       status: body.status,
-      galleryUrl: body.galleryUrl,
+      proofUrl: body.proofUrl,
       contractUrl: body.contractUrl,
       packageName: body.packageName,
       notes: body.notes,
       inclusions: body.inclusions === null ? Prisma.DbNull : (body.inclusions as Prisma.InputJsonValue | undefined),
       attachments: body.attachments as Prisma.InputJsonValue | undefined,
-      photographers: body.photographers as Prisma.InputJsonValue | undefined,
+      assignees: body.assignees as Prisma.InputJsonValue | undefined,
       customData: customData as Prisma.InputJsonValue | undefined,
       updatedById: user.id,
     },

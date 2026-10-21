@@ -17,7 +17,7 @@ export interface Job {
   inclusions?: any | null;
   notes?: string | null;
   attachments?: any | null;
-  photographers?: any | null;
+  assignees?: any | null;
 }
 
 export interface FilterState {

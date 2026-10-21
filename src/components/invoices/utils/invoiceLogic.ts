@@ -112,8 +112,8 @@ export const buildInvoiceViewModel = (
     });
   }
 
-  // Hero Image resolution hierarchy: Album Cover -> Job Thumbnail -> Fallback Placeholder
-  const heroImageUrl = (job.customData as any)?.albumCoverUrl || (job.customData as any)?.thumbnailUrl || assets.photoPlaceholder;
+  // Hero Image resolution hierarchy: Job Thumbnail -> Fallback Placeholder
+  const heroImageUrl = (job.customData as any)?.thumbnailUrl || assets.imagePlaceholder;
 
   // Build Line Items
   const items: InvoiceLineItemVM[] = invoice.lineItems.map(li => ({
@@ -163,10 +163,10 @@ export const buildInvoiceViewModel = (
   // Footer notes
   const footerNotes = [
     '50% advance is required to confirm the job.',
-    'Balance to be cleared before the event or delivery.',
-    'Album delivery within 30 working days after the event.',
-    'Raw photos/videos will not be shared.',
-    'Cancellation 15 days before the event is non-refundable.'
+    'Balance to be cleared at the time of delivery.',
+    'Printing starts only after the design proof is approved.',
+    'Please check the proof carefully; errors approved in the proof are not our responsibility.',
+    'Cancellation after printing has started is non-refundable.'
   ];
 
   return {
@@ -176,18 +176,18 @@ export const buildInvoiceViewModel = (
     clientEmail: job.client.email || 'N/A',
     clientAddress: 'N/A',
     
-    fromName: settings.studio_name || 'Add designer',
-    fromPhone: settings.studio_phone || '+91 790 715 6100',
-    fromEmail: settings.studio_email || 'hello@adddesigner.com',
-    fromAddress: settings.studio_address || 'Calicut, Kerala 673001',
+    fromName: settings.business_name || 'Add designer',
+    fromPhone: settings.business_phone || '+91 790 715 6100',
+    fromEmail: settings.business_email || 'hello@adddesigner.com',
+    fromAddress: settings.business_address || 'Calicut, Kerala 673001',
     
     formattedInvoiceDate: formatDate(invoice.createdAt),
     formattedDueDate: formatDate(job.date), 
     
-    eventDate: formatDate(job.date),
-    venue: job.location || 'N/A',
+    jobDate: formatDate(job.date),
+    location: job.location || 'N/A',
     packageName: job.packageName || 'N/A',
-    photographers: job.photographers ? String(job.photographers) : 'Team Add designer',
+    assignees: job.assignees ? String(job.assignees) : 'Team Add designer',
     
     status,
     statusText: statusTextMap[status],
@@ -208,10 +208,10 @@ export const buildInvoiceViewModel = (
     footerNotes,
     
     socials: {
-      instagram: settings.studio_instagram || 'instagram.com/adddesigner',
-      website: settings.studio_website || 'www.adddesigner.com',
-      phone: settings.studio_phone || '+91 790 715 6100',
-      email: settings.studio_email || 'hello@adddesigner.com',
+      instagram: settings.business_instagram || 'instagram.com/adddesigner',
+      website: settings.business_website || 'www.adddesigner.com',
+      phone: settings.business_phone || '+91 790 715 6100',
+      email: settings.business_email || 'hello@adddesigner.com',
     },
     
     settings

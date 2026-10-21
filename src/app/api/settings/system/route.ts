@@ -35,7 +35,7 @@ const DEFAULT_SETTINGS = {
 
 const color = z.string().max(32);
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Expected HH:MM");
-const studioText = z.string().trim().max(500);
+const businessText = z.string().trim().max(500);
 const threshold = z.object({ days: z.number().int().min(0).max(365) });
 
 // Every key the app reads (SystemProvider, banner, invoices, reminders cron). Anything else is rejected,
@@ -52,19 +52,19 @@ const SETTING_SCHEMAS = {
     bannerTime1: time.optional(),
     bannerTime2: time.optional(),
   }),
-  studio_name: studioText,
-  studio_phone: studioText,
-  studio_email: studioText,
-  studio_address: studioText,
-  studio_instagram: studioText,
-  studio_website: studioText,
-  studio_bank_name: studioText,
-  studio_upi_id: studioText,
+  business_name: businessText,
+  business_phone: businessText,
+  business_email: businessText,
+  business_address: businessText,
+  business_instagram: businessText,
+  business_website: businessText,
+  business_bank_name: businessText,
+  business_upi_id: businessText,
   reminder_threshold_order_stale: threshold,
   reminder_threshold_order_ready: threshold,
   reminder_threshold_advance: threshold,
-  reminder_threshold_gallery: threshold,
-  reminder_threshold_album: threshold,
+  reminder_threshold_proof: threshold,
+  reminder_threshold_finishing: threshold,
   reminder_threshold_payment_due: threshold,
 } as const;
 

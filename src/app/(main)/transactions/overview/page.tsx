@@ -8,7 +8,7 @@ import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import useSWR, { mutate } from "swr";
 
 const categoryColors: Record<string, { bg: string, stroke: string }> = {
-  "Photography Session": { bg: "bg-emerald-500", stroke: "#10b981" },
+  "Printing Job": { bg: "bg-emerald-500", stroke: "#10b981" },
   "Equipment": { bg: "bg-amber-500", stroke: "#f59e0b" },
   "Utilities": { bg: "bg-slate-700", stroke: "#334155" },
   "Rent": { bg: "bg-slate-900", stroke: "#0f172a" },
@@ -19,8 +19,11 @@ const categoryColors: Record<string, { bg: string, stroke: string }> = {
   "Job Advance": { bg: "bg-blue-500", stroke: "#3b82f6" },
   "Passport Photo": { bg: "bg-pink-500", stroke: "#ec4899" },
   "Frame Sales": { bg: "bg-orange-500", stroke: "#f97316" },
-  "Editing Charges": { bg: "bg-amber-700", stroke: "#b45309" },
-  "Album Payment": { bg: "bg-violet-500", stroke: "#8b5cf6" },
+  "Design Charges": { bg: "bg-amber-700", stroke: "#b45309" },
+  "Binding & Finishing": { bg: "bg-violet-500", stroke: "#8b5cf6" },
+  "Paper Purchase": { bg: "bg-teal-500", stroke: "#14b8a6" },
+  "Ink/Toner": { bg: "bg-cyan-500", stroke: "#06b6d4" },
+  "Maintenance": { bg: "bg-purple-500", stroke: "#a855f7" },
   "Tea & Snacks": { bg: "bg-sky-500", stroke: "#0ea5e9" },
   "Fuel": { bg: "bg-red-500", stroke: "#ef4444" },
   "Bus Fare": { bg: "bg-indigo-500", stroke: "#6366f1" },
@@ -31,19 +34,22 @@ const categoryColors: Record<string, { bg: string, stroke: string }> = {
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
-  "Photography Session": "ph-camera",
+  "Printing Job": "ph-printer",
   "Equipment": "ph-wrench",
   "Utilities": "ph-lightning",
   "Rent": "ph-house",
   "Software": "ph-code",
-  "Travel": "ph-airplane",
+  "Travel": "ph-bus",
   "Marketing": "ph-megaphone",
   "Misc": "ph-dots-three-circle",
   "Job Advance": "ph-calendar-check",
   "Passport Photo": "ph-user",
   "Frame Sales": "ph-frame-corners",
-  "Editing Charges": "ph-pencil-circle",
-  "Album Payment": "ph-book-open",
+  "Design Charges": "ph-paint-brush",
+  "Binding & Finishing": "ph-book-open",
+  "Paper Purchase": "ph-stack",
+  "Ink/Toner": "ph-palette",
+  "Maintenance": "ph-wrench",
   "Tea & Snacks": "ph-coffee",
   "Fuel": "ph-gas-pump",
   "Bus Fare": "ph-bus",
@@ -64,8 +70,12 @@ const defaultColor = { bg: "bg-slate-400", stroke: "#94a3b8" }; const fetcher = 
 
 const getRelatableIcon = (cat: string) => {
   const lowerCat = cat.toLowerCase();
-  if (lowerCat.includes('photo') || lowerCat === 'pp') return 'ph-camera';
+  if (lowerCat.includes('photo') || lowerCat === 'pp') return 'ph-identification-card';
   if (lowerCat.includes('xerox') || lowerCat.includes('print')) return 'ph-printer';
+  if (lowerCat.includes('design')) return 'ph-paint-brush';
+  if (lowerCat.includes('bind') || lowerCat.includes('lamin') || lowerCat.includes('finish')) return 'ph-book-open';
+  if (lowerCat.includes('paper')) return 'ph-stack';
+  if (lowerCat.includes('toner') || /\bink\b/.test(lowerCat)) return 'ph-palette';
   if (lowerCat.includes('bus') || lowerCat.includes('travel') || lowerCat.includes('fare') || lowerCat.includes('transport')) return 'ph-bus';
   if (lowerCat.includes('salary') || lowerCat.includes('pay') || lowerCat.includes('wage')) return 'ph-money';
   if (lowerCat.includes('tea') || lowerCat.includes('snack') || lowerCat.includes('food') || lowerCat.includes('coffee')) return 'ph-coffee';
@@ -77,7 +87,7 @@ const getRelatableIcon = (cat: string) => {
   if (lowerCat.includes('courier') || lowerCat.includes('post') || lowerCat.includes('delivery')) return 'ph-package';
   if (lowerCat.includes('market') || lowerCat.includes('ad')) return 'ph-megaphone';
   if (lowerCat.includes('book') || lowerCat.includes('advance')) return 'ph-calendar-check';
-  if (lowerCat.includes('album') || lowerCat.includes('frame')) return 'ph-book-open';
+  if (lowerCat.includes('frame')) return 'ph-frame-corners';
   if (lowerCat.includes('other') || lowerCat.includes('misc')) return 'ph-dots-three-circle';
   return 'ph-tag';
 };
@@ -329,7 +339,7 @@ export default function OverviewPage() {
   const baseCategories = dynamicCategories.length > 0 ? dynamicCategories : Object.keys(CATEGORY_ICONS);
 
   const allCategoriesList = baseCategories.map(cat => {
-    const isIncome = ["Photography Session", "Job Advance", "Passport Photo", "Frame Sales", "Editing Charges", "Album Payment", "PP", "Xerox", "Printout", "E-Sevai", "Others"].includes(cat);
+    const isIncome = ["Printing Job", "Job Advance", "Passport Photo", "Frame Sales", "Design Charges", "Binding & Finishing", "PP", "Xerox", "Printout", "E-Sevai", "Others"].includes(cat);
 
     const definedBg = categoryColors[cat]?.bg;
     const colorName = definedBg ? definedBg.split('-')[1] : undefined;

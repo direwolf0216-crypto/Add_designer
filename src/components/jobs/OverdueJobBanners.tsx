@@ -63,7 +63,7 @@ export default function OverdueJobBanners() {
       const res = await fetch(`/api/jobs/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Shoot Completed" })
+        body: JSON.stringify({ status: "Printing Completed" })
       });
       if (res.ok) {
         mutate();

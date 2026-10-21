@@ -205,7 +205,7 @@ function TransactionsList() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `kanakkupulla-ledger-${toLocalISODate()}.csv`);
+        link.setAttribute('download', `add-designer-ledger-${toLocalISODate()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -245,7 +245,7 @@ function TransactionsList() {
           startY: finalY + 15,
         });
         
-        doc.save(`kanakkupulla-ledger-${toLocalISODate()}.pdf`);
+        doc.save(`add-designer-ledger-${toLocalISODate()}.pdf`);
       }
     } catch (e) {
       toast.error("Export failed");
@@ -571,8 +571,12 @@ function TransactionsList() {
               const renderTransaction = (tx: any, isChild = false) => {
                 const getRelatableIcon = (cat: string) => {
                   const lowerCat = cat.toLowerCase();
-                  if (lowerCat.includes('photo') || lowerCat === 'pp') return 'ph-camera';
+                  if (lowerCat.includes('photo') || lowerCat === 'pp') return 'ph-identification-card';
                   if (lowerCat.includes('xerox') || lowerCat.includes('print')) return 'ph-printer';
+                  if (lowerCat.includes('design')) return 'ph-paint-brush';
+                  if (lowerCat.includes('bind') || lowerCat.includes('lamin') || lowerCat.includes('finish')) return 'ph-book-open';
+                  if (lowerCat.includes('paper')) return 'ph-stack';
+                  if (lowerCat.includes('toner') || /\bink\b/.test(lowerCat)) return 'ph-palette';
                   if (lowerCat.includes('bus') || lowerCat.includes('travel') || lowerCat.includes('fare') || lowerCat.includes('transport')) return 'ph-bus';
                   if (lowerCat.includes('salary') || lowerCat.includes('pay') || lowerCat.includes('wage')) return 'ph-money';
                   if (lowerCat.includes('tea') || lowerCat.includes('snack') || lowerCat.includes('food') || lowerCat.includes('coffee')) return 'ph-coffee';
@@ -584,7 +588,7 @@ function TransactionsList() {
                   if (lowerCat.includes('courier') || lowerCat.includes('post') || lowerCat.includes('delivery')) return 'ph-package';
                   if (lowerCat.includes('market') || lowerCat.includes('ad')) return 'ph-megaphone';
                   if (lowerCat.includes('book') || lowerCat.includes('advance')) return 'ph-calendar-check';
-                  if (lowerCat.includes('album') || lowerCat.includes('frame')) return 'ph-book-open';
+                  if (lowerCat.includes('frame')) return 'ph-frame-corners';
                   if (lowerCat.includes('other') || lowerCat.includes('misc')) return 'ph-dots-three-circle';
                   return 'ph-tag';
                 };

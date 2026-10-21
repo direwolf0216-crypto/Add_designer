@@ -12,5 +12,5 @@ export const assets = {
   heroFrame: resolveAsset('jobInvoice.png'), // Using a known asset or we can conditionally disable this in UI
   googleReview: resolveAsset('google.png'),
   texture: resolveAsset('floralFullyPaid.png'), // Just mapping to existing files to prevent 404 crash
-  photoPlaceholder: resolveAsset('couple.png'),
+  imagePlaceholder: resolveAsset('placeholder.png'),
 };

@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { broadcastLater } from "@/lib/notifications";
 import { getSessionUser, roleHasPermission, type SessionUser } from "@/lib/auth/session";
 import type { Permission } from "@/lib/permissions";
-import { isShootDone, saveJob, softDeleteJob, type InstallmentInput } from "@/lib/services/jobs";
+import { isProductionDone, saveJob, softDeleteJob, type InstallmentInput } from "@/lib/services/jobs";
 import { parseAmount } from "@/lib/money";
 import { nextCounter } from "@/lib/ids";
 import { HttpError } from "@/lib/api/http";
@@ -40,8 +40,8 @@ function parseJsonField(value: FormDataEntryValue | undefined): unknown {
 // Keys handled explicitly; everything else submitted by the dynamic form is stored in customData.
 const STANDARD_KEYS = new Set([
   "id", "title", "category", "date", "time", "location", "phone", "email", "package", "advance", "due",
-  "status", "installments", "packageName", "inclusions", "notes", "attachments", "photographers",
-  "albumStatus", "galleryDelivered", "customData", "recordDate", "jobNumber",
+  "status", "installments", "packageName", "inclusions", "notes", "attachments", "assignees",
+  "finishingStatus", "proofDelivered", "customData", "recordDate", "jobNumber",
 ]);
 const MAX_CUSTOM_FIELDS = 200;
 const MAX_CUSTOM_VALUE_LENGTH = 20000;
@@ -76,16 +76,16 @@ export async function saveJobAction(formData: FormData) {
         status: validated.status,
         packageAmount: parseAmount(validated.package),
         installments: Array.isArray(installments) ? (installments as InstallmentInput[]) : [],
-        albumStatus: validated.albumStatus || undefined,
-        galleryDelivered:
-          validated.galleryDelivered === undefined
+        finishingStatus: validated.finishingStatus || undefined,
+        proofDelivered:
+          validated.proofDelivered === undefined
             ? undefined
-            : validated.galleryDelivered === true || validated.galleryDelivered === "true",
+            : validated.proofDelivered === true || validated.proofDelivered === "true",
         packageName: typeof rawData.packageName === "string" ? rawData.packageName : undefined,
         notes: typeof rawData.notes === "string" ? rawData.notes : undefined,
         inclusions: parseJsonField(rawData.inclusions),
         attachments: parseJsonField(rawData.attachments),
-        photographers: parseJsonField(rawData.photographers),
+        assignees: parseJsonField(rawData.assignees),
         customData,
       },
       user.id
@@ -175,12 +175,12 @@ export async function updateJobStatusAction(jobId: string, newStatus: string) {
     if (!existing || existing.deletedAt) return { success: false, error: "Not found" };
 
     const customData = readCustomData(existing.customData);
-    if (isShootDone(newStatus)) {
-      if (existing.status !== newStatus || !customData.fld_b_album_status) {
-        customData.fld_b_album_status = "Pending";
+    if (isProductionDone(newStatus)) {
+      if (existing.status !== newStatus || !customData.fld_b_finishing_status) {
+        customData.fld_b_finishing_status = "Pending";
       }
     } else {
-      delete customData.fld_b_album_status;
+      delete customData.fld_b_finishing_status;
     }
 
     const job = await prisma.job.update({
@@ -235,7 +235,7 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
       customData: customData as Prisma.InputJsonValue,
       updatedById: user.id,
     };
-    if (customData.fld_b_album_status === "Delivered") data.galleryDelivered = true;
+    if (customData.fld_b_finishing_status === "Delivered") data.proofDelivered = true;
     if (parsed.data.status !== undefined) data.status = parsed.data.status;
 
     await prisma.job.update({ where: { id: jobId }, data });
@@ -245,7 +245,7 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
     return { success: true };
   } catch (e) {
     console.error("[updateJobTrackingAction]", e);
-    return { success: false, error: "Failed to update album tracking" };
+    return { success: false, error: "Failed to update finishing tracking" };
   }
 }
 

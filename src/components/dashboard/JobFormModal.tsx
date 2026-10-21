@@ -92,7 +92,7 @@ function JobFormModalInner() {
     fld_b_client: 'title', fld_b_phone: 'phone', fld_b_email: 'email',
     fld_b_date: 'date', fld_b_time: 'time', fld_b_job_category: 'category',
     fld_b_location: 'location', fld_b_status: 'status', fld_b_package: 'package', fld_b_advance: 'advance',
-    fld_gallery_delivered: 'galleryDelivered'
+    fld_proof_delivered: 'proofDelivered'
   };
 
   const { data: layoutData } = useSWR(isJobFormOpen ? "/api/settings/layouts/JOB_FORM" : null, fetcher);

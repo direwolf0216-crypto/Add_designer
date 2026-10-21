@@ -6,9 +6,9 @@ import { newJobNumber, newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { calendarDateToUtc } from "@/lib/dates";
 import { notFound } from "@/lib/api/http";
 
-/** Statuses that mean the shoot happened and album work should start. */
-export const SHOOT_DONE_STATUSES = ["Shoot Completed", "Completed"];
-export const isShootDone = (status?: string | null) => !!status && SHOOT_DONE_STATUSES.includes(status);
+/** Statuses that mean printing is done and finishing work should start. */
+export const PRODUCTION_DONE_STATUSES = ["Printing Completed", "Completed"];
+export const isProductionDone = (status?: string | null) => !!status && PRODUCTION_DONE_STATUSES.includes(status);
 
 export type InstallmentInput = {
   amount: string | number;
@@ -30,13 +30,13 @@ export type SaveJobInput = {
   status: string;
   packageAmount: number;
   installments: InstallmentInput[];
-  albumStatus?: string;
-  galleryDelivered?: boolean;
+  finishingStatus?: string;
+  proofDelivered?: boolean;
   packageName?: string;
   notes?: string;
   inclusions?: unknown;
   attachments?: unknown;
-  photographers?: unknown;
+  assignees?: unknown;
   customData: Record<string, unknown>;
 };
 
@@ -187,13 +187,13 @@ async function saveJobOnce(input: SaveJobInput, userId: string) {
         ...((existing?.customData as Record<string, unknown> | null) ?? {}),
         ...input.customData,
       };
-      // Album work starts (as Pending) when the shoot is marked done, and is cleared otherwise.
-      if (isShootDone(input.status)) {
-        if (!existing || !isShootDone(existing.status) || !customData.fld_b_album_status) {
-          customData.fld_b_album_status = customData.fld_b_album_status || "Pending";
+      // Finishing work starts (as Pending) when printing is marked done, and is cleared otherwise.
+      if (isProductionDone(input.status)) {
+        if (!existing || !isProductionDone(existing.status) || !customData.fld_b_finishing_status) {
+          customData.fld_b_finishing_status = customData.fld_b_finishing_status || "Pending";
         }
       } else {
-        delete customData.fld_b_album_status;
+        delete customData.fld_b_finishing_status;
       }
 
       const common = {
@@ -205,9 +205,9 @@ async function saveJobOnce(input: SaveJobInput, userId: string) {
         notes: input.notes,
         inclusions: asJson(input.inclusions),
         attachments: asJson(input.attachments),
-        photographers: asJson(input.photographers),
-        albumStatus: input.albumStatus ? (input.albumStatus.toUpperCase() as "PENDING" | "IN_PROGRESS" | "DELIVERED") : undefined,
-        galleryDelivered: input.galleryDelivered,
+        assignees: asJson(input.assignees),
+        finishingStatus: input.finishingStatus ? (input.finishingStatus.toUpperCase() as "PENDING" | "IN_PROGRESS" | "DELIVERED") : undefined,
+        proofDelivered: input.proofDelivered,
         customData: customData as Prisma.InputJsonValue,
         updatedById: userId,
       };

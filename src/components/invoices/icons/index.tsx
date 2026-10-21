@@ -1,5 +1,5 @@
 import React from 'react';
-import { Svg, Path, Polyline } from '@react-pdf/renderer';
+import { Svg, Path, Polyline, G } from '@react-pdf/renderer';
 
 interface IconProps {
   color?: string;
@@ -12,9 +12,12 @@ export const UserIcon = ({ color = '#D97706', size = 16 }: IconProps) => (
   </Svg>
 );
 
-export const CameraIcon = ({ color = '#D97706', size = 16 }: IconProps) => (
-  <Svg viewBox="0 0 256 256" width={size} height={size}>
-    <Path d="M208,56H180.28L166.65,35.56A24,24,0,0,0,146.7,24h-37.4a24,24,0,0,0-19.95,11.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56ZM128,176a44,44,0,1,1,44-44A44.05,44.05,0,0,1,128,176Z" fill={color} />
+// Phosphor "printer" (fill) glyph; font coordinates are y-up, so flip into the SVG viewBox.
+export const PrinterIcon = ({ color = '#D97706', size = 16 }: IconProps) => (
+  <Svg viewBox="0 0 1024 1024" width={size} height={size}>
+    <G transform="matrix(1 0 0 -1 0 960)">
+      <Path d="M960 576v-320c0-17.673-14.327-32-32-32v0h-128v-128c0-17.673-14.327-32-32-32v0h-512c-17.673 0-32 14.327-32 32v0 128h-128c-17.673 0-32 14.327-32 32v0 320c0 52.92 45.44 96 101.32 96h58.68v128c0 17.673 14.327 32 32 32v0h512c17.673 0 32-14.327 32-32v0-128h58.68c55.88 0 101.32-43.080 101.32-96zM288 672h448v96h-448zM736 320h-448v-192h448zM800 496c0 26.51-21.49 48-48 48s-48-21.49-48-48c0-26.51 21.49-48 48-48v0c26.51 0 48 21.49 48 48v0z" fill={color} />
+    </G>
   </Svg>
 );
 
@@ -54,15 +57,9 @@ export const CheckIcon = ({ color = '#10B981', size = 16 }: IconProps) => (
   </Svg>
 );
 
-export const AlbumIcon = ({ color = '#D97706', size = 16 }: IconProps) => (
+export const BindingIcon = ({ color = '#D97706', size = 16 }: IconProps) => (
   <Svg viewBox="0 0 256 256" width={size} height={size}>
     <Path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H80V208H48ZM208,208H96V48H208Z" fill={color} />
-  </Svg>
-);
-
-export const DroneIcon = ({ color = '#D97706', size = 16 }: IconProps) => (
-  <Svg viewBox="0 0 256 256" width={size} height={size}>
-    <Path d="M224,88h-9.88A32.08,32.08,0,0,0,186,63.15V56a16,16,0,0,0-16-16H138V32h8a8,8,0,0,0,0-16H110a8,8,0,0,0,0,16h8V40H86A16,16,0,0,0,70,56v7.15A32.08,32.08,0,0,0,41.88,88H32a8,8,0,0,0,0,16h9.88A32.08,32.08,0,0,0,70,128.85V136a16,16,0,0,0,16,16h24v16a8,8,0,0,0,16,0V152h24a16,16,0,0,0,16-16v-7.15A32.08,32.08,0,0,0,196.12,104H224a8,8,0,0,0,0-16ZM86,136H110v16H86Zm64,16H126V136h24ZM186,128a16,16,0,1,1,16-16A16,16,0,0,1,186,128ZM186,88a16,16,0,1,1,16-16A16,16,0,0,1,186,88ZM70,128a16,16,0,1,1-16-16A16,16,0,0,1,70,128ZM70,88a16,16,0,1,1-16-16A16,16,0,0,1,70,88Z" fill={color} />
   </Svg>
 );
 

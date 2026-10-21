@@ -131,11 +131,11 @@ export default function TopNavigation() {
     }
   };
 
-  const userName = session?.user?.name || "Studio User";
+  const userName = session?.user?.name || "Team Member";
   const userEmail = session?.user?.email || "user@example.com";
   const userRole = (session?.user as any)?.role || "STAFF";
   const userInitials = userName.substring(0, 2).toUpperCase();
-  const isStudioOwner = userRole === "ADMIN";
+  const isPressOwner = userRole === "ADMIN";
 
   const getNotificationIcon = (type: string) => {
     return (
@@ -151,11 +151,11 @@ export default function TopNavigation() {
   const roleLabels: Record<string, string> = {
     ADMIN: "Admin",
     STAFF: "Staff",
+    DESIGNER: "Designer",
   };
 
   let title = "Add designer";
   if (pathname.includes("jobs")) title = ""; // Removed to avoid duplication with the new Jobs banner
-  else if (pathname.includes("galleries")) title = "Galleries Management";
   else if (pathname.includes("transactions")) title = "Daily Transactions";
   else if (pathname.includes("settings")) title = "Settings";
 
@@ -189,8 +189,8 @@ export default function TopNavigation() {
 
         {title && title === "Add designer" ? (
           <div className="relative hidden sm:block">
-            <div className="studio-brand">
-              Add <span className="studio-brand-accent hidden md:inline">designer</span>
+            <div className="brand-wordmark">
+              Add <span className="brand-wordmark-accent hidden md:inline">designer</span>
             </div>
           </div>
         ) : (
@@ -352,7 +352,7 @@ export default function TopNavigation() {
                               </p>
                               {[
                                 'ORDER_STATUS_STALE', 'JOB_STATUS_STALE', 'PAYMENT_DUE_REMINDER',
-                                'ADVANCE_NOT_COLLECTED', 'GALLERY_NOT_DELIVERED', 'ALBUM_PENDING_REMINDER'
+                                'ADVANCE_NOT_COLLECTED', 'PROOF_NOT_DELIVERED', 'FINISHING_PENDING_REMINDER'
                               ].includes(notification.type) && (
                                   <button
                                     onClick={(e) => handleSnooze(notification.id, e)}
@@ -428,7 +428,7 @@ export default function TopNavigation() {
 
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-extrabold text-lg shrink-0 relative">
-                    {isStudioOwner && (
+                    {isPressOwner && (
                       <i className="ph-fill ph-crown absolute -top-1 -left-1 text-orange-400 text-sm bg-white rounded-full p-0.5 shadow-sm"></i>
                     )}
                     {userInitials}
