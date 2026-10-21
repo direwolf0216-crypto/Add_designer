@@ -9,6 +9,45 @@ export interface InvoiceLineItemVM {
   total: string;
 }
 
+/** One printed row of the items table (all values already formatted). */
+export interface PrintLineItem {
+  description: string;
+  size: string;
+  qty: string;
+  rate: string;
+  amount: string;
+}
+
+/** Everything the printed (A4) invoice shows, taken from the job, its payments and the shop's settings. */
+export interface PrintInvoice {
+  business: {
+    name: string;
+    addressLines: string[];
+    phones: string[];
+    email: string;
+    website: string;
+    gstin: string;
+    /** Only the bank fields that are filled in; empty when no bank details are set. */
+    bank: { label: string; value: string }[];
+  };
+  billTo: {
+    name: string;
+    lines: string[];
+    phone: string;
+    email: string;
+  };
+  dueDate: string;
+  items: PrintLineItem[];
+  /** Rows above the total box: sub total, discount and (when a GST rate is set) CGST / SGST. */
+  summary: { label: string; value: string }[];
+  total: string;
+  paid: string;
+  balance: string;
+  /** True when something has been paid, so the paid/balance line is worth printing. */
+  showPayments: boolean;
+  amountInWords: string;
+}
+
 export interface SummaryCardVariant {
   theme: 'dark' | 'success';
   title: string;
@@ -60,4 +99,6 @@ export interface InvoiceViewModel {
   };
   
   settings: Record<string, string>;
+
+  print: PrintInvoice;
 }

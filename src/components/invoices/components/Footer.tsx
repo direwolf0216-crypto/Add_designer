@@ -1,7 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 import { InvoiceViewModel } from '../types/invoiceViewModel';
+import path from 'path';
 import { colors, typography } from '../theme/invoiceTheme';
+
+// The shop's real Google review QR code (rendered on the server, so a file path works).
+const REVIEW_QR = path.join(process.cwd(), 'public', 'assets', 'Add_Designer_Google_Review_QR.png');
 
 const styles = StyleSheet.create({
   container: {
@@ -89,7 +93,7 @@ interface FooterProps {
 
 export const Footer = ({ viewModel }: FooterProps) => {
   return (
-    <View wrap={false}>
+    <View wrap={false} style={{ marginTop: 'auto' }}>
       <View style={styles.container}>
         <View style={styles.leftCol}>
           <Text style={styles.thankYouLarge}>Thank you!</Text>
@@ -98,7 +102,7 @@ export const Footer = ({ viewModel }: FooterProps) => {
 
         <View style={styles.midCol}>
           <View style={styles.qrWrapper}>
-            <PdfImage src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=feedback" style={styles.qrImage} />
+            <PdfImage src={REVIEW_QR} style={styles.qrImage} />
           </View>
           <View style={styles.feedbackTextWrapper}>
             <Text style={styles.feedbackTextBold}>We value your feedback!</Text>
@@ -109,7 +113,7 @@ export const Footer = ({ viewModel }: FooterProps) => {
         </View>
 
         <View style={styles.rightCol}>
-          <Text style={styles.signCompany}>For ADDESIGNER LASER PRINTER</Text>
+          <Text style={styles.signCompany}>For {viewModel.print.business.name.toUpperCase()}</Text>
           <View style={styles.signLine}></View>
           <Text style={styles.signLabel}>Authorised Signatory</Text>
         </View>

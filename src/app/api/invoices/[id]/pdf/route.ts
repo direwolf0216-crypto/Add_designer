@@ -9,6 +9,7 @@ import { jobScope } from '@/lib/jobs/scope';
 import InvoiceDocument from '@/components/invoices/InvoiceDocument';
 import { initFonts } from '@/components/invoices/theme/invoiceTheme';
 import { buildInvoiceViewModel } from '@/components/invoices/utils/invoiceLogic';
+import type { FormLayout } from '@/lib/forms/types';
 
 const INVOICE_SETTING_KEYS = [
   'business_upi_id',
@@ -19,6 +20,13 @@ const INVOICE_SETTING_KEYS = [
   'business_address',
   'business_instagram',
   'business_website',
+  'business_phone_2',
+  'business_gstin',
+  'business_gst_rate',
+  'business_bank_account_name',
+  'business_bank_account_no',
+  'business_bank_ifsc',
+  'business_bank_branch',
 ];
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
@@ -33,13 +41,15 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
 
   const job = await prisma.job.findFirst({
     where: { id: invoice.jobId, deletedAt: undefined, ...(await jobScope(user)) },
-    include: { client: true, assignments: { select: { user: { select: { name: true } } } } },
+    include: { client: true, order: true, assignments: { select: { user: { select: { name: true } } } } },
   });
   if (!job || job.deletedAt) throw notFound('Associated job not found');
 
-  const [transactions, settingsRecords] = await Promise.all([
+  const [transactions, settingsRecords, layoutRecord] = await Promise.all([
     prisma.transaction.findMany({ where: { jobId: job.id, type: 'INCOME', deletedAt: null } }),
     prisma.systemSetting.findMany({ where: { key: { in: INVOICE_SETTING_KEYS } } }),
+    // The job form's layout says which fields hold each line item's category, size and quantity.
+    prisma.formLayout.findUnique({ where: { formKey: 'JOB_FORM' }, select: { schema: true } }),
   ]);
   const settings: Record<string, string> = {};
   for (const s of settingsRecords) {
@@ -65,7 +75,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
     heroImageUrl = await driveImageDataUrl(fileId, user.id);
   }
 
-  const viewModel = buildInvoiceViewModel(invoice, job, transactions, settings, qrCodeDataUrl);
+  const viewModel = buildInvoiceViewModel(invoice, job, transactions, settings, qrCodeDataUrl, layoutRecord?.schema as FormLayout | null);
   if (heroImageUrl) viewModel.heroImageUrl = heroImageUrl;
 
   initFonts();

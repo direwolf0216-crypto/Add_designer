@@ -12,6 +12,7 @@ const UserManagement = dynamic(() => import("@/components/settings/UserManagemen
 const RolesPermissions = dynamic(() => import("@/components/settings/RolesPermissions"), { loading: tabLoading });
 const LayoutsFieldsBuilder = dynamic(() => import("@/components/settings/LayoutsFieldsBuilder"), { loading: tabLoading });
 const RecycleBin = dynamic(() => import("@/components/settings/RecycleBin"), { loading: tabLoading });
+const BusinessDetails = dynamic(() => import("@/components/settings/BusinessDetails"), { loading: tabLoading });
 const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
 
 const GROUPS = [
@@ -26,6 +27,7 @@ const GROUPS = [
     label: "Customization",
     items: [
       { id: "layouts", label: "Layouts & Fields", icon: "ph-layout" },
+      { id: "business", label: "Business & Invoice", icon: "ph-storefront" },
     ]
   },
   {
@@ -191,6 +193,7 @@ function SettingsPage() {
           {displayedSection === "layouts" && <LayoutsFieldsBuilder />}
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
+          {displayedSection === "business" && <BusinessDetails />}
         </div>
       </div>
       

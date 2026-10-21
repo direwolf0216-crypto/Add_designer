@@ -63,18 +63,18 @@ export const BillingSection = ({ viewModel }: BillingSectionProps) => {
         <View style={styles.headerBox}>
           <Text style={styles.headerText}>BILL TO</Text>
         </View>
-        <Text style={styles.companyName}>{viewModel.clientName}</Text>
-        <Text style={styles.addressLine}>45, Park Street,</Text>
-        <Text style={styles.addressLine}>R.S. Puram, Coimbatore - 641 002</Text>
-        <Text style={styles.addressLine}>Tamil Nadu, India</Text>
+        <Text style={styles.companyName}>{viewModel.print.billTo.name}</Text>
+        {viewModel.print.billTo.lines.map((line, i) => (
+          <Text key={i} style={styles.addressLine}>{line}</Text>
+        ))}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Phone :</Text>
-          <Text style={styles.detailValue}>{viewModel.clientPhone}</Text>
+          <Text style={styles.detailValue}>{viewModel.print.billTo.phone}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Email :</Text>
-          <Text style={styles.detailValue}>{viewModel.clientEmail || 'abcenterprises@gmail.com'}</Text>
+          <Text style={styles.detailValue}>{viewModel.print.billTo.email}</Text>
         </View>
 
       </View>

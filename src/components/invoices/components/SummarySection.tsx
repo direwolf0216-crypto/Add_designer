@@ -105,6 +105,21 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     color: colors.white,
   },
+  paymentsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  paymentsText: {
+    fontSize: 8,
+    color: colors.secondaryText,
+  },
+  paymentsTextBold: {
+    fontSize: 8,
+    fontWeight: 700,
+    color: colors.darkBox,
+  },
   amountInWords: {
     marginTop: 10,
   },
@@ -150,60 +165,45 @@ export const SummarySection = ({ viewModel }: SummarySectionProps) => {
           </View>
         </View>
 
-        <View style={styles.bankCol}>
-          <View style={styles.headerBox}>
-            <Text style={styles.headerText}>BANK DETAILS</Text>
+        {viewModel.print.business.bank.length > 0 && (
+          <View style={styles.bankCol}>
+            <View style={styles.headerBox}>
+              <Text style={styles.headerText}>BANK DETAILS</Text>
+            </View>
+            {viewModel.print.business.bank.map((row) => (
+              <View key={row.label} style={styles.bankRow}>
+                <Text style={styles.bankLabel}>{row.label}</Text>
+                <Text style={styles.bankValue}>: {row.value}</Text>
+              </View>
+            ))}
           </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>Bank Name</Text>
-            <Text style={styles.bankValue}>: HDFC Bank</Text>
-          </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>A/c Name</Text>
-            <Text style={styles.bankValue}>: ADDESIGNER Laser Printer</Text>
-          </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>A/c No.</Text>
-            <Text style={styles.bankValue}>: 1234 5678 9012 34</Text>
-          </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>IFSC Code</Text>
-            <Text style={styles.bankValue}>: HDFC0001234</Text>
-          </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>Branch</Text>
-            <Text style={styles.bankValue}>: Coimbatore - Main</Text>
-          </View>
-        </View>
+        )}
       </View>
 
       <View style={styles.rightCol}>
         <View style={styles.summaryTable}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>SUB TOTAL</Text>
-            <Text style={styles.summaryValue}>Rs 5,150.00</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>DISCOUNT</Text>
-            <Text style={styles.summaryValue}>Rs 150.00</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>CGST (9%)</Text>
-            <Text style={styles.summaryValue}>Rs 450.00</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>SGST (9%)</Text>
-            <Text style={styles.summaryValue}>Rs 450.00</Text>
-          </View>
+          {viewModel.print.summary.map((row) => (
+            <View key={row.label} style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>{row.label}</Text>
+              <Text style={styles.summaryValue}>{row.value}</Text>
+            </View>
+          ))}
         </View>
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>TOTAL AMOUNT</Text>
-          <Text style={styles.totalValue}>Rs 5,900.00</Text>
+          <Text style={styles.totalValue}>{viewModel.print.total}</Text>
         </View>
-        
+
+        {viewModel.print.showPayments && (
+          <View style={styles.paymentsRow}>
+            <Text style={styles.paymentsText}>Paid: {viewModel.print.paid}</Text>
+            <Text style={styles.paymentsTextBold}>Balance Due: {viewModel.print.balance}</Text>
+          </View>
+        )}
+
         <View style={styles.amountInWords}>
           <Text style={styles.amountInWordsLabel}>Amount in Words:</Text>
-          <Text style={styles.amountInWordsValue}>Rupees Five Thousand Nine Hundred Only</Text>
+          <Text style={styles.amountInWordsValue}>{viewModel.print.amountInWords}</Text>
         </View>
       </View>
     </View>

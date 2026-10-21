@@ -106,6 +106,14 @@ interface HeaderProps {
 import { logoBase64 } from '../utils/logoBase64';
 
 export const Header = ({ viewModel }: HeaderProps) => {
+  const b = viewModel.print.business;
+  // The contact bar shows only what the shop has filled in under Settings.
+  const contact = [
+    b.addressLines.length ? b.addressLines.join('\n') : '',
+    b.phones.join('\n'),
+    b.email,
+    b.website,
+  ].filter(Boolean);
   return (
     <View>
       <View style={styles.container}>
@@ -117,6 +125,7 @@ export const Header = ({ viewModel }: HeaderProps) => {
             <Text style={styles.serviceTag}>XEROX | BINDING</Text>
             <Text style={styles.serviceTag}>LAMINATION</Text>
           </View>
+          {b.gstin ? <Text style={[styles.serviceTag, { marginTop: 6, fontWeight: 600 }]}>GSTIN: {b.gstin}</Text> : null}
         </View>
 
         <View style={styles.rightCol}>
@@ -132,26 +141,23 @@ export const Header = ({ viewModel }: HeaderProps) => {
             </View>
             <View style={styles.metaRowLast}>
               <Text style={styles.metaLabel}>Due Date</Text>
-              <Text style={styles.metaValue}>{viewModel.formattedDueDate}</Text>
+              <Text style={styles.metaValue}>{viewModel.print.dueDate}</Text>
             </View>
           </View>
         </View>
       </View>
 
-      <View style={styles.contactBar}>
-        <View style={styles.contactItemFirst}>
-          <Text style={styles.contactText}>123, Main Road, Gandhi Nagar,{'\n'}Coimbatore - 641 012, Tamil Nadu, India</Text>
+      {contact.length > 0 ? (
+        <View style={styles.contactBar}>
+          {contact.map((line, i) => (
+            <View key={i} style={i === 0 ? styles.contactItemFirst : styles.contactItem}>
+              <Text style={styles.contactText}>{line}</Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.contactItem}>
-          <Text style={styles.contactText}>+91 98765 43210{'\n'}+91 93456 78901</Text>
-        </View>
-        <View style={styles.contactItem}>
-          <Text style={styles.contactText}>adddesignerprint@gmail.com</Text>
-        </View>
-        <View style={styles.contactItem}>
-          <Text style={styles.contactText}>www.adddesigner.in</Text>
-        </View>
-      </View>
+      ) : (
+        <View style={[styles.contactBar, { paddingVertical: 0 }]} />
+      )}
     </View>
   );
 };

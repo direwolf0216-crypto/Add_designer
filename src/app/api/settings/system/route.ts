@@ -60,6 +60,14 @@ const SETTING_SCHEMAS = {
   business_website: businessText,
   business_bank_name: businessText,
   business_upi_id: businessText,
+  // Printed on invoices (each left off the PDF when empty).
+  business_phone_2: businessText,
+  business_gstin: businessText,
+  business_gst_rate: businessText,
+  business_bank_account_name: businessText,
+  business_bank_account_no: businessText,
+  business_bank_ifsc: businessText,
+  business_bank_branch: businessText,
   reminder_threshold_order_stale: threshold,
   reminder_threshold_order_ready: threshold,
   reminder_threshold_advance: threshold,
@@ -73,7 +81,26 @@ const SETTING_KEYS = Object.keys(SETTING_SCHEMAS) as [SettingKey, ...SettingKey[
 
 const bodySchema = z.object({ key: z.enum(SETTING_KEYS), value: z.unknown() });
 
-export const GET = route(async () => {
+/** Shop details printed on invoices (Settings → Business & Invoice). */
+const BUSINESS_KEYS = [
+  "business_name", "business_address", "business_phone", "business_phone_2", "business_email", "business_website",
+  "business_gstin", "business_gst_rate", "business_bank_name", "business_bank_account_name", "business_bank_account_no",
+  "business_bank_ifsc", "business_bank_branch", "business_upi_id", "business_instagram",
+] as const;
+
+export const GET = route(async (req) => {
+  // ?group=business: the shop's invoice details, admins only (bank details are not for everyone).
+  if (new URL(req.url).searchParams.get("group") === "business") {
+    await requireAdmin();
+    const rows = await prisma.systemSetting.findMany({ where: { key: { in: [...BUSINESS_KEYS] } } });
+    const values: Record<string, string> = {};
+    for (const key of BUSINESS_KEYS) {
+      const v = rows.find((r) => r.key === key)?.value;
+      values[key] = typeof v === "string" ? v : "";
+    }
+    return NextResponse.json(values);
+  }
+
   await requireUser();
 
   const defaultKeys = Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[];
