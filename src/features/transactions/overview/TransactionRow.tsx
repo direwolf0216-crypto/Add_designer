@@ -1,6 +1,7 @@
 import React from "react";
 import { CATEGORY_ICONS, MODE_ICONS } from "@/lib/transactions/categoryTheme";
 import type { LedgerItem } from "@/lib/transactions/grouping";
+import { formatINR } from "@/lib/money";
 
 interface TransactionRowProps {
   txn: LedgerItem;
@@ -71,7 +72,7 @@ export function TransactionRow({
         <span className={`min-w-[100px] text-right text-sm sm:text-base font-black ${
             txn.type === 'INCOME' ? 'text-emerald-400' : 'text-red-400'
           }`}>
-          {txn.type === 'INCOME' ? '+' : '-'}₹{txn.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {txn.type === 'INCOME' ? '+' : '\u2212'}{formatINR(txn.amount)}
         </span>
         <div className="flex flex-col items-end gap-1 ml-2">
            {!txn.isGroup && <span className="text-[0.6rem] font-mono text-slate-500 bg-white/[0.05] px-1.5 py-0.5 rounded tracking-wider">{txn.transactionId}</span>}

@@ -1,62 +1,69 @@
 import type { CategoryShare } from "@/lib/transactions/analytics";
+import type { WeekSummary } from "@/lib/transactions/weekly";
+import { percentChange } from "@/lib/money";
+import Amount from "@/components/data/Amount";
+import DeltaBadge from "./DeltaBadge";
 
 interface SmartInsightBannerProps {
-  highestExpenseCategory: CategoryShare | null;
+  topExpense: CategoryShare | null;
+  week: WeekSummary;
 }
 
-/** Insight strip under the weekly charts (largest expense and a 10% saving estimate). */
-export function SmartInsightBanner({ highestExpenseCategory }: SmartInsightBannerProps) {
+/** Insight strip under the weekly charts, computed from this week's and last week's real totals. */
+export function SmartInsightBanner({ topExpense, week }: SmartInsightBannerProps) {
+  const daysElapsed = Math.max(1, week.days.filter((d) => !d.isFuture).length);
+  const avgIncome = week.totals.income / daysElapsed;
+  const prevAvgIncome = week.previous.income / 7;
+  const expenseChange = percentChange(week.totals.expense, week.previous.expense);
+
   return (
-    <div className="mb-8">
-      <div className="bg-[#FFF7F0] rounded-[2rem] p-6 sm:p-8 flex flex-col xl:flex-row items-center gap-6 shadow-sm border border-[#FFE8D6]">
-
-        {/* Main Insight Text */}
-        <div className="flex items-center gap-5 flex-1 w-full">
-          <div className="w-14 h-14 rounded-full bg-[#FFE6D5] flex items-center justify-center shrink-0">
-            <i className="ph-fill ph-lightbulb text-[#F97316] text-[1.8rem]"></i>
-          </div>
-          <div>
-            <h3 className="text-[1.2rem] font-black text-slate-900 mb-1">Smart Insight</h3>
-            <p className="text-[0.9rem] text-slate-600 font-medium">
-              Your largest expense is <span className="font-bold text-slate-800">{highestExpenseCategory ? highestExpenseCategory.category : 'N/A'} ({highestExpenseCategory ? Math.round(highestExpenseCategory.pct * 100) : 0}%)</span>.<br className="hidden sm:block" />
-              Try reviewing high recurring expenses to save more.
-            </p>
-          </div>
+    <div className="mb-8 flex flex-col items-center gap-6 rounded-[2rem] border border-[#FFE8D6] bg-gradient-to-br from-[#FFF7F0] to-white p-6 shadow-sm sm:p-8 xl:flex-row">
+      <div className="flex w-full flex-1 items-center gap-5">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FFE6D5]">
+          <i className="ph-fill ph-lightbulb text-[1.8rem] text-[#F97316]" aria-hidden="true"></i>
         </div>
+        <div>
+          <h3 className="mb-1 text-[1.15rem] font-black text-slate-900">This week at a glance</h3>
+          <p className="text-[0.9rem] font-medium text-slate-600">
+            {topExpense ? (
+              <>
+                Biggest expense: <span className="font-bold text-slate-800">{topExpense.category}</span> (<Amount value={topExpense.amount} />,{" "}
+                {Math.round(topExpense.pct * 100)}% of spending).
+              </>
+            ) : (
+              "No expenses recorded this week yet."
+            )}
+          </p>
+        </div>
+      </div>
 
-        {/* Metrics Row */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-          {/* Save Potential */}
-          <div className="bg-white rounded-2xl p-4 flex items-center gap-4 w-full sm:w-auto min-w-[240px] shadow-sm">
-            <div className="w-10 h-10 rounded-full bg-[#ECFDF5] flex items-center justify-center shrink-0">
-              <i className="ph-bold ph-trend-up text-[#059669] text-xl"></i>
-            </div>
-            <div>
-              <p className="text-[0.8rem] font-bold text-slate-500 mb-0.5">You save potential</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-[1.2rem] font-black text-[#059669]">₹{Math.round((highestExpenseCategory?.amount || 0) * 0.1).toLocaleString('en-IN')}</span>
-                <span className="text-[0.8rem] font-bold text-slate-400">/mo</span>
-              </div>
-              <p className="text-[0.7rem] font-semibold text-slate-400 mt-0.5">by optimizing top categories</p>
-            </div>
+      <div className="flex w-full flex-col items-stretch gap-4 sm:flex-row xl:w-auto">
+        <div className="flex min-w-[240px] flex-1 items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+            <i className="ph-bold ph-currency-inr text-xl text-emerald-600" aria-hidden="true"></i>
           </div>
-
-          {/* Stay on Track */}
-          <div className="bg-white rounded-2xl p-4 flex items-center gap-4 w-full sm:w-auto min-w-[240px] shadow-sm">
-            <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0">
-              <i className="ph-bold ph-shield-check text-[#2563EB] text-xl"></i>
-            </div>
-            <div>
-              <p className="text-[0.8rem] font-bold text-slate-500 mb-0.5">Stay on track</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-[1.2rem] font-black text-[#2563EB]">₹439</span>
-                <span className="text-[0.8rem] font-bold text-[#2563EB]">ahead</span>
-              </div>
-              <p className="text-[0.7rem] font-semibold text-slate-400 mt-0.5">of last week&apos;s average</p>
+          <div className="min-w-0">
+            <p className="mb-0.5 text-[0.75rem] font-bold text-slate-500">Avg. daily income</p>
+            <Amount value={avgIncome} className="block truncate text-[1.15rem] font-black text-emerald-600" />
+            <div className="mt-1">
+              <DeltaBadge change={percentChange(avgIncome, prevAvgIncome)} />
             </div>
           </div>
         </div>
 
+        <div className="flex min-w-[240px] flex-1 items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50">
+            <i className="ph-bold ph-receipt text-xl text-sky-600" aria-hidden="true"></i>
+          </div>
+          <div className="min-w-0">
+            <p className="mb-0.5 text-[0.75rem] font-bold text-slate-500">Spending this week</p>
+            <Amount value={week.totals.expense} className="block truncate text-[1.15rem] font-black text-sky-600" />
+            <div className="mt-1">
+              {/* Less spending is good: green when it went down. */}
+              <DeltaBadge change={expenseChange} invert />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

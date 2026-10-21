@@ -5,6 +5,7 @@ import Link from "next/link";
 import { groupLedgerTransactions } from "@/lib/transactions/grouping";
 import type { TransactionRecord } from "@/lib/transactions/types";
 import { TransactionRow } from "./TransactionRow";
+import { formatINR } from "@/lib/money";
 
 interface TodayLedgerProps {
   today: Date;
@@ -69,7 +70,7 @@ export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayT
               </div>
               <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Income</span>
             </div>
-            <span className="text-white text-[1.5rem] font-extrabold tracking-tight">₹{todayIncome.toLocaleString('en-IN')}</span>
+            <span className="text-white text-[1.5rem] font-extrabold tracking-tight">{formatINR(todayIncome)}</span>
           </div>
         </Link>
         <Link href="/transactions/allTransactions?view=day&type=EXPENSE" className="block outline-none">
@@ -80,7 +81,7 @@ export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayT
               </div>
               <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Expense</span>
             </div>
-            <span className="text-white text-[1.5rem] font-extrabold tracking-tight">₹{todayExpense.toLocaleString('en-IN')}</span>
+            <span className="text-white text-[1.5rem] font-extrabold tracking-tight">{formatINR(todayExpense)}</span>
           </div>
         </Link>
         <Link href="/transactions/allTransactions?view=day" className="block outline-none">
@@ -92,7 +93,7 @@ export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayT
               <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Net Today</span>
             </div>
             <span className={`text-[1.5rem] font-extrabold tracking-tight ${todayNet >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {todayNet >= 0 ? '+' : ''}₹{todayNet.toLocaleString('en-IN')}
+              {todayNet > 0 ? '+' : ''}{formatINR(todayNet)}
             </span>
           </div>
         </Link>

@@ -1,85 +1,97 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import type { WeekDay } from "@/lib/transactions/weekly";
+import { formatCompactINR, percentChange } from "@/lib/money";
+import { niceTicks } from "@/lib/transactions/chartScale";
+import Amount from "@/components/data/Amount";
+import DeltaBadge from "./DeltaBadge";
 
 interface IncomeFlowChartProps {
-  totalIncome: number;
-  /** Short weekday labels, Monday first. */
-  dayLabels: string[];
-  /** Income per day, aligned with dayLabels. */
-  actualFlow: number[];
+  days: WeekDay[];
+  weekIncome: number;
+  previousWeekIncome: number;
 }
 
-/** Weekly income bar chart; the best day is highlighted and labelled. */
-export function IncomeFlowChart({ totalIncome, dayLabels, actualFlow }: IncomeFlowChartProps) {
-  const maxFlow = Math.max(...actualFlow, 1);
+/** This week's income per day. Totals match the bars; days still to come are shown as placeholders. */
+export function IncomeFlowChart({ days, weekIncome, previousWeekIncome }: IncomeFlowChartProps) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const ticks = niceTicks(0, Math.max(...days.map((d) => d.income), 0), 4);
+  const top = ticks[0] || 1;
+  const best = days.reduce((bi, d, i) => (d.income > days[bi].income ? i : bi), 0);
+  const focus = hovered ?? (days[best]?.income > 0 ? best : null);
 
   return (
-    <div className="h-full bg-white rounded-[24px] p-5 xl:p-6 shadow-[0_12px_36px_rgba(15,23,42,0.06)] border border-slate-100 flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-5 gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
-            <i className="ph-fill ph-chart-line-up text-xl"></i>
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-black text-slate-900 leading-tight truncate">Income Flow</h2>
-            <p className="text-xs font-bold text-slate-400 mt-1 truncate">Aggregated for selected period</p>
-          </div>
+    <div className="flex h-full flex-col rounded-[24px] border border-slate-100 bg-white p-5 shadow-[0_12px_36px_rgba(15,23,42,0.06)] xl:p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+          <i className="ph-fill ph-chart-bar text-xl" aria-hidden="true"></i>
         </div>
-        <div className="px-2.5 py-2 border border-gray-200 rounded-xl flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-colors shrink-0">
-          <span className="text-xs font-bold text-slate-600">This week</span>
-          <i className="ph-bold ph-caret-down text-slate-400 text-[10px]"></i>
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-black leading-tight text-slate-900">Income flow</h2>
+          <p className="mt-1 truncate text-xs font-bold text-slate-500">Per day · this week</p>
         </div>
       </div>
 
-      {/* Total Income Banner */}
-      <div className="bg-[#FFF4ED] rounded-2xl p-4 mb-5">
-        <span className="text-xs font-bold text-slate-500 mb-1 block">Total Income</span>
-        <span className="text-2xl font-black text-[#F97316] leading-none block">₹{totalIncome.toLocaleString('en-IN')}</span>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 rounded-2xl bg-[#FFF4ED] p-4">
+        <div className="min-w-0">
+          <span className="mb-1 block text-xs font-bold text-slate-500">Income this week</span>
+          <Amount value={weekIncome} className="block whitespace-nowrap text-2xl font-black leading-none text-[#F97316]" />
+        </div>
+        <DeltaBadge change={percentChange(weekIncome, previousWeekIncome)} />
       </div>
 
-      <div className="mt-auto w-full flex flex-col">
-        {/* Bar Chart Area */}
-        <div className="flex h-[178px] relative mb-5">
-        {/* Y Axis */}
-        <div className="flex flex-col justify-between text-[0.65rem] sm:text-[0.7rem] font-bold text-slate-400 pb-6 pr-2 sm:pr-4 w-10 sm:w-12 shrink-0">
-          <span>{maxFlow > 0 ? (maxFlow >= 1000 ? `${(maxFlow/1000).toFixed(1)}k` : maxFlow) : '1k'}</span>
-          <span>{maxFlow > 0 ? (maxFlow >= 1000 ? `${((maxFlow*0.75)/1000).toFixed(1)}k` : Math.round(maxFlow*0.75)) : ''}</span>
-          <span>{maxFlow > 0 ? (maxFlow >= 1000 ? `${((maxFlow*0.5)/1000).toFixed(1)}k` : Math.round(maxFlow/2)) : ''}</span>
-          <span>{maxFlow > 0 ? (maxFlow >= 1000 ? `${((maxFlow*0.25)/1000).toFixed(1)}k` : Math.round(maxFlow*0.25)) : ''}</span>
-          <span>₹0</span>
-        </div>
-        {/* Bars */}
-        <div className="flex-1 flex justify-between items-end pb-6 relative">
-          {/* Grid Lines */}
-          <div className="absolute inset-0 flex flex-col justify-between pb-6 pointer-events-none opacity-50">
-            {[0,1,2,3,4].map(i => <div key={i} className="w-full h-px bg-slate-100 border-t border-dashed border-slate-200"></div>)}
+      <div className="mt-auto flex w-full flex-col">
+        <div className="relative mb-5 flex h-[178px]">
+          <div className="flex w-14 shrink-0 flex-col justify-between whitespace-nowrap pb-6 pr-2 text-right text-[0.65rem] font-bold text-slate-400">
+            {ticks.map((t) => (
+              <span key={t}>{formatCompactINR(t)}</span>
+            ))}
           </div>
-
-          {dayLabels.map((day, idx) => {
-            const val = actualFlow[idx];
-            const isMax = val === Math.max(...actualFlow) && val > 0;
-            const heightPct = maxFlow > 0 ? (val / maxFlow) * 100 : 0;
-            return (
-              <div key={day} className="flex flex-col items-center justify-end w-full h-full relative z-10 group">
-                <div className="w-full h-full relative flex items-end justify-center">
-                  {isMax && (
-                    <span className="absolute bottom-[calc(100%+4px)] text-[0.6rem] sm:text-[0.7rem] font-black text-slate-800 whitespace-nowrap">₹{val.toLocaleString('en-IN')}</span>
-                  )}
-                  <div
-                    className={`w-5 sm:w-6 lg:w-8 rounded-t-sm sm:rounded-t-lg transition-all ${isMax ? 'bg-[#F97316]' : 'bg-[#FFDCC3] hover:bg-[#FFB98A]'}`}
-                    style={{ height: `${Math.max(heightPct, 4)}%` }}
-                  ></div>
+          <div className="relative flex flex-1 items-end justify-between gap-1 pb-6">
+            <div className="pointer-events-none absolute inset-0 flex flex-col justify-between pb-6">
+              {ticks.map((t) => (
+                <div key={t} className="h-px w-full border-t border-dashed border-slate-200/80" />
+              ))}
+            </div>
+            {days.map((d, idx) => {
+              const heightPct = (d.income / top) * 100;
+              const isFocus = focus === idx;
+              return (
+                <div
+                  key={d.date}
+                  className="relative z-10 flex h-full w-full flex-col items-center justify-end"
+                  onMouseEnter={() => setHovered(idx)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <div className="relative flex h-full w-full items-end justify-center">
+                    {isFocus && !d.isFuture && (
+                      <span className="absolute z-20 whitespace-nowrap rounded-md bg-slate-900 px-1.5 py-0.5 text-[0.65rem] font-bold text-white shadow" style={{ bottom: `calc(${Math.max(heightPct, 3)}% + 6px)` }}>
+                        <Amount value={d.income} maxChars={9} />
+                      </span>
+                    )}
+                    {d.isFuture ? (
+                      <div className="h-[6%] w-5 rounded-t-md border border-dashed border-slate-200 sm:w-6 lg:w-7" title="Upcoming" />
+                    ) : (
+                      <div
+                        className={`w-5 rounded-t-md transition-all duration-500 sm:w-6 lg:w-7 ${isFocus ? "bg-gradient-to-t from-orange-500 to-amber-400 shadow-[0_8px_20px_-6px_rgba(249,115,22,0.6)]" : d.isToday ? "bg-orange-300" : "bg-[#FFDCC3] hover:bg-[#FFB98A]"}`}
+                        style={{ height: `${Math.max(heightPct, 3)}%` }}
+                      />
+                    )}
+                  </div>
+                  <span className={`absolute -bottom-6 text-[0.65rem] font-bold uppercase ${d.isToday ? "text-orange-600" : d.isFuture ? "text-slate-300" : "text-slate-400"}`}>
+                    {d.label}
+                  </span>
                 </div>
-                <span className="absolute -bottom-6 text-[0.6rem] sm:text-[0.7rem] font-bold text-slate-400">{day.toUpperCase()}</span>
-              </div>
-            )
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
         <div className="pt-2">
-          <Link href="/transactions/allTransactions?view=week&type=INCOME" className="text-sm font-extrabold text-[#F97316] hover:text-orange-600 flex items-center gap-2 w-fit">
-            View income <i className="ph-bold ph-arrow-right"></i>
+          <Link href="/transactions/allTransactions?view=week&type=INCOME" className="flex w-fit items-center gap-2 text-sm font-extrabold text-[#F97316] hover:text-orange-600">
+            View income <i className="ph-bold ph-arrow-right" aria-hidden="true"></i>
           </Link>
         </div>
       </div>

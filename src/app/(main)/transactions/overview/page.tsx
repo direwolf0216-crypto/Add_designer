@@ -5,8 +5,6 @@ import {
   buildHeatmapSegments,
   buildQuickAddCategories,
   buildTodaySegments,
-  currentWeek,
-  dailyFlows,
   layoutCategoryOptions,
   netForPaymentMode,
   sumByCategory,
@@ -22,6 +20,10 @@ import { IncomeFlowChart } from "@/features/transactions/overview/IncomeFlowChar
 import { NetTrendChart } from "@/features/transactions/overview/NetTrendChart";
 import { SmartInsightBanner } from "@/features/transactions/overview/SmartInsightBanner";
 import PageReveal from "@/components/motion/PageReveal";
+import { format, parseISO } from "date-fns";
+import type { WeekSummary } from "@/lib/transactions/weekly";
+
+const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net: 0 }, previous: { income: 0, expense: 0, net: 0 }, expensesByCategory: [] };
 
 function OverviewPageContent() {
   const { openTransactionForm, openTransactionDetails } = useGlobalForm();
@@ -32,23 +34,23 @@ function OverviewPageContent() {
   }
 
   const {
-    totalIncome = 0,
-    totalExpenses = 0,
-    expensesByCategory = {},
-    recentTransactions: transactions = [],
     todayTransactions = [],
     todayIncome = 0,
     todayExpense = 0,
-    todayNet = 0
+    todayNet = 0,
+    week = EMPTY_WEEK,
   } = data;
 
   const today = new Date();
 
-  // Period expense split (largest first) and this week's daily flows.
-  const donutSegments = buildHeatmapSegments(expensesByCategory, totalExpenses);
+  // This week's figures all come from the server-side weekly summary, so cards and charts agree.
+  const weekCategories = Object.fromEntries(week.expensesByCategory.map((c) => [c.category, c.amount]));
+  const donutSegments = buildHeatmapSegments(weekCategories, week.totals.expense);
   const highestExpenseCategory = donutSegments.length > 0 ? donutSegments[0] : null;
-  const { dates: weekDates, dayLabels } = currentWeek(today);
-  const { income: actualFlow, net: netFlow } = dailyFlows(transactions, weekDates);
+  const elapsed = week.days.filter((d) => !d.isFuture);
+  const rangeLabel = week.days.length
+    ? `${format(parseISO(week.days[0].date), "d MMM")} – ${format(parseISO(week.days[6].date), "d MMM")}`
+    : "";
 
   // Today's breakdowns.
   const todayIncomeSegments = buildTodaySegments(toCategoryShares(sumByCategory(todayTransactions, 'INCOME'), todayIncome));
@@ -68,6 +70,8 @@ function OverviewPageContent() {
         todayCashNet={todayCashNet}
         todayUpiNet={todayUpiNet}
         highestExpenseCategory={highestExpenseCategory}
+        weekIncome={elapsed.map((d) => d.income)}
+        weekExpense={elapsed.map((d) => d.expense)}
       />
 
       {/* Row 2: Income & Expenses */}
@@ -90,25 +94,25 @@ function OverviewPageContent() {
         onDelete={deleteTransaction}
       />
 
-      <div className="flex items-end justify-between gap-4 mb-4">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mb-4">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-950 tracking-tight">Weekly performance</h2>
-          <p className="text-xs sm:text-sm font-semibold text-slate-400 mt-0.5">Expenses, income, and net movement in one view</p>
+          <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">Expenses, income and net movement for this week</p>
         </div>
-        <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm">
-          <i className="ph-bold ph-calendar-blank text-indigo-500"></i>
-          Last 7 days
+        <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm backdrop-blur">
+          <i className="ph-bold ph-calendar-blank text-indigo-500" aria-hidden="true"></i>
+          This week · {rangeLabel}
         </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xl:gap-5 mb-8 items-stretch">
-        <ExpenseHeatmapCard totalExpenses={totalExpenses} donutSegments={donutSegments} />
-        <IncomeFlowChart totalIncome={totalIncome} dayLabels={dayLabels} actualFlow={actualFlow} />
-        <NetTrendChart dayLabels={dayLabels} netFlow={netFlow} />
+        <ExpenseHeatmapCard totalExpenses={week.totals.expense} donutSegments={donutSegments} />
+        <IncomeFlowChart days={week.days} weekIncome={week.totals.income} previousWeekIncome={week.previous.income} />
+        <NetTrendChart days={week.days} weekNet={week.totals.net} previousWeekNet={week.previous.net} />
       </div>
 
       {/* Smart Insight Banner */}
-      <SmartInsightBanner highestExpenseCategory={highestExpenseCategory} />
+      <SmartInsightBanner topExpense={highestExpenseCategory} week={week} />
     </div>
   );
 }

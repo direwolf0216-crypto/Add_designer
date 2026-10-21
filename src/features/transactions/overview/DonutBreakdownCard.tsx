@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getRelatableIcon } from "@/lib/transactions/categoryTheme";
+import Amount from "@/components/data/Amount";
 import type { TodaySegment } from "@/lib/transactions/analytics";
 
 type Variant = "income" | "expense";
@@ -15,7 +16,6 @@ const VARIANTS: Record<Variant, {
   totalLabel: string;
   /** Legend rows shown (undefined = all). */
   legendLimit?: number;
-  formatAmount: (amount: number) => string;
   formatPct: (pct: number) => string;
   footerClassName: string;
   linkHref: string;
@@ -28,7 +28,6 @@ const VARIANTS: Record<Variant, {
     headerClassName: "p-4 sm:p-5 pb-2",
     emptyText: "No income recorded today",
     totalLabel: "Total Income",
-    formatAmount: (amount) => amount.toLocaleString('en-IN'),
     formatPct: (pct) => `${Math.round(pct * 100)}`,
     footerClassName: "border-t border-slate-100 p-3 flex justify-end mt-auto",
     linkHref: "/transactions/allTransactions?view=day&type=INCOME",
@@ -42,8 +41,7 @@ const VARIANTS: Record<Variant, {
     emptyText: "No expenses recorded today",
     totalLabel: "Total Expense",
     legendLimit: 4,
-    formatAmount: (amount) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-    formatPct: (pct) => (pct * 100).toFixed(1),
+    formatPct: (pct) => `${Math.round(pct * 100)}`,
     footerClassName: "border-t border-slate-100 p-3 flex justify-start mt-auto",
     linkHref: "/transactions/allTransactions?view=day&type=EXPENSE",
     linkClassName: "text-orange-500 font-bold text-[0.8rem] hover:text-orange-600 flex items-center gap-1 px-2",
@@ -95,7 +93,8 @@ export function DonutBreakdownCard({ variant, total, segments }: DonutBreakdownC
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-[0.6rem] font-bold text-slate-400">{v.totalLabel}</span>
-                <span className="text-[#0B1E40] font-black text-[1rem] sm:text-[1.1rem]">₹{total.toLocaleString('en-IN')}</span>
+                {/* Compact form when the full amount would not fit inside the ring. */}
+                <Amount value={total} maxChars={8} className="max-w-[72%] truncate text-center text-[0.95rem] font-black text-[#0B1E40] sm:text-[1.05rem]" />
               </div>
             </div>
             <div className="flex flex-col gap-3 w-[60%] sm:w-[65%] shrink-0">
@@ -120,7 +119,7 @@ export function DonutBreakdownCard({ variant, total, segments }: DonutBreakdownC
                       <span className="text-[0.8rem] font-bold text-[#0B1E40] truncate">{seg.category}</span>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                      <span className="text-[0.8rem] font-bold text-[#0B1E40]">₹{v.formatAmount(seg.amount)}</span>
+                      <Amount value={seg.amount} className="text-[0.8rem] font-bold text-[#0B1E40]" />
                       <span className="text-[0.7rem] text-slate-400 font-bold w-8 text-right">{v.formatPct(seg.pct)}%</span>
                     </div>
                   </div>

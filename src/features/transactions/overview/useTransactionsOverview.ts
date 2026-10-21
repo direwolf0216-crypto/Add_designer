@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import useSWR, { mutate } from "swr";
 import type { TransactionRecord } from "@/lib/transactions/types";
+import type { WeekSummary } from "@/lib/transactions/weekly";
 
 // Intentionally not the shared `fetcher`: this page has always rendered whatever JSON comes back
 // (falling back to zero totals) rather than surfacing a fetch error.
@@ -17,6 +18,8 @@ export interface TransactionsOverviewData {
   todayIncome?: number;
   todayExpense?: number;
   todayNet?: number;
+  /** Server-computed current week (IST, Mon..Sun) with last week's totals. */
+  week?: WeekSummary;
 }
 
 /** Year-to-date overview data, the transaction form layout, and a delete that updates the cache. */

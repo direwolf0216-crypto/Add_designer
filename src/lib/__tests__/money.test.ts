@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBalance, parseAmount, round2, sumAmounts } from "../money";
+import { computeBalance, formatCompactINR, formatINR, parseAmount, percentChange, round2, sumAmounts } from "../money";
 
 describe("money", () => {
   it("rounds to paise", () => {
@@ -29,5 +29,26 @@ describe("money", () => {
       paid: 1200,
       due: 0,
     });
+  });
+});
+
+describe("formatting", () => {
+  it("formats rupees with Indian grouping and a leading minus", () => {
+    expect(formatINR(125000)).toBe("₹1,25,000");
+    expect(formatINR(-22959)).toBe("\u2212₹22,959");
+    expect(formatINR(49.5)).toBe("₹49.50");
+  });
+  it("compacts large amounts", () => {
+    expect(formatCompactINR(60086094)).toBe("₹6.01 Cr");
+    expect(formatCompactINR(204674)).toBe("₹2.05 L");
+    expect(formatCompactINR(200000)).toBe("₹2 L");
+    expect(formatCompactINR(87614)).toBe("₹87.6K");
+    expect(formatCompactINR(-5000)).toBe("\u2212₹5K");
+    expect(formatCompactINR(950)).toBe("₹950");
+  });
+  it("computes percent change", () => {
+    expect(percentChange(112, 100)).toBe(12);
+    expect(percentChange(50, -100)).toBe(150);
+    expect(percentChange(10, 0)).toBeNull();
   });
 });

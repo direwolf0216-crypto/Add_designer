@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { getConsistentColorClasses, getRelatableIcon } from "@/lib/transactions/categoryTheme";
 import type { TransactionListItem } from "@/lib/transactions/grouping";
+import { formatINR } from "@/lib/money";
 
 interface TransactionRowProps {
   tx: TransactionListItem;
@@ -63,7 +64,7 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
         <div className="flex shrink-0 items-center gap-1 text-right sm:gap-2">
           <div className="min-w-[100px] text-right">
             <div className={`text-sm font-bold sm:text-base ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {tx.type === 'EXPENSE' ? '-' : ''}₹{tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {tx.type === 'EXPENSE' ? '\u2212' : ''}{formatINR(tx.amount)}
             </div>
           </div>
 

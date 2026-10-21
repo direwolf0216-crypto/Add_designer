@@ -40,6 +40,35 @@ export function computeBalance({ packageAmount, discount = 0, payments }: Balanc
   return { total, paid, due: round2(Math.max(0, total - paid)) };
 }
 
+const MINUS = "\u2212";
+
+/**
+ * "₹1,25,000" / "−₹2,959" / "₹49.50". Whole rupees show no decimals; paise show two. The sign goes before
+ * the symbol (never "₹-2,959").
+ */
 export function formatINR(value: number, symbol = "₹"): string {
-  return `${symbol}${round2(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const v = round2(value);
+  const abs = Math.abs(v);
+  const body = abs.toLocaleString("en-IN", {
+    minimumFractionDigits: Number.isInteger(abs) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+  return `${v < 0 ? MINUS : ""}${symbol}${body}`;
+}
+
+/** Short form for tight spaces (chart axes, donut centres): ₹6.01 Cr, ₹2.04 L, ₹87.6K, ₹950. */
+export function formatCompactINR(value: number, symbol = "₹"): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? MINUS : "";
+  const trim = (n: number, digits: number) => n.toFixed(digits).replace(/\.0+$|(\.\d*[1-9])0+$/, "$1");
+  if (abs >= 1e7) return `${sign}${symbol}${trim(abs / 1e7, 2)} Cr`;
+  if (abs >= 1e5) return `${sign}${symbol}${trim(abs / 1e5, 2)} L`;
+  if (abs >= 1e3) return `${sign}${symbol}${trim(abs / 1e3, 1)}K`;
+  return `${sign}${symbol}${Math.round(abs)}`;
+}
+
+/** Signed percentage change from `previous` to `current`; null when there is no baseline. */
+export function percentChange(current: number, previous: number): number | null {
+  if (!previous) return null;
+  return Math.round(((current - previous) / Math.abs(previous)) * 100);
 }
