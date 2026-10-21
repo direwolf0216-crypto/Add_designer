@@ -55,8 +55,8 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   });
 
   const handleClose = () => {
-    if (standaloneJobId) router.back();
-    else closeJobDetails();
+    // Back inside the app; deep links (search, notifications) go to the jobs board instead of leaving.
+    closeJobDetails();
   };
 
   const tabs = [DETAILS_TAB, ...extraTabs];
@@ -92,7 +92,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   };
 
   const content = (
-    <div className={`w-full bg-[#fcfcfc] flex flex-col overflow-hidden relative ${standaloneJobId ? "h-full min-h-screen" : "h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
+    <div className={`w-full bg-[#fcfcfc] flex flex-col overflow-hidden relative ${standaloneJobId ? "h-[calc(100dvh-8.5rem)] rounded-3xl border border-slate-200/80 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]" : "h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
       {!job ? (
         <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4" />

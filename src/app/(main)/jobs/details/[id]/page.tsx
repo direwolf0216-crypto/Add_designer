@@ -16,7 +16,7 @@ async function JobDetailsPageContent({ params }: { params: Promise<{ id: string 
   if (!job) notFound();
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-50">
+    <div className="w-full">
       <JobDetailsModal standaloneJobId={id} />
     </div>
   );
