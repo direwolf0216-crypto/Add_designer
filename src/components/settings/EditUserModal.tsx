@@ -118,13 +118,13 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  value={`#MDuser-${String(user.idNumber).padStart(3, '0')}`}
+                  value={`#Adduser-${String(user.idNumber).padStart(3, '0')}`}
                   disabled
                   className="w-full px-4 py-3 bg-slate-100 border border-gray-200 rounded-xl text-xs font-mono text-slate-900 font-bold cursor-not-allowed"
                 />
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`#MDuser-${String(user.idNumber).padStart(3, '0')}`);
+                    navigator.clipboard.writeText(`#Adduser-${String(user.idNumber).padStart(3, '0')}`);
                     toast.success("User ID copied!");
                   }}
                   className="p-3 bg-white border border-gray-200 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors shadow-sm"

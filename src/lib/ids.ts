@@ -3,14 +3,14 @@ import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import type { TxClient } from "@/lib/prisma";
 
-/** Random human-readable reference such as `#MD-4F9A21C3`. 32 bits of entropy. */
+/** Random human-readable reference such as `#Add-4F9A21C3`. 32 bits of entropy. */
 export function randomRef(prefix: string, bytes = 4): string {
   return `${prefix}${randomBytes(bytes).toString("hex").toUpperCase()}`;
 }
 
-export const newJobNumber = () => randomRef("#MD-");
-export const newTransactionRef = () => randomRef("#MDTXN-");
-export const newOrderNumber = () => randomRef("#MDorder-");
+export const newJobNumber = () => randomRef("#Add-");
+export const newTransactionRef = () => randomRef("#AddTXN-");
+export const newOrderNumber = () => randomRef("#Addorder-");
 export const newGroupId = () => randomRef("grp_", 8);
 
 function isUniqueViolation(e: unknown) {

@@ -178,7 +178,7 @@ export default function UserManagement() {
                           • 
                         </span>
                         <span className="text-[0.65rem] font-mono text-slate-400 whitespace-nowrap">
-                          #MDuser-{String(user.idNumber).padStart(3, '0')}
+                          #Adduser-{String(user.idNumber).padStart(3, '0')}
                         </span>
                       </div>
                     </div>
