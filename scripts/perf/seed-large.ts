@@ -56,9 +56,15 @@ async function main() {
         date: day(Math.floor(Math.random() * 240) - 180),
         time: "10:00 AM",
         location: pick(["Tenkasi", "Ayikudi", "Kadayanallur", "Shencottai"]),
-        customData: { fld_b_status: pick(BOARD), field_qty: String(50 + Math.floor(Math.random() * 950)) },
+        customData: { fld_b_status: pick(BOARD), field_qty: String(50 + Math.floor(Math.random() * 950)), due_date: "" as string },
       };
     });
+    // Due 2-20 days after the order date; stage/dueDate columns mirror customData like the app does.
+    for (const j of batch) {
+      const due = new Date(j.date.getTime() + (2 + Math.floor(Math.random() * 18)) * 86400000);
+      j.customData.due_date = due.toISOString().slice(0, 10);
+      Object.assign(j, { stage: j.customData.fld_b_status, dueDate: due });
+    }
     await prisma.job.createMany({ data: batch });
     console.log(`jobs ${Math.min(start + 1000, JOBS)}/${JOBS}`);
   }

@@ -62,7 +62,7 @@ export default function JobBreakdown({ data = [] }: JobBreakdownProps) {
             <p className="text-slate-400 text-[0.7rem] font-medium mt-0.5">Track upcoming finishing work</p>
           </div>
         </div>
-        <Link href="/jobs/job-status" className="text-[0.75rem] font-bold text-indigo-600 bg-indigo-50/80 px-3 py-1.5 rounded-xl hover:bg-indigo-100 flex items-center gap-1 transition-colors shrink-0">
+        <Link href="/jobs" className="text-[0.75rem] font-bold text-indigo-600 bg-indigo-50/80 px-3 py-1.5 rounded-xl hover:bg-indigo-100 flex items-center gap-1 transition-colors shrink-0">
           View All <i className="ph-bold ph-arrow-right"></i>
         </Link>
       </div>

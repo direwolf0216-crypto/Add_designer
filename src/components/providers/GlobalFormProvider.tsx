@@ -78,7 +78,7 @@ export function GlobalFormProvider({ children }: { children: ReactNode }) {
       router.back();
     } else {
       // Deep link (search, notification, bookmark): going "back" would leave the app.
-      router.push('/jobs/job-status');
+      router.push('/jobs');
     }
   }, [router]);
 

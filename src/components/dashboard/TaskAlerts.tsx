@@ -99,7 +99,7 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingP
                 <p className="text-[0.8rem] font-medium text-slate-500">{pendingProofs} proof deliveries are pending</p>
               </div>
             </div>
-            <Link href="/jobs/allJobs" className="shrink-0 px-4 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-[0.75rem] font-bold hover:bg-orange-50 transition-colors">
+            <Link href="/jobs?view=list&focus=active" className="shrink-0 px-4 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-[0.75rem] font-bold hover:bg-orange-50 transition-colors">
               View All
             </Link>
           </div>
@@ -116,7 +116,7 @@ export default function TaskAlerts({ unconfirmedCount: propUnconfirmed, pendingP
                 <p className="text-[0.8rem] font-medium text-slate-500">{unconfirmedCount} jobs awaiting confirmation</p>
               </div>
             </div>
-            <Link href="/jobs/allJobs" className="shrink-0 px-4 py-1.5 rounded-lg border border-blue-200 text-blue-500 text-[0.75rem] font-bold hover:bg-blue-50 transition-colors">
+            <Link href="/jobs?view=list&focus=active" className="shrink-0 px-4 py-1.5 rounded-lg border border-blue-200 text-blue-500 text-[0.75rem] font-bold hover:bg-blue-50 transition-colors">
               View All
             </Link>
           </div>

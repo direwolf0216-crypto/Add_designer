@@ -10,6 +10,7 @@ import { jobScope } from "@/lib/jobs/scope";
 import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 import { syncAssignments } from "@/lib/services/assignments";
+import { deriveJobTracking } from "@/lib/jobs/tracking";
 
 /** Statuses that mean printing is done and finishing work should start. */
 export const PRODUCTION_DONE_STATUSES = ["Printing Completed", "Completed"];
@@ -244,7 +245,10 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         delete customData.fld_b_finishing_status;
       }
 
+      const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
       const common = {
+        // Board stage + due date as real columns (filterable, indexed), derived from the form data.
+        ...deriveJobTracking(customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]),
         category: input.category,
         time: input.time ?? "",
         location: input.location ?? "",
@@ -303,7 +307,6 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
       if (!before) {
         await recordJobActivity(tx, { jobId: job.id, actorId: userId, type: "CREATED", summary: `Created job for ${client.name}` });
       } else {
-        const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
         const changes = diffJob(before, after, layoutFieldLabels(layout?.schema));
         const statusChange = changes.find((c) => c.field === "status");
         const otherChanges = changes.filter((c) => c.field !== "status");
@@ -400,10 +403,11 @@ export async function updateJob(
     if (!existing) throw notFound("Job not found");
 
     const { assigneeIds, ...data } = build(existing);
-    const job = await tx.job.update({ where: { id: jobId }, data: { ...data, updatedById: actor.id } });
+    const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
+    const tracking = deriveJobTracking(data.customData ?? existing.customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]);
+    const job = await tx.job.update({ where: { id: jobId }, data: { ...data, ...tracking, updatedById: actor.id } });
     const assignmentChanges = assigneeIds ? await syncAssignments(tx, jobId, assigneeIds, actor.id) : { added: [], removed: [] };
 
-    const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
     const changes = diffJob(
       snapshot(existing, existing.client, existing.order?.package),
       snapshot(job, existing.client, existing.order?.package),

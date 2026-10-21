@@ -56,6 +56,10 @@ model Job {
   updatedById     String?
   proofDelivered  Boolean         @default(false) @map("galleryDelivered")
   finishingStatus FinishingStatus @default(PENDING) @map("albumStatus")
+  /// Production stage (board column), derived from the layout status field on every save.
+  stage           String?
+  /// Delivery due date (calendar date, UTC midnight), derived from the layout due-date field.
+  dueDate         DateTime?
   client          Client          @relation(fields: [clientId], references: [id])
   createdBy       User?           @relation("JobCreatedBy", fields: [createdById], references: [id])
   updatedBy       User?           @relation("JobUpdatedBy", fields: [updatedById], references: [id])
@@ -69,6 +73,8 @@ model Job {
   @@index([status])
   @@index([deletedAt, date])
   @@index([clientId, date])
+  @@index([deletedAt, stage])
+  @@index([deletedAt, dueDate])
 }
 
 model SystemLog {

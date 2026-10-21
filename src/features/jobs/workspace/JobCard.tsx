@@ -1,0 +1,115 @@
+"use client";
+
+import Link from "next/link";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import AssigneeAvatars from "@/features/jobs/assignees/AssigneeAvatars";
+import Amount from "@/components/data/Amount";
+import type { WorkspaceJob } from "@/lib/jobs/workspace";
+import type { StageOption } from "@/lib/jobs/tracking";
+import DueChip from "./DueChip";
+import { stageHex, stageIcon } from "./stageStyle";
+
+type Props = {
+  job: WorkspaceJob;
+  today: string;
+  stages?: StageOption[];
+  /** Enables dragging and the "Move to" menu. */
+  onMove?: (jobId: string, stage: string) => void;
+  draggable?: boolean;
+  showStage?: boolean;
+};
+
+const CLOSED = /deliver|cancel/i;
+
+export default function JobCard({ job, today, stages = [], onMove, draggable = false, showStage = false }: Props) {
+  const paidPct = job.amount > 0 ? Math.min(100, Math.round((job.paid / job.amount) * 100)) : 0;
+  const closed = CLOSED.test(job.stage);
+  const stageColor = stages.find((s) => s.label === job.stage)?.color;
+
+  return (
+    <article
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/job-id", job.id);
+        e.dataTransfer.effectAllowed = "move";
+        e.currentTarget.classList.add("opacity-50");
+      }}
+      onDragEnd={(e) => e.currentTarget.classList.remove("opacity-50")}
+      className={`group relative rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+    >
+      <Link href={`/jobs/details/${job.id}`} className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label={`Open ${job.jobNumber ?? "job"} for ${job.clientName}`} />
+
+      <div className="pointer-events-none relative z-10 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-mono text-[0.65rem] font-bold tracking-wide text-slate-400">{job.jobNumber ?? `#${job.id.slice(-6).toUpperCase()}`}</p>
+          <h3 className="truncate text-sm font-extrabold text-slate-900">{job.clientName}</h3>
+        </div>
+        {onMove && stages.length > 0 && (
+          <Popover>
+            <PopoverTrigger
+              className="pointer-events-auto -mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-opacity hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100"
+              aria-label="Move to stage"
+            >
+              <i className="ph-bold ph-dots-three-vertical" aria-hidden="true"></i>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="!w-56 !rounded-2xl !p-1.5">
+              <p className="px-2 pb-1 pt-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Move to</p>
+              {stages
+                .filter((s) => s.label !== job.stage)
+                .map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => onMove(job.id, s.label)}
+                    className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <i className={`ph-bold ${stageIcon(s.label)}`} style={{ color: stageHex(s.color) }} aria-hidden="true"></i>
+                    {s.label}
+                  </button>
+                ))}
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+
+      <div className="pointer-events-none relative z-10 mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="max-w-full truncate rounded-lg bg-slate-100 px-2 py-0.5 text-[0.7rem] font-bold text-slate-600">{job.category || "Uncategorised"}</span>
+        {showStage && (
+          <span className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[0.7rem] font-bold" style={{ color: stageHex(stageColor), backgroundColor: `${stageHex(stageColor)}14` }}>
+            <i className={`ph-bold ${stageIcon(job.stage)}`} aria-hidden="true"></i>
+            {job.stage}
+          </span>
+        )}
+        <DueChip due={job.dueDate} today={today} closed={closed} />
+      </div>
+
+      {job.amount > 0 && (
+        <div className="pointer-events-none relative z-10 mt-3">
+          <div className="mb-1 flex items-baseline justify-between text-[0.7rem] font-bold">
+            <Amount value={job.amount} maxChars={10} className="text-slate-800" />
+            {job.balance > 0 ? (
+              <span className="text-rose-600">
+                <Amount value={job.balance} maxChars={9} /> due
+              </span>
+            ) : (
+              <span className="text-emerald-600">Paid</span>
+            )}
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-[width] duration-500" style={{ width: `${paidPct}%` }} />
+          </div>
+        </div>
+      )}
+
+      <div className="pointer-events-none relative z-10 mt-3 flex items-center justify-between gap-2">
+        <AssigneeAvatars assignees={job.assignees.map((a) => ({ ...a, user: { ...a.user, image: a.user.image ?? undefined } }))} size={24} />
+        {job.location && (
+          <span className="flex min-w-0 items-center gap-1 truncate text-[0.7rem] font-semibold text-slate-400">
+            <i className="ph-bold ph-map-pin" aria-hidden="true"></i>
+            <span className="truncate">{job.location}</span>
+          </span>
+        )}
+      </div>
+    </article>
+  );
+}

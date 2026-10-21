@@ -24,8 +24,7 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard/overview", icon: "ph-house", roles: ["ADMIN", "STAFF"] },
-    { name: "My Jobs", path: "/jobs/my-jobs", icon: "ph-user-focus", roles: ["ADMIN", "STAFF", "DESIGNER"] },
-    { name: "Jobs", path: "/jobs/job-status", icon: "ph-calendar-blank", roles: ["ADMIN", "STAFF"] },
+    { name: "Jobs", path: "/jobs", icon: "ph-briefcase", roles: ["ADMIN", "STAFF", "DESIGNER"] },
     { name: "Daily Ledger", path: "/transactions/overview", icon: "ph-file-text", roles: ["ADMIN", "STAFF"] },
   ];
 
@@ -118,7 +117,7 @@ export default function Sidebar() {
         <ul className={`list-none flex flex-col relative z-10 w-full ${isCollapsed ? 'gap-6 items-center px-1' : 'gap-4 px-2 mt-2'}`}>
           {visibleNavItems.map((item) => {
             const isActive = pathname.startsWith(item.path) ||
-              (item.name === "Jobs" && pathname.startsWith("/jobs") && !pathname.startsWith("/jobs/my-jobs")) ||
+              (item.name === "Jobs" && pathname.startsWith("/jobs")) ||
               (item.name === "Daily Ledger" && pathname.startsWith("/transactions"));
 
             // Shorter names for collapsed state to match the design

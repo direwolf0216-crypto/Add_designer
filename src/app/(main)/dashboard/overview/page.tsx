@@ -107,7 +107,7 @@ function DashboardMetrics({ dateRange }: { dateRange: { startDate: Date; endDate
             <div>
               <h3 className="text-[1.05rem] font-black text-slate-800 tracking-tight">Upcoming Jobs</h3>
             </div>
-            <Link href="/jobs/job-status" className="text-[0.7rem] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 flex items-center gap-1 transition-colors">
+            <Link href="/jobs" className="text-[0.7rem] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 flex items-center gap-1 transition-colors">
               <i className="ph-fill ph-calendar-check"></i> View jobs
             </Link>
           </div>

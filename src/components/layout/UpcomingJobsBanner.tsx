@@ -5,7 +5,7 @@ import { X, Calendar, ArrowRight, Clock, MapPin, User } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr";
-import { addDays, toLocalISODate } from "@/lib/dates";
+import { toLocalISODate } from "@/lib/dates";
 
 type BannerJob = { id: string; category?: string; time?: string; location?: string; client?: { name?: string } };
 type BannerData = {
@@ -125,7 +125,6 @@ export default function UpcomingJobsBanner() {
 
   const day1 = data?.day1 ?? [];
   const day2 = data?.day2 ?? [];
-  const tomorrowISO = toLocalISODate(addDays(now, 1));
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="upcoming-banner-title">
@@ -154,7 +153,7 @@ export default function UpcomingJobsBanner() {
             Here&apos;s your job plan for the <span className="text-pink-400 font-semibold">next 2 days</span>.
           </p>
           <Link
-            href={`/jobs/upcoming?date=${tomorrowISO}`}
+            href="/jobs?view=schedule"
             onClick={dismiss}
             className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3.5 rounded-full font-bold text-[15px] transition-all hover:-translate-y-0.5 w-fit"
           >

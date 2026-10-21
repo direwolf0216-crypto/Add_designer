@@ -15,17 +15,13 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async redirects() {
+    // The jobs pages were merged into one workspace at /jobs (board / list / schedule, my / all).
     return [
-      {
-        source: '/jobs',
-        destination: '/jobs/job-status',
-        permanent: true,
-      },
-      {
-        source: '/jobs/overview',
-        destination: '/jobs/job-status',
-        permanent: true,
-      },
+      { source: '/jobs/job-status', destination: '/jobs', permanent: true },
+      { source: '/jobs/overview', destination: '/jobs', permanent: true },
+      { source: '/jobs/allJobs', destination: '/jobs?view=list', permanent: true },
+      { source: '/jobs/upcoming', destination: '/jobs?view=schedule', permanent: true },
+      { source: '/jobs/my-jobs', destination: '/jobs?scope=mine', permanent: true },
     ];
   },
 };

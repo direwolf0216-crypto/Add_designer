@@ -177,7 +177,7 @@ export default function UpcomingJobs({ jobs }: { jobs: Job[] }) {
       {hasMore && (
         <div className="mt-4 pt-4 text-center relative z-10 border-t border-slate-100">
           <Link 
-            href="/jobs/upcoming" 
+            href="/jobs?view=schedule" 
             className="text-[0.8rem] font-black text-orange-500 uppercase tracking-widest hover:text-orange-600 transition-colors inline-flex items-center gap-2"
           >
             Click here to view all <i className="ph-bold ph-arrow-right"></i>

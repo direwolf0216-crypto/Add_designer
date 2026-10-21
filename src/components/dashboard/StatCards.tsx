@@ -100,7 +100,7 @@ export default function StatCards() {
         return (
           <Link 
             key={stat.category} 
-            href={`/jobs/allJobs?category=${encodeURIComponent(stat.category)}`}
+            href={`/jobs?view=list&categories=${encodeURIComponent(stat.category)}`}
             className="dashboard-card p-4 flex flex-col justify-between transition-all hover:shadow-md hover:border-emerald-200 relative group min-h-[110px]"
           >
             <div className="flex items-center justify-between">

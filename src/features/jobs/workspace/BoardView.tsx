@@ -1,0 +1,118 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { updateJobTrackingAction } from "@/app/actions";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { WorkspaceData, WorkspaceJob } from "@/lib/jobs/workspace";
+import JobCard from "./JobCard";
+import { stageHex, stageIcon } from "./stageStyle";
+import { useWorkspaceUrl } from "./url";
+
+type Column = NonNullable<WorkspaceData["board"]>[number];
+
+/**
+ * Kanban board by production stage. Cards can be dragged between columns (or moved via the card menu);
+ * the move is applied optimistically and confirmed by the server.
+ */
+export default function BoardView({ data }: { data: WorkspaceData }) {
+  const router = useRouter();
+  const { hrefWith } = useWorkspaceUrl();
+  const { checkPermission } = usePermissions();
+  const canMove = checkPermission("manage_jobs");
+  const [, startTransition] = useTransition();
+
+  // Local copy for optimistic moves; re-synced whenever the server sends a new board.
+  const [source, setSource] = useState(data.board);
+  const [columns, setColumns] = useState<Column[]>(data.board ?? []);
+  if (source !== data.board) {
+    setSource(data.board);
+    setColumns(data.board ?? []);
+  }
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const move = async (jobId: string, toStage: string) => {
+    const previous = columns;
+    let moved: WorkspaceJob | undefined;
+    const next = columns.map((c) => {
+      const hit = c.jobs.find((j) => j.id === jobId);
+      if (hit) moved = hit;
+      return hit ? { ...c, count: c.count - 1, jobs: c.jobs.filter((j) => j.id !== jobId) } : c;
+    });
+    if (!moved || moved.stage === toStage) return;
+    const card = { ...moved, stage: toStage };
+    setColumns(next.map((c) => (c.stage === toStage ? { ...c, count: c.count + 1, jobs: [card, ...c.jobs] } : c)));
+
+    const res = await updateJobTrackingAction(jobId, { customData: { fld_b_status: toStage } });
+    if (!res.success) {
+      setColumns(previous);
+      toast.error(res.error || "Couldn't move the job");
+      return;
+    }
+    toast.success(`Moved to ${toStage}`);
+    startTransition(() => router.refresh());
+  };
+
+  return (
+    <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
+      {columns.map((col) => {
+        const hex = stageHex(col.color);
+        const isTarget = dropTarget === col.stage;
+        return (
+          <section
+            key={col.stage}
+            aria-label={`${col.stage}, ${col.count} jobs`}
+            onDragOver={(e) => {
+              if (!canMove) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setDropTarget(col.stage);
+            }}
+            onDragLeave={() => setDropTarget((t) => (t === col.stage ? null : t))}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropTarget(null);
+              const id = e.dataTransfer.getData("text/job-id");
+              if (id) move(id, col.stage);
+            }}
+            className={`flex w-[290px] shrink-0 snap-start flex-col rounded-3xl border p-3 transition-colors md:w-[300px] ${isTarget ? "border-dashed bg-white/90" : "border-slate-200/70 bg-slate-50/70 backdrop-blur"}`}
+            style={isTarget ? { borderColor: hex } : undefined}
+          >
+            <header className="mb-3 flex items-center gap-2 px-1">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${hex}1a`, color: hex }}>
+                <i className={`ph-bold ${stageIcon(col.stage)} text-sm`} aria-hidden="true"></i>
+              </span>
+              <h2 className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">{col.stage}</h2>
+              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-600 ring-1 ring-slate-200">{col.count}</span>
+            </header>
+
+            <div className="flex max-h-[calc(100dvh-22rem)] min-h-[120px] flex-col gap-2.5 overflow-y-auto pr-0.5">
+              {col.jobs.map((job, i) => (
+                <div key={job.id} className="animate-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
+                  <JobCard job={job} today={data.today} stages={data.stages} onMove={canMove ? move : undefined} draggable={canMove} />
+                </div>
+              ))}
+              {col.jobs.length === 0 && (
+                <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-8 text-center text-xs font-semibold text-slate-400">
+                  <i className="ph-bold ph-tray mb-1 text-lg" aria-hidden="true"></i>
+                  {canMove ? "Drop a job here" : "Nothing here"}
+                </div>
+              )}
+              {col.count > col.jobs.length && (
+                <Link
+                  href={hrefWith({ more: col.expanded ? null : col.stage })}
+                  scroll={false}
+                  className="rounded-xl py-2 text-center text-xs font-bold text-slate-500 hover:bg-white hover:text-slate-800"
+                >
+                  {col.expanded ? `Showing ${col.jobs.length} of ${col.count} · use List for all` : `Show more (${col.count - col.jobs.length})`}
+                </Link>
+              )}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
