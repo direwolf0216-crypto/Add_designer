@@ -3,16 +3,18 @@ import { businessTodayUtc } from "@/lib/dates";
 import { requirePageUser } from "@/lib/auth/session";
 import { Job } from "@/types";
 import UpcomingDeliveriesFeed from "./UpcomingDeliveriesFeed";
+import { jobScope } from "@/lib/jobs/scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function UpcomingDeliveriesPage() {
-  await requirePageUser();
+  const user = await requirePageUser();
+  const scope = await jobScope(user);
   // Job dates are calendar dates stored as UTC midnight; "today" is the IST calendar day.
   const today = businessTodayUtc();
 
   const dbJobs = await prisma.job.findMany({
-    where: { 
+    where: { ...scope, 
       deletedAt: null,
       date: { gte: today }
     },

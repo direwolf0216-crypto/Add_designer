@@ -42,6 +42,13 @@ export const GET = route(async (req) => {
   if (!(await roleHasPermission(user.role, "view_transactions"))) {
     conditions.push({ itemType: { notIn: TRANSACTION_TYPES } });
   }
+  // Users limited to their assigned jobs only see trashed jobs they were assigned to.
+  if (!(await roleHasPermission(user.role, "view_all_jobs"))) {
+    const assigned = await prisma.jobAssignment.findMany({ where: { userId: user.id }, select: { jobId: true }, take: 5000 });
+    conditions.push({
+      OR: [{ itemType: { notIn: storedItemTypes("job") } }, { itemId: { in: assigned.map((a) => a.jobId) } }],
+    });
+  }
   if (query.trashedBy) conditions.push({ trashedById: query.trashedBy });
   const range = businessRangeFromISO(query.startDate, query.endDate);
   if (range.start || range.end) conditions.push({ trashedAt: { gte: range.start, lte: range.end } });

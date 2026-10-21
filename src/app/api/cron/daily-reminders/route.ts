@@ -21,13 +21,6 @@ function assertCron(req: Request) {
   }
 }
 
-function assigneeIds(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((p) => (typeof p === "string" ? p : p && typeof p === "object" ? (p as { id?: unknown }).id : undefined))
-    .filter((id): id is string => typeof id === "string" && id.length > 0);
-}
-
 export const GET = route(async (req) => {
   assertCron(req);
 
@@ -49,7 +42,7 @@ export const GET = route(async (req) => {
       id: true,
       category: true,
       location: true,
-      assignees: true,
+      assignments: { select: { userId: true } },
       client: { select: { name: true } },
     },
     take: 500,
@@ -59,16 +52,17 @@ export const GET = route(async (req) => {
     return NextResponse.json({ success: true, message: "No jobs for tomorrow." });
   }
 
-  const assigned = [...new Set(upcomingJobs.flatMap((j) => assigneeIds(j.assignees)))];
+  const assigneeIds = (job: (typeof upcomingJobs)[number]) => job.assignments.map((a) => a.userId);
+  const assigned = [...new Set(upcomingJobs.flatMap(assigneeIds))];
   const [admins, activeAssigned] = await Promise.all([
     prisma.user.findMany({ where: { role: "ADMIN", status: "ACTIVE" }, select: { id: true } }),
     prisma.user.findMany({ where: { id: { in: assigned }, status: "ACTIVE" }, select: { id: true } }),
   ]);
   const activeIds = new Set(activeAssigned.map((u) => u.id));
 
-  // Assigned assignees get the reminder; jobs with nobody (active) assigned go to the admins.
+  // Assigned users get the reminder; jobs with nobody (active) assigned go to the admins.
   const sends = upcomingJobs.flatMap((job) => {
-    const crew = assigneeIds(job.assignees).filter((id) => activeIds.has(id));
+    const crew = assigneeIds(job).filter((id) => activeIds.has(id));
     const recipients = crew.length > 0 ? [...new Set(crew)] : admins.map((a) => a.id);
     return recipients.map((userId) => ({ job, userId }));
   });

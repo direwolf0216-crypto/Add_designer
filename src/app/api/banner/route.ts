@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth/session";
 import { businessTodayUtc } from "@/lib/dates";
 import { asJsonObject } from "@/lib/services/transactions";
+import { jobScope } from "@/lib/jobs/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ show: false });
   }
+  const scope = await jobScope(user);
 
   try {
     const stored = asJsonObject((await prisma.systemSetting.findUnique({ where: { key: "BANNER_SETTINGS" } }))?.value);
@@ -34,7 +36,7 @@ export async function GET() {
     const end = new Date(today + 3 * DAY_MS);
 
     const jobs = await prisma.job.findMany({
-      where: { deletedAt: null, date: { gte: tomorrow, lt: end } },
+      where: { ...scope, deletedAt: null, date: { gte: tomorrow, lt: end } },
       select: { id: true, date: true, time: true, category: true, status: true, location: true, client: { select: { name: true } } },
       orderBy: { date: "asc" },
       take: 200,

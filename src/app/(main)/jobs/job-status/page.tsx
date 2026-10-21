@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { requirePageUser } from "@/lib/auth/session";
 import JobStatusClient from "./JobStatusClient";
+import { jobScope } from "@/lib/jobs/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -9,13 +10,14 @@ export default async function JobStatusPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  await requirePageUser();
+  const user = await requirePageUser();
+  const scope = await jobScope(user);
   const params = await searchParams;
   const initialTab = params?.tab || 'Pending';
   
   const [dbJobs, teamUsers] = await Promise.all([
     prisma.job.findMany({
-      where: { 
+      where: { ...scope, 
         deletedAt: null,
       },
       select: {

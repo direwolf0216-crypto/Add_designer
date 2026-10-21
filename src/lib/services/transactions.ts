@@ -8,6 +8,7 @@ import { refreshOrderTotals } from "@/lib/services/jobs";
 import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
 import { HttpError, badRequest, conflict, forbidden, notFound } from "@/lib/api/http";
 import { broadcastLater } from "@/lib/notifications";
+import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 
 export const MAX_BULK_ITEMS = 100;
 const MAX_CUSTOM_FIELDS = 100;
@@ -148,7 +149,15 @@ export async function updateTransaction(id: string, body: unknown, user: Session
         ...(Object.keys(customData).length > 0 && { customData: customData as Prisma.InputJsonValue }),
       },
     });
-    if (existing.jobId) await refreshOrderTotals(tx, existing.jobId);
+    if (existing.jobId) {
+      await refreshOrderTotals(tx, existing.jobId);
+      await recordJobActivity(tx, {
+        jobId: existing.jobId,
+        actorId: user.id,
+        type: "PAYMENT_UPDATED",
+        summary: `Updated ${existing.type === "INCOME" ? "payment" : "expense"} ${paymentLabel(existing.amount, existing.paymentMode)} → ${paymentLabel(updated.amount, updated.paymentMode)}`,
+      });
+    }
     return updated;
   });
 }
@@ -206,12 +215,15 @@ export async function softDeleteTransactionTx(tx: TxClient, row: Transaction, us
     },
   });
   await adjustProductOrder(tx, row, "revert");
-  if (row.jobId) await refreshOrderTotals(tx, row.jobId);
+  if (row.jobId) {
+    await refreshOrderTotals(tx, row.jobId);
+    await recordJobActivity(tx, { jobId: row.jobId, actorId: userId, type: "PAYMENT_DELETED", summary: `Deleted ${row.type === "INCOME" ? "payment" : "expense"} ${paymentLabel(row.amount, row.paymentMode)}` });
+  }
   return true;
 }
 
 /** Inverse of softDeleteTransactionTx. Returns false when the row was not deleted. */
-export async function restoreTransactionTx(tx: TxClient, row: Transaction) {
+export async function restoreTransactionTx(tx: TxClient, row: Transaction, actorId?: string) {
   if (row.jobId) {
     const job = await tx.job.findUnique({ where: { id: row.jobId }, select: { deletedAt: true } });
     if (job?.deletedAt) throw conflict("Restore the job this payment belongs to first");
@@ -223,7 +235,10 @@ export async function restoreTransactionTx(tx: TxClient, row: Transaction) {
   if (count === 0) return false;
   await tx.recycleBin.deleteMany({ where: { itemType: "transaction", itemId: row.id } });
   await adjustProductOrder(tx, row, "reapply");
-  if (row.jobId) await refreshOrderTotals(tx, row.jobId);
+  if (row.jobId) {
+    await refreshOrderTotals(tx, row.jobId);
+    await recordJobActivity(tx, { jobId: row.jobId, actorId, type: "PAYMENT_RESTORED", summary: `Restored ${row.type === "INCOME" ? "payment" : "expense"} ${paymentLabel(row.amount, row.paymentMode)}` });
+  }
   return true;
 }
 

@@ -6,6 +6,7 @@ import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
 import { getGoogleDriveToken } from "@/lib/googleDriveAuth";
 import { hardDeleteJob, refreshOrderTotals, restoreJob } from "@/lib/services/jobs";
 import { adjustProductOrder } from "@/lib/services/transactions";
+import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 
 export type BinItemType = "job" | "transaction" | "TRANSACTION_GROUP" | "product-order";
 
@@ -164,7 +165,11 @@ export async function restoreItem(entry: RecycleBin, user: SessionUser) {
       if (type === "job") {
         const job = await tx.job.findUnique({ where: { id: entry.itemId }, select: { id: true } });
         if (!job) throw notFound("This job no longer exists");
-        await restoreJob(tx, entry.itemId, entry.originalData);
+        if (!(await roleHasPermission(user.role, "view_all_jobs"))) {
+          const assigned = await tx.jobAssignment.findUnique({ where: { jobId_userId: { jobId: entry.itemId, userId: user.id } } });
+          if (!assigned) throw notFound("This job no longer exists");
+        }
+        await restoreJob(tx, entry.itemId, entry.originalData, user.id);
         await refreshOrderTotals(tx, entry.itemId);
       } else if (type === "transaction" || type === "TRANSACTION_GROUP") {
         const where: Prisma.TransactionWhereInput =
@@ -177,7 +182,11 @@ export async function restoreItem(entry: RecycleBin, user: SessionUser) {
         await tx.transaction.updateMany({ where: { id: { in: rows.map((r) => r.id) } }, data: { deletedAt: null } });
         // Undo the product-order advance reduction applied when the payment was deleted.
         for (const row of rows) {
-          if (row.deletedAt) await adjustProductOrder(tx, row, "reapply");
+          if (!row.deletedAt) continue;
+          await adjustProductOrder(tx, row, "reapply");
+          if (row.jobId) {
+            await recordJobActivity(tx, { jobId: row.jobId, actorId: user.id, type: "PAYMENT_RESTORED", summary: `Restored ${row.type === "INCOME" ? "payment" : "expense"} ${paymentLabel(row.amount, row.paymentMode)}` });
+          }
         }
         await refreshJobs(tx, rows.map((r) => r.jobId));
       } else {

@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { broadcastLater } from "@/lib/notifications";
 import { newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { refreshOrderTotals } from "@/lib/services/jobs";
+import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 import {
   notifyIfBudgetExceeded,
   transactionCreateSchema,
@@ -14,6 +15,7 @@ import {
   updateTransaction,
 } from "@/lib/services/transactions";
 import { businessDayRange, businessMonthRange, businessRangeFromISO, businessWeekRange } from "@/lib/dates";
+import { transactionJobScope } from "@/lib/jobs/scope";
 
 const PAGE_SIZE = 25;
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -45,11 +47,12 @@ const amountParam = (value: string | null) => {
 };
 
 export const GET = route(async (request) => {
-  await requirePermission("view_transactions");
+  const user = await requirePermission("view_transactions");
   const url = new URL(request.url);
   const { searchParams } = url;
 
-  const where: Prisma.TransactionWhereInput = { deletedAt: null };
+  // AND keeps the job-visibility OR separate from any OR the filters below add.
+  const where: Prisma.TransactionWhereInput = { deletedAt: null, AND: [await transactionJobScope(user)] };
 
   const date = dateFilter(searchParams);
   if (date) where.date = date;
@@ -115,6 +118,14 @@ export const POST = route(async (request) => {
           },
         });
         if (row.jobId && row.type === "INCOME") await refreshOrderTotals(tx, row.jobId);
+        if (row.jobId) {
+          await recordJobActivity(tx, {
+            jobId: row.jobId,
+            actorId: user.id,
+            type: "PAYMENT_ADDED",
+            summary: `Recorded ${row.type === "INCOME" ? "payment" : "expense"} ${paymentLabel(row.amount, row.paymentMode)}`,
+          });
+        }
         return row;
       }),
     newTransactionRef

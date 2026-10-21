@@ -5,6 +5,11 @@ import { computeBalance, parseAmount, round2 } from "@/lib/money";
 import { newJobNumber, newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { calendarDateToUtc } from "@/lib/dates";
 import { notFound } from "@/lib/api/http";
+import { roleHasPermission, type SessionUser } from "@/lib/auth/session";
+import { jobScope } from "@/lib/jobs/scope";
+import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
+import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
+import { syncAssignments } from "@/lib/services/assignments";
 
 /** Statuses that mean printing is done and finishing work should start. */
 export const PRODUCTION_DONE_STATUSES = ["Printing Completed", "Completed"];
@@ -36,9 +41,32 @@ export type SaveJobInput = {
   notes?: string;
   inclusions?: unknown;
   attachments?: unknown;
-  assignees?: unknown;
+  /** Replace the job's assignees; undefined leaves them unchanged. */
+  assigneeIds?: string[];
   customData: Record<string, unknown>;
 };
+
+type Actor = Pick<SessionUser, "id" | "role">;
+
+function snapshot(job: {
+  category: string; date: Date; time: string; location: string; status: string; notes: string | null;
+  packageName: string | null; customData: Prisma.JsonValue | null;
+}, client: { name: string; phone: string; email: string | null } | null, packageAmount: number | null | undefined): JobSnapshot {
+  return {
+    category: job.category,
+    date: job.date,
+    time: job.time,
+    location: job.location,
+    status: job.status,
+    notes: job.notes,
+    packageName: job.packageName,
+    clientName: client?.name ?? null,
+    clientPhone: client?.phone ?? null,
+    clientEmail: client?.email ?? null,
+    packageAmount: packageAmount ?? null,
+    customData: (job.customData as Record<string, unknown> | null) ?? {},
+  };
+}
 
 const normalizePhone = (phone?: string) => (phone ?? "").replace(/[^0-9+]/g, "");
 
@@ -95,9 +123,10 @@ async function syncInstallments(
 ) {
   const existing = await tx.transaction.findMany({
     where: { jobId, type: "INCOME", category: "JOB", deletedAt: null },
-    select: { id: true },
+    select: { id: true, amount: true, paymentMode: true, date: true },
   });
   const existingIds = new Set(existing.map((t) => t.id));
+  const existingById = new Map(existing.map((t) => [t.id, t]));
   const keptIds = new Set<string>();
   const saved: (InstallmentInput & { amount: string })[] = [];
 
@@ -108,7 +137,16 @@ async function syncInstallments(
     const paymentMode = inst.paymentMode || "Cash";
 
     if (inst.transactionId && existingIds.has(inst.transactionId)) {
+      const prev = existingById.get(inst.transactionId)!;
       await tx.transaction.update({ where: { id: inst.transactionId }, data: { amount, date, paymentMode } });
+      if (prev.amount !== amount || prev.paymentMode !== paymentMode || prev.date.getTime() !== date.getTime()) {
+        await recordJobActivity(tx, {
+          jobId,
+          actorId: userId,
+          type: "PAYMENT_UPDATED",
+          summary: `Updated payment ${paymentLabel(prev.amount, prev.paymentMode)} → ${paymentLabel(amount, paymentMode)}`,
+        });
+      }
       keptIds.add(inst.transactionId);
       saved.push({ ...inst, amount: String(amount), transactionId: inst.transactionId });
       continue;
@@ -130,12 +168,17 @@ async function syncInstallments(
     });
     keptIds.add(created.id);
     saved.push({ ...inst, amount: String(amount), transactionId: created.id });
+    await recordJobActivity(tx, { jobId, actorId: userId, type: "PAYMENT_ADDED", summary: `Recorded payment ${paymentLabel(amount, paymentMode)}` });
   }
 
   // Installments removed in the form are soft-deleted only now, on save — cancelling the form keeps them.
   const removed = [...existingIds].filter((id) => !keptIds.has(id));
   if (removed.length > 0) {
     await tx.transaction.updateMany({ where: { id: { in: removed } }, data: { deletedAt: new Date() } });
+    for (const id of removed) {
+      const prev = existingById.get(id)!;
+      await recordJobActivity(tx, { jobId, actorId: userId, type: "PAYMENT_DELETED", summary: `Removed payment ${paymentLabel(prev.amount, prev.paymentMode)}` });
+    }
   }
   return saved;
 }
@@ -165,17 +208,22 @@ export async function getJobBalance(jobId: string) {
  * Create or update a job together with its client, order and installment payments in one
  * database transaction, so a failure part-way never leaves orphaned or duplicated payments.
  */
-export async function saveJob(input: SaveJobInput, userId: string) {
+export async function saveJob(input: SaveJobInput, actor: Actor) {
+  // Decided outside the transaction: users who can't see every job are put on jobs they create,
+  // otherwise the job would vanish from their own lists.
+  const seesAllJobs = await roleHasPermission(actor.role, "view_all_jobs");
+  const scope = await jobScope(actor);
   // A unique-ref collision aborts the Postgres transaction, so the whole transaction is retried
   // (with fresh random refs) rather than the single insert.
-  return withUniqueRetry(() => saveJobOnce(input, userId), () => "");
+  return withUniqueRetry(() => saveJobOnce(input, actor, seesAllJobs, scope), () => "");
 }
 
-async function saveJobOnce(input: SaveJobInput, userId: string) {
+async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boolean, scope: Prisma.JobWhereInput) {
+  const userId = actor.id;
   return prisma.$transaction(
     async (tx) => {
       const existing = input.id
-        ? await tx.job.findUnique({ where: { id: input.id }, include: { order: true } })
+        ? await tx.job.findFirst({ where: { id: input.id, deletedAt: undefined, ...scope }, include: { order: true, client: true } })
         : null;
       if (input.id && (!existing || existing.deletedAt)) {
         throw notFound("Job not found");
@@ -205,7 +253,6 @@ async function saveJobOnce(input: SaveJobInput, userId: string) {
         notes: input.notes,
         inclusions: asJson(input.inclusions),
         attachments: asJson(input.attachments),
-        assignees: asJson(input.assignees),
         finishingStatus: input.finishingStatus ? (input.finishingStatus.toUpperCase() as "PENDING" | "IN_PROGRESS" | "DELIVERED") : undefined,
         proofDelivered: input.proofDelivered,
         customData: customData as Prisma.InputJsonValue,
@@ -238,12 +285,41 @@ async function saveJobOnce(input: SaveJobInput, userId: string) {
       );
 
       const packageAmount = round2(input.packageAmount);
+      const before = existing ? snapshot(existing, existing.client, existing.order?.package) : null;
       await tx.order.upsert({
         where: { jobId: job.id },
         create: { jobId: job.id, package: packageAmount, installments: installments as Prisma.InputJsonValue },
         update: { package: packageAmount, installments: installments as Prisma.InputJsonValue },
       });
       const order = await refreshOrderTotals(tx, job.id);
+
+      // Assignments: explicit list wins; otherwise a creator without view_all_jobs is assigned.
+      let assigneeIds = input.assigneeIds;
+      if (!existing && !seesAllJobs) assigneeIds = [...new Set([...(assigneeIds ?? []), userId])];
+      const assignmentChanges = assigneeIds ? await syncAssignments(tx, job.id, assigneeIds, userId) : { added: [], removed: [] };
+
+      // Activity stream (same transaction as the change).
+      const after = snapshot(job, client, packageAmount);
+      if (!before) {
+        await recordJobActivity(tx, { jobId: job.id, actorId: userId, type: "CREATED", summary: `Created job for ${client.name}` });
+      } else {
+        const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
+        const changes = diffJob(before, after, layoutFieldLabels(layout?.schema));
+        const statusChange = changes.find((c) => c.field === "status");
+        const otherChanges = changes.filter((c) => c.field !== "status");
+        if (statusChange) {
+          await recordJobActivity(tx, {
+            jobId: job.id,
+            actorId: userId,
+            type: "STATUS_CHANGED",
+            summary: `Changed status from ${statusChange.from ?? "—"} to ${statusChange.to ?? "—"}`,
+            changes: [statusChange],
+          });
+        }
+        if (otherChanges.length) {
+          await recordJobActivity(tx, { jobId: job.id, actorId: userId, type: "UPDATED", summary: summarizeChanges(otherChanges), changes: otherChanges });
+        }
+      }
 
       await tx.systemLog.create({
         data: {
@@ -253,7 +329,7 @@ async function saveJobOnce(input: SaveJobInput, userId: string) {
         },
       });
 
-      return { job, client, order, installments, created: !existing };
+      return { job, client, order, installments, created: !existing, assignmentChanges };
     },
     { timeout: 20000 }
   );
@@ -281,14 +357,16 @@ export async function softDeleteJob(jobId: string, userId: string) {
       },
     });
     await tx.systemLog.create({ data: { userId, action: "JOB_SOFT_DELETED", details: `Soft deleted job ID: ${jobId}` } });
+    await recordJobActivity(tx, { jobId, actorId: userId, type: "DELETED", summary: "Moved job to the recycle bin" });
     return existing;
   });
 }
 
 /** Restore a soft-deleted job and exactly the payments that were hidden with it. */
-export async function restoreJob(tx: TxClient, jobId: string, originalData: unknown) {
+export async function restoreJob(tx: TxClient, jobId: string, originalData: unknown, actorId?: string) {
   const data = (originalData ?? {}) as { deletedTransactionIds?: string[] };
   await tx.job.update({ where: { id: jobId }, data: { deletedAt: null } });
+  await recordJobActivity(tx, { jobId, actorId, type: "RESTORED", summary: "Restored job from the recycle bin" });
   if (Array.isArray(data.deletedTransactionIds) && data.deletedTransactionIds.length > 0) {
     await tx.transaction.updateMany({ where: { id: { in: data.deletedTransactionIds } }, data: { deletedAt: null } });
   } else {
@@ -303,4 +381,48 @@ export async function hardDeleteJob(tx: TxClient, jobId: string) {
   await tx.transaction.deleteMany({ where: { jobId } });
   // Order and Invoice (with its line items) cascade from Job.
   await tx.job.delete({ where: { id: jobId } });
+}
+
+export type JobUpdate = Prisma.JobUncheckedUpdateInput & { assigneeIds?: string[] };
+
+/**
+ * Partial update of a visible job (status changes, tracking, API edits) with scope check, assignment sync
+ * and activity recording in one transaction. `build` receives the current row and returns the update.
+ */
+export async function updateJob(
+  actor: Actor,
+  jobId: string,
+  build: (existing: Prisma.JobGetPayload<{ include: { client: true; order: true } }>) => JobUpdate
+) {
+  const scope = await jobScope(actor);
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.job.findFirst({ where: { id: jobId, ...scope }, include: { client: true, order: true } });
+    if (!existing) throw notFound("Job not found");
+
+    const { assigneeIds, ...data } = build(existing);
+    const job = await tx.job.update({ where: { id: jobId }, data: { ...data, updatedById: actor.id } });
+    const assignmentChanges = assigneeIds ? await syncAssignments(tx, jobId, assigneeIds, actor.id) : { added: [], removed: [] };
+
+    const layout = await tx.formLayout.findUnique({ where: { formKey: "JOB_FORM" }, select: { schema: true } });
+    const changes = diffJob(
+      snapshot(existing, existing.client, existing.order?.package),
+      snapshot(job, existing.client, existing.order?.package),
+      layoutFieldLabels(layout?.schema)
+    );
+    for (const change of changes) {
+      if (change.field === "status") {
+        await recordJobActivity(tx, { jobId, actorId: actor.id, type: "STATUS_CHANGED", summary: `Changed status from ${change.from ?? "—"} to ${change.to ?? "—"}`, changes: [change] });
+      } else if (change.field === "fld_b_finishing_status") {
+        await recordJobActivity(tx, { jobId, actorId: actor.id, type: "FINISHING_UPDATED", summary: `Finishing status: ${change.from ?? "—"} → ${change.to ?? "—"}`, changes: [change] });
+      }
+    }
+    const rest = changes.filter((c) => c.field !== "status" && c.field !== "fld_b_finishing_status");
+    if (rest.length) {
+      await recordJobActivity(tx, { jobId, actorId: actor.id, type: "UPDATED", summary: summarizeChanges(rest), changes: rest });
+    }
+    if (!existing.proofDelivered && job.proofDelivered) {
+      await recordJobActivity(tx, { jobId, actorId: actor.id, type: "PROOF_DELIVERED", summary: "Marked proof as delivered" });
+    }
+    return { before: existing, job, assignmentChanges };
+  });
 }

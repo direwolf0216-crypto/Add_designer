@@ -21,6 +21,7 @@ const PERMISSION_LABELS: Record<string, { label: string; description: string; ic
   view_designs: { label: "View Designs", description: "View design proofs and artwork", icon: "ph-palette" },
   manage_designs: { label: "Manage Designs", description: "Upload and manage design proofs", icon: "ph-paint-brush" },
   view_export_analytics: { label: "Export Reports", description: "Export dashboard and ledger reports", icon: "ph-download-simple" },
+  view_all_jobs: { label: "View All Jobs", description: "See every job, not only the ones assigned to them", icon: "ph-briefcase" },
 };
 
 const ROLES = ["ADMIN", "STAFF", "DESIGNER"] as const;

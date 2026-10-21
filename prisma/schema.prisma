@@ -52,7 +52,6 @@ model Job {
   inclusions      Json?
   notes           String?
   packageName     String?
-  assignees       Json?           @map("photographers")
   updatedById     String?
   proofDelivered  Boolean         @default(false) @map("galleryDelivered")
   finishingStatus FinishingStatus @default(PENDING) @map("albumStatus")
@@ -62,6 +61,8 @@ model Job {
   order           Order?
   invoice         Invoice?
   transactions    Transaction[]
+  assignments     JobAssignment[]
+  activities      JobActivity[]
 
   @@index([clientId])
   @@index([status])
@@ -170,6 +171,9 @@ model User {
   sessions           Session[]
   transactions       Transaction[]
   integrations       UserIntegration[]
+  jobAssignments     JobAssignment[]    @relation("JobAssignee")
+  assignedJobs       JobAssignment[]    @relation("JobAssigner")
+  jobActivities      JobActivity[]
 
   @@index([status])
 }
@@ -392,6 +396,56 @@ enum NotificationType {
   PROOF_NOT_DELIVERED        @map("GALLERY_NOT_DELIVERED")
   FINISHING_PENDING_REMINDER @map("ALBUM_PENDING_REMINDER")
   BUDGET_EXCEEDED
+  JOB_ASSIGNED
+}
+
+/// Who a job is assigned to. Users without `view_all_jobs` only see jobs assigned to them.
+model JobAssignment {
+  jobId        String
+  userId       String
+  assignedById String?
+  assignedAt   DateTime @default(now())
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user         User     @relation("JobAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy   User?    @relation("JobAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([jobId, userId])
+  @@index([userId, assignedAt])
+}
+
+/// Per-job audit trail (admin-only). Written in the same DB transaction as the change it describes.
+model JobActivity {
+  id        String          @id @default(cuid())
+  jobId     String
+  actorId   String?
+  type      JobActivityType
+  summary   String
+  /// [{ field, label, from, to }] for field-level changes.
+  changes   Json?
+  createdAt DateTime        @default(now())
+  job       Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  actor     User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+enum JobActivityType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  PAYMENT_ADDED
+  PAYMENT_UPDATED
+  PAYMENT_DELETED
+  PAYMENT_RESTORED
+  INVOICE_GENERATED
+  ATTACHMENT_ADDED
+  PROOF_DELIVERED
+  FINISHING_UPDATED
+  DELETED
+  RESTORED
 }
 
 enum TransactionType {

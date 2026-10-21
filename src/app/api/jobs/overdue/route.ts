@@ -3,13 +3,15 @@ import prisma from "@/lib/prisma";
 import { route } from "@/lib/api/http";
 import { requireUser } from "@/lib/auth/session";
 import { businessTodayUtc } from "@/lib/dates";
+import { jobScope } from "@/lib/jobs/scope";
 
 /** Confirmed jobs whose (IST) job date has passed without being marked done. */
 export const GET = route(async () => {
-  await requireUser();
+  const user = await requireUser();
+  const scope = await jobScope(user);
 
   const overdueJobs = await prisma.job.findMany({
-    where: {
+    where: { ...scope,
       deletedAt: null,
       status: { equals: "Confirmed", mode: "insensitive" },
       date: { lt: businessTodayUtc() },

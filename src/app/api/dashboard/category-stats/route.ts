@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { businessMonthRange, calendarDateToUtc, toBusinessISODate } from "@/lib/dates";
 import { round2 } from "@/lib/money";
 import { asJsonObject } from "@/lib/services/transactions";
+import { jobScope } from "@/lib/jobs/scope";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOT_CANCELLED: Prisma.JobWhereInput = { NOT: { status: { equals: "cancelled", mode: "insensitive" } } };
@@ -20,7 +21,8 @@ function jobCategory(category: string | null, customData: unknown): string | nul
 }
 
 export const GET = route(async () => {
-  await requirePermission("view_analytics");
+  const user = await requirePermission("view_analytics");
+  const scope = await jobScope(user);
 
   // Job dates are calendar dates stored as UTC midnight: compare against the business month's days.
   const month = businessMonthRange();
@@ -31,15 +33,15 @@ export const GET = route(async () => {
     prisma.job.groupBy({
       by: ["category", "status"],
       _count: { _all: true },
-      where: { deletedAt: null, ...NOT_CANCELLED },
+      where: { ...scope, deletedAt: null, ...NOT_CANCELLED },
     }),
     prisma.job.findMany({
-      where: { deletedAt: null, category: "", ...NOT_CANCELLED },
+      where: { ...scope, deletedAt: null, category: "", ...NOT_CANCELLED },
       select: { status: true, customData: true },
       take: 2000,
     }),
     prisma.job.findMany({
-      where: { deletedAt: null, date: { gte: monthStart, lt: monthEndExclusive }, ...NOT_CANCELLED },
+      where: { ...scope, deletedAt: null, date: { gte: monthStart, lt: monthEndExclusive }, ...NOT_CANCELLED },
       select: { category: true, customData: true, order: { select: { package: true } } },
       take: 5000,
     }),

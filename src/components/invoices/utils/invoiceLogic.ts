@@ -10,7 +10,7 @@ import { assets } from './assetRegistry';
 import { computeBalance, round2 } from '@/lib/money';
 import { businessTodayUtc } from '@/lib/dates';
 
-type FullJob = Job & { client: Client };
+type FullJob = Job & { client: Client; assignments?: { user: { name: string | null } }[] };
 type FullInvoice = Invoice & { lineItems: InvoiceLineItem[] };
 
 export const buildInvoiceViewModel = (
@@ -187,7 +187,7 @@ export const buildInvoiceViewModel = (
     jobDate: formatDate(job.date),
     location: job.location || 'N/A',
     packageName: job.packageName || 'N/A',
-    assignees: job.assignees ? String(job.assignees) : 'Team Add designer',
+    assignees: job.assignments?.map((a) => a.user.name).filter(Boolean).join(', ') || 'Team Add designer',
     
     status,
     statusText: statusTextMap[status],

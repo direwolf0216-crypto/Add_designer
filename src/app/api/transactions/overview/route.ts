@@ -5,6 +5,7 @@ import { route } from "@/lib/api/http";
 import { requirePermission } from "@/lib/auth/session";
 import { businessDayRange, businessRangeFromISO, toBusinessISODate } from "@/lib/dates";
 import { round2 } from "@/lib/money";
+import { transactionJobScope } from "@/lib/jobs/scope";
 
 /** Accepts `yyyy-MM-dd` or an ISO instant and returns the business-timezone calendar day. */
 function businessDayParam(value: string | null): string | undefined {
@@ -15,10 +16,10 @@ function businessDayParam(value: string | null): string | undefined {
 }
 
 export const GET = route(async (req) => {
-  await requirePermission("view_transactions");
+  const user = await requirePermission("view_transactions");
   const { searchParams } = new URL(req.url);
 
-  const where: Prisma.TransactionWhereInput = { deletedAt: null };
+  const where: Prisma.TransactionWhereInput = { deletedAt: null, AND: [await transactionJobScope(user)] };
   const { start, end } = businessRangeFromISO(
     businessDayParam(searchParams.get("startDate")),
     businessDayParam(searchParams.get("endDate"))

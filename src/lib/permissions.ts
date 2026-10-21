@@ -12,6 +12,7 @@ export const PERMISSIONS = [
   "view_designs",
   "manage_designs",
   "view_export_analytics",
+  "view_all_jobs",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -26,6 +27,7 @@ export const DEFAULT_MATRIX: Record<AppRole, Record<Permission, boolean>> = {
     view_designs: true,
     manage_designs: true,
     view_export_analytics: true,
+    view_all_jobs: true,
   },
   STAFF: {
     manage_jobs: true,
@@ -36,6 +38,8 @@ export const DEFAULT_MATRIX: Record<AppRole, Record<Permission, boolean>> = {
     view_designs: true,
     manage_designs: false,
     view_export_analytics: false,
+    // Off: staff see the jobs assigned to them ("My Jobs"). Admins can enable it per role.
+    view_all_jobs: false,
   },
   DESIGNER: {
     manage_jobs: false,
@@ -46,6 +50,7 @@ export const DEFAULT_MATRIX: Record<AppRole, Record<Permission, boolean>> = {
     view_designs: true,
     manage_designs: true,
     view_export_analytics: false,
+    view_all_jobs: false,
   },
 };
 

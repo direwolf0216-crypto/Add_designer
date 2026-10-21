@@ -9,7 +9,10 @@ import { revalidatePath } from "next/cache";
 import { broadcastLater } from "@/lib/notifications";
 import { getSessionUser, roleHasPermission, type SessionUser } from "@/lib/auth/session";
 import type { Permission } from "@/lib/permissions";
-import { isProductionDone, saveJob, softDeleteJob, type InstallmentInput } from "@/lib/services/jobs";
+import { isProductionDone, saveJob, softDeleteJob, updateJob, type InstallmentInput } from "@/lib/services/jobs";
+import { notifyAssigned } from "@/lib/services/assignments";
+import { recordJobActivity } from "@/lib/services/activity";
+import { assertJobVisible } from "@/lib/jobs/scope";
 import { parseAmount } from "@/lib/money";
 import { nextCounter } from "@/lib/ids";
 import { HttpError } from "@/lib/api/http";
@@ -37,10 +40,17 @@ function parseJsonField(value: FormDataEntryValue | undefined): unknown {
   }
 }
 
+/** `assigneeIds` is posted as a JSON array of user ids; absent means "leave assignments unchanged". */
+function parseAssigneeIds(value: FormDataEntryValue | undefined): string[] | undefined {
+  const parsed = parseJsonField(value);
+  if (!Array.isArray(parsed)) return undefined;
+  return parsed.filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= 64);
+}
+
 // Keys handled explicitly; everything else submitted by the dynamic form is stored in customData.
 const STANDARD_KEYS = new Set([
   "id", "title", "category", "date", "time", "location", "phone", "email", "package", "advance", "due",
-  "status", "installments", "packageName", "inclusions", "notes", "attachments", "assignees",
+  "status", "installments", "packageName", "inclusions", "notes", "attachments", "assigneeIds",
   "finishingStatus", "proofDelivered", "customData", "recordDate", "jobNumber",
 ]);
 const MAX_CUSTOM_FIELDS = 200;
@@ -85,9 +95,15 @@ export async function saveJobAction(formData: FormData) {
         notes: typeof rawData.notes === "string" ? rawData.notes : undefined,
         inclusions: parseJsonField(rawData.inclusions),
         attachments: parseJsonField(rawData.attachments),
-        assignees: parseJsonField(rawData.assignees),
+        assigneeIds: parseAssigneeIds(rawData.assigneeIds),
         customData,
       },
+      user
+    );
+
+    notifyAssigned(
+      { id: result.job.id, jobNumber: result.job.jobNumber, clientName: result.client.name },
+      result.assignmentChanges.added,
       user.id
     );
 
@@ -141,6 +157,7 @@ export async function deleteJobAction(id: string) {
   if (isError(user)) return user;
 
   try {
+    await assertJobVisible(id, user);
     const deleted = await softDeleteJob(id, user.id);
     if (!deleted) return { success: false, error: "Not found" };
     revalidatePath("/jobs", "layout");
@@ -148,7 +165,7 @@ export async function deleteJobAction(id: string) {
     return { success: true };
   } catch (e) {
     console.error("[deleteJobAction]", e);
-    return { success: false, error: "Failed to delete job" };
+    return { success: false, error: e instanceof HttpError ? e.message : "Failed to delete job" };
   }
 }
 
@@ -171,21 +188,16 @@ export async function updateJobStatusAction(jobId: string, newStatus: string) {
   }
 
   try {
-    const existing = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!existing || existing.deletedAt) return { success: false, error: "Not found" };
-
-    const customData = readCustomData(existing.customData);
-    if (isProductionDone(newStatus)) {
-      if (existing.status !== newStatus || !customData.fld_b_finishing_status) {
-        customData.fld_b_finishing_status = "Pending";
+    const { job } = await updateJob(user, jobId, (existing) => {
+      const customData = readCustomData(existing.customData);
+      if (isProductionDone(newStatus)) {
+        if (existing.status !== newStatus || !customData.fld_b_finishing_status) {
+          customData.fld_b_finishing_status = "Pending";
+        }
+      } else {
+        delete customData.fld_b_finishing_status;
       }
-    } else {
-      delete customData.fld_b_finishing_status;
-    }
-
-    const job = await prisma.job.update({
-      where: { id: jobId },
-      data: { status: newStatus, customData: customData as Prisma.InputJsonValue, updatedById: user.id },
+      return { status: newStatus, customData: customData as Prisma.InputJsonValue };
     });
 
     await prisma.systemLog.create({
@@ -207,7 +219,7 @@ export async function updateJobStatusAction(jobId: string, newStatus: string) {
     return { success: true };
   } catch (e) {
     console.error("[updateJobStatusAction]", e);
-    return { success: false, error: "Failed to update job status" };
+    return { success: false, error: e instanceof HttpError ? e.message : "Failed to update job status" };
   }
 }
 
@@ -227,25 +239,20 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
   if (!parsed.success) return { success: false, error: "Invalid update" };
 
   try {
-    const existing = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!existing || existing.deletedAt) return { success: false, error: "Not found" };
-
-    const customData = { ...readCustomData(existing.customData), ...(parsed.data.customData ?? {}) };
-    const data: Prisma.JobUncheckedUpdateInput = {
-      customData: customData as Prisma.InputJsonValue,
-      updatedById: user.id,
-    };
-    if (customData.fld_b_finishing_status === "Delivered") data.proofDelivered = true;
-    if (parsed.data.status !== undefined) data.status = parsed.data.status;
-
-    await prisma.job.update({ where: { id: jobId }, data });
+    await updateJob(user, jobId, (existing) => {
+      const customData = { ...readCustomData(existing.customData), ...(parsed.data.customData ?? {}) };
+      const data: Prisma.JobUncheckedUpdateInput = { customData: customData as Prisma.InputJsonValue };
+      if (customData.fld_b_finishing_status === "Delivered") data.proofDelivered = true;
+      if (parsed.data.status !== undefined) data.status = parsed.data.status;
+      return data;
+    });
 
     revalidatePath("/jobs", "layout");
     revalidatePath("/dashboard", "layout");
     return { success: true };
   } catch (e) {
     console.error("[updateJobTrackingAction]", e);
-    return { success: false, error: "Failed to update finishing tracking" };
+    return { success: false, error: e instanceof HttpError ? e.message : "Failed to update finishing tracking" };
   }
 }
 
@@ -254,6 +261,7 @@ export async function generateInvoiceAction(jobId: string) {
   if (isError(user)) return user;
 
   try {
+    await assertJobVisible(jobId, user);
     const existingInvoice = await prisma.invoice.findFirst({ where: { jobId, deletedAt: undefined } });
     if (existingInvoice) {
       if (existingInvoice.deletedAt) {
@@ -269,10 +277,12 @@ export async function generateInvoiceAction(jobId: string) {
       // Sequential, gap-free per counter row; never derived from a string sort of existing numbers.
       const n = await nextCounter(tx, "invoice");
       const amount = job.order?.package ?? 0;
+      const invoiceNumber = `INV-${String(n).padStart(4, "0")}`;
+      await recordJobActivity(tx, { jobId, actorId: user.id, type: "INVOICE_GENERATED", summary: `Generated invoice ${invoiceNumber}` });
       return tx.invoice.create({
         data: {
           jobId,
-          invoiceNumber: `INV-${String(n).padStart(4, "0")}`,
+          invoiceNumber,
           discount: 0,
           lineItems: {
             create: [{ description: `${job.category || "Standard"} Package`, quantity: 1, rate: amount, amount }],

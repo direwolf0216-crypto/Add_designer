@@ -12,6 +12,7 @@ import {
 } from "@/lib/dates";
 import { round2 } from "@/lib/money";
 import { asJsonObject } from "@/lib/services/transactions";
+import { jobScope } from "@/lib/jobs/scope";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_CHART_DAYS = 400;
@@ -30,7 +31,8 @@ const statusIsAny = (...statuses: string[]): Prisma.JobWhereInput[] => statuses.
 type DailyRow = { day: string; type: string; total: number };
 
 export const GET = route(async (req) => {
-  await requirePermission("view_analytics");
+  const user = await requirePermission("view_analytics");
+  const scope = await jobScope(user);
   const { searchParams } = new URL(req.url);
 
   let fromIso = businessDayParam(searchParams.get("startDate"));
@@ -66,9 +68,9 @@ export const GET = route(async (req) => {
     jobsForChart,
     upcomingAllJobs,
   ] = await Promise.all([
-    prisma.job.count({ where: { deletedAt: null, NOT: { status: statusIs("cancelled") }, date: jobRange } }),
+    prisma.job.count({ where: { ...scope, deletedAt: null, NOT: { status: statusIs("cancelled") }, date: jobRange } }),
     prisma.job.findMany({
-      where: { deletedAt: null, date: { gte: today } },
+      where: { ...scope, deletedAt: null, date: { gte: today } },
       select: {
         id: true,
         date: true,
@@ -91,7 +93,7 @@ export const GET = route(async (req) => {
       take: 1,
     }),
     prisma.productOrder.count({ where: { NOT: { status: statusIs("DELIVERED") } } }),
-    prisma.job.count({ where: { deletedAt: null, status: statusIs("pending"), date: jobRange } }),
+    prisma.job.count({ where: { ...scope, deletedAt: null, status: statusIs("pending"), date: jobRange } }),
     prisma.systemSetting.findUnique({ where: { key: "UI_PREFERENCES" } }),
     prisma.transaction.findMany({
       where: txWhere,
@@ -111,13 +113,13 @@ export const GET = route(async (req) => {
       GROUP BY 1, 2`,
     prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where: txWhere }),
     prisma.job.findMany({
-      where: { deletedAt: null, NOT: { OR: statusIsAny("delivered", "cancelled") } },
+      where: { ...scope, deletedAt: null, NOT: { OR: statusIsAny("delivered", "cancelled") } },
       select: { id: true, date: true, status: true, category: true, customData: true, client: { select: { name: true } } },
       orderBy: { date: "asc" },
       take: 500,
     }),
     prisma.job.findMany({
-      where: { deletedAt: null, date: { gte: today, lt: ninetyDaysOut } },
+      where: { ...scope, deletedAt: null, date: { gte: today, lt: ninetyDaysOut } },
       select: { date: true, order: { select: { package: true } } },
       take: 5000,
     }),

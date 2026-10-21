@@ -6,7 +6,9 @@ import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
 import { requireAdmin, requirePermission, requireUser, roleHasPermission } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { broadcastLater } from "@/lib/notifications";
-import { hardDeleteJob, isProductionDone, softDeleteJob } from "@/lib/services/jobs";
+import { hardDeleteJob, isProductionDone, softDeleteJob, updateJob } from "@/lib/services/jobs";
+import { notifyAssigned } from "@/lib/services/assignments";
+import { assertJobVisible, jobScope } from "@/lib/jobs/scope";
 
 const fitsIn = (maxChars: number) => (value: unknown) => value === undefined || JSON.stringify(value).length <= maxChars;
 const optionalText = (max: number) => z.string().trim().max(max).optional();
@@ -25,7 +27,7 @@ const updateSchema = z.object({
   notes: optionalText(5000),
   inclusions: z.unknown().refine(fitsIn(20_000), "Inclusions are too large").optional(),
   attachments: z.array(z.unknown()).max(100).refine(fitsIn(100_000), "Attachments are too large").optional(),
-  assignees: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Assigned staff list is too large").optional(),
+  assigneeIds: z.array(z.string().min(1).max(64)).max(20).optional(),
   customData: z
     .record(z.string().max(100), z.unknown())
     .refine((o) => Object.keys(o).length <= 200, "Too many custom fields")
@@ -50,11 +52,15 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
   const { id } = await params;
   const canSeePayments = await roleHasPermission(user.role, "view_transactions");
 
-  const job = await prisma.job.findUnique({
-    where: { id },
+  const job = await prisma.job.findFirst({
+    where: { id, deletedAt: undefined, ...(await jobScope(user)) },
     include: {
       client: true,
       order: true,
+      assignments: {
+        orderBy: { assignedAt: "asc" },
+        select: { userId: true, assignedAt: true, user: { select: { id: true, name: true, image: true, role: true } } },
+      },
       transactions: canSeePayments ? { where: { deletedAt: null }, orderBy: { date: "asc" } } : false,
       createdBy: { select: { name: true, email: true } },
       updatedBy: { select: { name: true, email: true } },
@@ -73,23 +79,18 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
   const { id } = await params;
   const body = await parseJson(req, updateSchema);
 
-  const existing = await prisma.job.findUnique({ where: { id } });
-  if (!existing || existing.deletedAt) throw notFound("Job not found");
-
-  let customData: Record<string, unknown> | undefined;
-  if (body.customData || body.status !== undefined) {
-    customData = { ...readCustomData(existing.customData), ...body.customData };
-    if (body.status !== undefined && isProductionDone(body.status) && !customData.fld_b_finishing_status) {
-      customData.fld_b_finishing_status = "Pending";
-    }
-    if (!fitsIn(MAX_CUSTOM_DATA_CHARS * 2)(customData)) throw badRequest("Custom data is too large");
-  }
-
   const date = body.date ? (/^\d{4}-\d{2}-\d{2}$/.test(body.date) ? calendarDateToUtc(body.date) : new Date(body.date)) : undefined;
 
-  const updated = await prisma.job.update({
-    where: { id },
-    data: {
+  const { before: existing, job: updated, assignmentChanges } = await updateJob(user, id, (current) => {
+    let customData: Record<string, unknown> | undefined;
+    if (body.customData || body.status !== undefined) {
+      customData = { ...readCustomData(current.customData), ...body.customData };
+      if (body.status !== undefined && isProductionDone(body.status) && !customData.fld_b_finishing_status) {
+        customData.fld_b_finishing_status = "Pending";
+      }
+      if (!fitsIn(MAX_CUSTOM_DATA_CHARS * 2)(customData)) throw badRequest("Custom data is too large");
+    }
+    return {
       category: body.category,
       date,
       time: body.time,
@@ -101,11 +102,11 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
       notes: body.notes,
       inclusions: body.inclusions === null ? Prisma.DbNull : (body.inclusions as Prisma.InputJsonValue | undefined),
       attachments: body.attachments as Prisma.InputJsonValue | undefined,
-      assignees: body.assignees as Prisma.InputJsonValue | undefined,
       customData: customData as Prisma.InputJsonValue | undefined,
-      updatedById: user.id,
-    },
+      assigneeIds: body.assigneeIds,
+    };
   });
+  notifyAssigned({ id: updated.id, jobNumber: updated.jobNumber, clientName: existing.client.name }, assignmentChanges.added, user.id);
 
   await prisma.systemLog.create({
     data: { action: "JOB_UPDATED", details: `Updated job ID: ${updated.id} via API`, userId: user.id },
@@ -155,6 +156,7 @@ export const DELETE = route<{ id: string }>(async (req, { params }) => {
     );
   } else {
     const user = await requirePermission("manage_jobs");
+    await assertJobVisible(id, user);
     const deleted = await softDeleteJob(id, user.id);
     if (!deleted) throw notFound("Job not found");
   }

@@ -5,6 +5,7 @@ import { Job } from "@/types";
 import { parseJobFilters } from "@/lib/jobs/filters";
 import { buildJobWhere } from "@/lib/jobs/where";
 import { addDays, businessTodayUtc } from "@/lib/dates";
+import { jobScope } from "@/lib/jobs/scope";
 
 export const dynamic = 'force-dynamic';
 
@@ -13,14 +14,15 @@ export default async function AllJobsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requirePageUser();
+  const user = await requirePageUser();
+  const scope = await jobScope(user);
   const params = await searchParams;
   const page = Math.max(1, Number(params?.page) || 1);
   const filter = typeof params?.filter === 'string' ? params.filter : undefined;
   const limit = 10;
   const skip = (page - 1) * limit;
 
-  const whereClause = buildJobWhere(parseJobFilters(params));
+  const whereClause = { ...buildJobWhere(parseJobFilters(params)), ...scope };
   // Job dates are calendar dates stored as UTC midnight; "today" is the IST calendar day.
   const today = businessTodayUtc();
 

@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { businessDayRange } from "@/lib/dates";
 import { round2 } from "@/lib/money";
 import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
+import { transactionJobScope } from "@/lib/jobs/scope";
 import {
   asJsonObject,
   loadTransactionForWrite,
@@ -74,15 +75,15 @@ async function legacyAdvance(id: string) {
 }
 
 export const GET = route<{ id: string }>(async (_request, { params }) => {
-  await requirePermission("view_transactions");
+  const user = await requirePermission("view_transactions");
   const { id } = await params;
 
   if (id.startsWith("legacy-advance-")) {
     return NextResponse.json(await legacyAdvance(id), { headers: NO_STORE });
   }
 
-  const transaction = await prisma.transaction.findUnique({
-    where: { id },
+  const transaction = await prisma.transaction.findFirst({
+    where: { id, deletedAt: undefined, AND: [await transactionJobScope(user)] },
     include: {
       job: { select: { id: true, jobNumber: true, category: true, client: { select: { name: true } } } },
       user: { select: { id: true, name: true, email: true } },
@@ -181,7 +182,7 @@ export const PATCH = route<{ id: string }>(async (request, { params }) => {
   const row = await loadTransactionForWrite(id, user);
 
   const transaction = await prisma.$transaction(async (tx) => {
-    if (deletedAt === null) await restoreTransactionTx(tx, row);
+    if (deletedAt === null) await restoreTransactionTx(tx, row, user.id);
     else await softDeleteTransactionTx(tx, row, user.id);
     return tx.transaction.findUniqueOrThrow({ where: { id } });
   });

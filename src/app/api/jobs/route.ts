@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { parseJobFilters } from "@/lib/jobs/filters";
 import { buildJobWhere } from "@/lib/jobs/where";
+import { jobScope } from "@/lib/jobs/scope";
+import { notifyAssigned } from "@/lib/services/assignments";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
@@ -50,7 +52,7 @@ const createSchema = z
     contractUrl: httpUrl,
     inclusions: z.unknown().refine(fitsIn(20_000), "Inclusions are too large").optional(),
     attachments: z.array(z.unknown()).max(100).refine(fitsIn(100_000), "Attachments are too large").optional(),
-    assignees: z.array(z.unknown()).max(50).refine(fitsIn(20_000), "Assigned staff list is too large").optional(),
+    assigneeIds: z.array(z.string().min(1).max(64)).max(20).optional(),
     customData: z
       .record(z.string().max(100), z.unknown())
       .refine((o) => Object.keys(o).length <= 200, "Too many custom fields")
@@ -77,7 +79,17 @@ export const GET = route(async (req) => {
   // Trashed jobs are only listed for admins; `deletedAt: undefined` opts out of the soft-delete filter.
   const includeDeleted = searchParams.get("includeDeleted") === "true" && user.role === "ADMIN";
   // List filters (categories, statuses, client, location, from, to, min, max) — same as the All Jobs page.
-  const where: Prisma.JobWhereInput = { ...buildJobWhere(parseJobFilters(searchParams)), deletedAt: includeDeleted ? undefined : null };
+  const where: Prisma.JobWhereInput = {
+    ...buildJobWhere(parseJobFilters(searchParams)),
+    ...(await jobScope(user)),
+    deletedAt: includeDeleted ? undefined : null,
+  };
+  // `assignee=me` (My Jobs) or a specific user id; combined with the visibility scope above.
+  const assignee = searchParams.get("assignee");
+  if (assignee) {
+    const assigneeId = assignee === "me" ? user.id : assignee;
+    where.AND = [...((where.AND as Prisma.JobWhereInput[] | undefined) ?? []), { assignments: { some: { userId: assigneeId } } }];
+  }
 
   const start = parseDateParam(searchParams.get("startDate"));
   const endRaw = searchParams.get("endDate");
@@ -108,6 +120,7 @@ export const GET = route(async (req) => {
         createdAt: true,
         client: { select: { id: true, name: true, phone: true } },
         order: { select: { id: true, package: true, advance: true, due: true } },
+        assignments: { select: { userId: true, user: { select: { id: true, name: true, image: true } } } },
       },
       orderBy: { date: "desc" },
       take: limit,
@@ -146,11 +159,12 @@ export const POST = route(async (req) => {
       notes: body.notes,
       inclusions: body.inclusions,
       attachments: body.attachments,
-      assignees: body.assignees,
+      assigneeIds: body.assigneeIds,
       customData: body.customData ?? {},
     },
-    user.id
+    user
   );
+  notifyAssigned({ id: result.job.id, jobNumber: result.job.jobNumber, clientName: result.client.name }, result.assignmentChanges.added, user.id);
 
   let job = result.job;
   if (body.proofUrl !== undefined || body.contractUrl !== undefined) {

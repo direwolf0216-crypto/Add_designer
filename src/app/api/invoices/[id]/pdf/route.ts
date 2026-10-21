@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { notFound, route } from '@/lib/api/http';
 import { requirePermission } from '@/lib/auth/session';
 import { getGoogleDriveToken } from '@/lib/googleDriveAuth';
+import { jobScope } from '@/lib/jobs/scope';
 import InvoiceDocument from '@/components/invoices/InvoiceDocument';
 import { initFonts } from '@/components/invoices/theme/invoiceTheme';
 import { buildInvoiceViewModel } from '@/components/invoices/utils/invoiceLogic';
@@ -30,9 +31,9 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
   });
   if (!invoice || invoice.deletedAt) throw notFound('Invoice not found');
 
-  const job = await prisma.job.findUnique({
-    where: { id: invoice.jobId },
-    include: { client: true },
+  const job = await prisma.job.findFirst({
+    where: { id: invoice.jobId, deletedAt: undefined, ...(await jobScope(user)) },
+    include: { client: true, assignments: { select: { user: { select: { name: true } } } } },
   });
   if (!job || job.deletedAt) throw notFound('Associated job not found');
 

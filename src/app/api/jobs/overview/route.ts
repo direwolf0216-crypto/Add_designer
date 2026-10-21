@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/session";
 import { businessTodayUtc } from "@/lib/dates";
 import { round2 } from "@/lib/money";
 import { PRODUCTION_DONE_STATUSES } from "@/lib/services/jobs";
+import { jobScope } from "@/lib/jobs/scope";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_PREFS = { currencySymbol: "₹", hotDateBenchmark: 50000 };
@@ -33,7 +34,8 @@ function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown>
 const lower = (value: unknown) => (typeof value === "string" ? value.trim().toLowerCase() : "");
 
 export const GET = route(async () => {
-  await requireUser();
+  const user = await requireUser();
+  const scope = await jobScope(user);
 
   // Job.date is a calendar date stored as UTC midnight; day boundaries are IST calendar days.
   const today = businessTodayUtc();
@@ -42,7 +44,7 @@ export const GET = route(async () => {
   const [setting, dbJobs, immediateJobs, thisWeekJobs, unconfirmedJobs, pendingDueAgg, finishingJobs] = await Promise.all([
     prisma.systemSetting.findUnique({ where: { key: "UI_PREFERENCES" } }),
     prisma.job.findMany({
-      where: { deletedAt: null, date: { gte: day(-30) } },
+      where: { ...scope, deletedAt: null, date: { gte: day(-30) } },
       select: {
         id: true,
         jobNumber: true,
@@ -58,20 +60,20 @@ export const GET = route(async () => {
       take: 2000,
     }),
     // Today or tomorrow
-    prisma.job.count({ where: { deletedAt: null, date: { gte: today, lt: day(2) } } }),
+    prisma.job.count({ where: { ...scope, deletedAt: null, date: { gte: today, lt: day(2) } } }),
     // Next 7 days, excluding today
-    prisma.job.count({ where: { deletedAt: null, date: { gte: day(1), lt: day(8) } } }),
+    prisma.job.count({ where: { ...scope, deletedAt: null, date: { gte: day(1), lt: day(8) } } }),
     prisma.job.count({
-      where: { deletedAt: null, status: { equals: "Pending", mode: "insensitive" }, date: { gte: today, lt: day(14) } },
+      where: { ...scope, deletedAt: null, status: { equals: "Pending", mode: "insensitive" }, date: { gte: today, lt: day(14) } },
     }),
     // Order.due is kept in sync with the job's payments (refreshOrderTotals).
     prisma.order.aggregate({
       _sum: { due: true },
-      where: { job: { deletedAt: null, date: { gte: today, lt: day(14) }, ...NOT_CANCELLED } },
+      where: { job: { ...scope, deletedAt: null, date: { gte: today, lt: day(14) }, ...NOT_CANCELLED } },
     }),
     // Finishing starts once printing is done and stays open until delivered.
     prisma.job.findMany({
-      where: {
+      where: { ...scope,
         deletedAt: null,
         proofDelivered: false,
         OR: [...PRODUCTION_DONE_STATUSES, ...FINISHING_WORK_STATUSES].map((s) => ({ status: { equals: s, mode: "insensitive" as const } })),

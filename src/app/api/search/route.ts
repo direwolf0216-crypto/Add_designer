@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { route } from "@/lib/api/http";
 import { requireUser, roleHasPermission } from "@/lib/auth/session";
 import { toBusinessISODate } from "@/lib/dates";
+import { jobScope } from "@/lib/jobs/scope";
+import { transactionJobScope } from "@/lib/jobs/scope";
 
 const MAX_QUERY_LENGTH = 100;
 const RESULTS_PER_TYPE = 5;
@@ -19,6 +21,7 @@ type SearchResult = {
 
 export const GET = route(async (request) => {
   const user = await requireUser();
+  const scope = await jobScope(user);
   const query = (new URL(request.url).searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY_LENGTH);
   if (query.length < 2) {
     return NextResponse.json({ results: [] });
@@ -29,7 +32,7 @@ export const GET = route(async (request) => {
 
   const [jobs, transactions] = await Promise.all([
     prisma.job.findMany({
-      where: {
+      where: { ...scope,
         deletedAt: null,
         OR: [
           { jobNumber: contains },
@@ -48,6 +51,7 @@ export const GET = route(async (request) => {
           where: {
             deletedAt: null,
             OR: [{ description: contains }, { category: contains }, { transactionId: contains }],
+            AND: [await transactionJobScope(user)],
           },
           select: { id: true, description: true, category: true, transactionId: true, type: true, amount: true, date: true },
           orderBy: { date: "desc" },
