@@ -71,6 +71,11 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
     const summary = resolveJobSummary(job, layoutSchema, JOB_DETAILS_FIELD_MAP);
     return (
       <>
+        {/* Status first: the stage is what people change most, so it sits right under the header. */}
+        <div className="mb-4">
+          <JobTimeline job={job} layout={layoutSchema} onStatusChange={mutations.changeStatus} />
+        </div>
+
         <JobSummaryStrip job={job} summary={summary} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -88,15 +93,12 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
           {/* Dynamic Content Mapping (Sections not covered above) */}
           <DynamicSectionsView job={job} layout={layoutSchema} fieldMap={JOB_DETAILS_FIELD_MAP} />
         </div>
-
-        {/* Bottom: Job Status & Timeline */}
-        <JobTimeline job={job} layout={layoutSchema} onStatusChange={mutations.changeStatus} />
       </>
     );
   };
 
   const content = (
-    <div className={`w-full bg-[#fcfcfc] flex flex-col overflow-hidden relative ${standaloneJobId ? "h-[calc(100dvh-8.5rem)] rounded-3xl border border-slate-200/80 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]" : "h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
+    <div className={`w-full bg-[#fcfcfc] flex flex-col overflow-hidden relative print:!h-auto print:!max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none ${standaloneJobId ? "h-[calc(100dvh-8.5rem)] rounded-3xl border border-slate-200/80 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]" : "h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
       {!job ? (
         <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4" />
@@ -105,12 +107,13 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
       ) : (
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
           {/* Header */}
-          <header className="shrink-0 sticky top-0 z-40 bg-[#fcfcfc] px-6 md:px-8 py-4 border-b border-slate-100 flex flex-col gap-4">
+          {/* A div, not <header>: the print stylesheet hides headers, and this one names the job on the printout. */}
+          <div className="shrink-0 sticky top-0 z-40 bg-[#fcfcfc] px-6 md:px-8 py-4 border-b border-slate-100 flex flex-col gap-4 print:static print:border-0 print:px-0">
             {/* Back Button */}
             <div className="flex justify-between items-center w-full">
               <button
                 onClick={handleClose}
-                className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm print:hidden"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to Jobs
               </button>
@@ -119,8 +122,13 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
             {/* Title & Actions Row */}
             <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Job Details</h1>
-                <p className="text-sm text-slate-500 font-medium">View complete information about this print job.</p>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">{job.client?.name || job.title || "Job Details"}</h1>
+                <p className="text-sm text-slate-500 font-medium">
+                  {(() => {
+                    const category = resolveJobSummary(job, layoutSchema, JOB_DETAILS_FIELD_MAP).displayCategory;
+                    return [category !== "N/A" ? category : null, job.jobNumber].filter(Boolean).join(" · ") || "Print job";
+                  })()}
+                </p>
               </div>
 
               <JobHeaderActions
@@ -140,10 +148,10 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
               />
             </div>
 
-            <JobTabs tabs={tabs} activeId={activeTabId} onChange={setActiveTabId} />
-          </header>
+            <div className="print:hidden"><JobTabs tabs={tabs} activeId={activeTabId} onChange={setActiveTabId} /></div>
+          </div>
 
-          <main id="job-details-content" className="flex-1 overflow-y-auto px-6 md:px-8 pb-10 pt-6 flex flex-col gap-6">
+          <main id="job-details-content" className="flex-1 overflow-y-auto px-6 md:px-8 pb-10 pt-6 flex flex-col gap-6 print:overflow-visible print:px-0">
             {activeExtraTab ? activeExtraTab.render(job.id) : renderDetails()}
           </main>
         </div>
@@ -160,7 +168,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
       if (!open) closeJobDetails();
     }}>
       <DialogContent className="!max-w-[1300px] w-full sm:w-[95vw] p-0 bg-transparent border-0 shadow-none">
-        <DialogTitle className="sr-only">Job Details</DialogTitle>
+        <DialogTitle className="sr-only">{job?.client?.name ? `${job.client.name} job details` : "Job Details"}</DialogTitle>
         {content}
       </DialogContent>
     </Dialog>

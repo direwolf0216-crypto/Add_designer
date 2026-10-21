@@ -3,25 +3,23 @@ import JobStatusStepper from "@/components/dashboard/JobStatusStepper";
 import type { FormLayout } from "@/lib/forms/types";
 import { buildStatusSteps, type DetailsJob } from "@/lib/jobs/resolveJobFields";
 
-/** "Job Status & Timeline": clickable status stepper built from the layout's status options. */
+/** The job's stage as a slim bar at the top of the details: click any stage to move the job there. */
 export default function JobTimeline({ job, layout, onStatusChange }: { job: DetailsJob; layout: FormLayout | null; onStatusChange: (status: string) => void }) {
   const steps = buildStatusSteps(layout);
   return (
-    <div className="bg-white rounded-xl p-6 border border-slate-100 shadow-sm mt-4">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-          <Clock className="w-4 h-4 text-pink-500" />
+    <div className="flex flex-col gap-2.5 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex shrink-0 items-center gap-2" title="Status">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-50">
+          <Clock className="h-3.5 w-3.5 text-pink-500" />
         </div>
-        <h3 className="font-bold text-slate-800 text-[15px]">Job Status & Timeline</h3>
+        <h3 className="text-[13px] font-bold text-slate-800 sm:sr-only">Status</h3>
       </div>
-      <div className="px-4 pb-2">
-        <JobStatusStepper
-          steps={steps}
-          currentStatus={job.status || (steps.length > 0 ? steps[0].value : "Pending")}
-          onStatusChange={(val) => onStatusChange(val)}
-          className="w-full"
-        />
-      </div>
+      <JobStatusStepper
+        steps={steps}
+        currentStatus={job.status || (steps.length > 0 ? steps[0].value : "Pending")}
+        onStatusChange={(val) => onStatusChange(val)}
+        className="min-w-0 flex-1"
+      />
     </div>
   );
 }

@@ -30,7 +30,7 @@ export default function JobHeaderActions({
   assigneesSlot?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex items-center gap-3 flex-wrap print:hidden">
       {assigneesSlot}
 
       {/* Status Badge */}
@@ -46,7 +46,7 @@ export default function JobHeaderActions({
       )}
 
       {/* Print Summary */}
-      <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm">
+      <button type="button" onClick={() => window.print()} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm">
         <Printer className="w-4 h-4" /> Print Summary
       </button>
 

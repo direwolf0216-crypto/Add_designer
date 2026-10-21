@@ -14,7 +14,7 @@ export default function JobSpecsCard({ entries, showAmounts = true }: { entries:
             {entry.category && <InfoRow label="Category">{entry.category}</InfoRow>}
             <InfoRow label="Size">{entry.size || "N/A"}</InfoRow>
             <InfoRow label="Quantity">{entry.quantity || "N/A"}</InfoRow>
-            {showAmounts && <InfoRow label="Rate">{entry.rateLabel}</InfoRow>}
+            {showAmounts && entry.rateLabel !== "N/A" && <InfoRow label="Rate">{entry.rateLabel}</InfoRow>}
             {showAmounts && entry.total !== null && (
               <div className="flex justify-between items-center py-3 bg-slate-50/50 -mx-4 px-4 rounded-b-lg mt-1 border-t border-slate-100">
                 <span className="text-sm text-slate-600 font-bold">Total</span>
