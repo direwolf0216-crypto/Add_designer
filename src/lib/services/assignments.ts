@@ -1,5 +1,5 @@
 import "server-only";
-import type { TxClient } from "@/lib/prisma";
+import prisma, { type TxClient } from "@/lib/prisma";
 import { badRequest } from "@/lib/api/http";
 import { recordJobActivity } from "@/lib/services/activity";
 import { after } from "next/server";
@@ -70,19 +70,21 @@ export async function syncAssignments(tx: TxClient, jobId: string, userIds: stri
 export function notifyAssigned(job: { id: string; jobNumber: string | null; clientName?: string }, userIds: string[], actorId: string) {
   const recipients = userIds.filter((id) => id !== actorId);
   if (recipients.length === 0) return;
-  after(() =>
-    Promise.all(
+  after(async () => {
+    const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { name: true, email: true } });
+    const who = actor?.name?.trim() || actor?.email?.trim() || "Someone";
+    await Promise.all(
       recipients.map((userId) =>
         createNotification({
           userId,
           type: "JOB_ASSIGNED",
           title: "New job assigned to you",
-          message: `You were assigned to job ${job.jobNumber || ""}${job.clientName ? ` for ${job.clientName}` : ""}.`,
+          message: `${who} assigned you to job ${job.jobNumber || ""}${job.clientName ? ` (${job.clientName})` : ""}.`,
           actionUrl: `/jobs/details/${job.id}`,
           entityId: job.id,
           entityType: "job",
         })
       )
-    )
-  );
+    );
+  });
 }

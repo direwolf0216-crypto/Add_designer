@@ -123,10 +123,10 @@ export async function broadcastNotification(params: Omit<NotificationParams, "us
       prisma.rolePermission.findMany({ where: { permission } }),
     ]);
     const rowFor = (role: string) => rolePermissions.find((rp) => rp.role === role)?.enabled;
-    // Owner and admins receive notifications unless the type was switched off for them; staff and
+    // Admins and managers receive notifications unless the type was switched off for them; staff and
     // custom roles only when it was switched on.
     const wants = (user: (typeof users)[number]) => {
-      if (user.role === "OWNER" || user.role === "ADMIN") return rowFor(user.role) ?? rowFor("ADMIN") ?? true;
+      if (user.role === "ADMIN" || user.role === "MANAGER") return rowFor(user.role) ?? true;
       if (user.role === "STAFF") return rowFor("STAFF") ?? false;
       return user.customRole?.permissions.includes(permission) ?? false;
     };
@@ -164,4 +164,15 @@ export async function claimReminder(key: string): Promise<boolean> {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return false;
     throw e;
   }
+}
+
+/** "Priya" — who did it, for notification copy (falls back to their email, then "Someone"). */
+export function actorName(user: { name?: string | null; email?: string | null }): string {
+  return user.name?.trim() || user.email?.trim() || "Someone";
+}
+
+/** "#PERF-003535 (Perf Client 845)" — which job, for notification copy. */
+export function jobLabel(job: { jobNumber?: string | null; id: string }, clientName?: string | null): string {
+  const number = job.jobNumber || `#${job.id.slice(0, 8)}`;
+  return clientName ? `${number} (${clientName})` : number;
 }

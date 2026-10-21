@@ -6,7 +6,7 @@ import { jobSchema } from "@/lib/validations/job";
 import type { Job } from "@/types";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { broadcastLater } from "@/lib/notifications";
+import { actorName, broadcastLater, jobLabel } from "@/lib/notifications";
 import { getSessionUser, type SessionUser, userCan } from "@/lib/auth/session";
 import type { Permission } from "@/lib/permissions";
 import { isProductionDone, saveJob, softDeleteJob, updateJob, type InstallmentInput } from "@/lib/services/jobs";
@@ -110,8 +110,8 @@ export async function saveJobAction(formData: FormData) {
     broadcastLater(
       result.created
         ? {
-          title: "New Job Created",
-          message: `A new Job (${result.job.jobNumber}) has been created for ${result.client.name}.`,
+          title: "New job created",
+          message: `${actorName(user)} created job ${jobLabel(result.job, result.client.name)}.`,
           type: "JOB_CREATED",
           actionUrl: `/jobs/details/${result.job.id}`,
           entityId: result.job.id,
@@ -119,8 +119,8 @@ export async function saveJobAction(formData: FormData) {
           skipUserId: user.id,
         }
         : {
-          title: "Job Updated",
-          message: `The job ${result.job.jobNumber || ""} has been updated.`,
+          title: "Job updated",
+          message: `${actorName(user)} updated job ${jobLabel(result.job, result.client.name)}.`,
           type: "JOB_UPDATED",
           actionUrl: `/jobs/details/${result.job.id}`,
           entityId: result.job.id,
@@ -189,7 +189,7 @@ export async function updateJobStatusAction(jobId: string, newStatus: string) {
   }
 
   try {
-    const { job } = await updateJob(user, jobId, (existing) => {
+    const { before, job } = await updateJob(user, jobId, (existing) => {
       const customData = readCustomData(existing.customData);
       if (isProductionDone(newStatus)) {
         if (existing.status !== newStatus || !customData.fld_b_finishing_status) {
@@ -206,8 +206,8 @@ export async function updateJobStatusAction(jobId: string, newStatus: string) {
     });
 
     broadcastLater({
-      title: "Job Status Changed",
-      message: `Job ${job.jobNumber || ""} status has been updated to ${newStatus}.`,
+      title: "Job status changed",
+      message: `${actorName(user)} moved job ${jobLabel(job, before.client?.name)} to ${newStatus}.`,
       type: "JOB_UPDATED",
       actionUrl: `/jobs/details/${jobId}`,
       entityId: jobId,
@@ -240,13 +240,28 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
   if (!parsed.success) return { success: false, error: "Invalid update" };
 
   try {
-    await updateJob(user, jobId, (existing) => {
+    const { before, job } = await updateJob(user, jobId, (existing) => {
       const customData = { ...readCustomData(existing.customData), ...(parsed.data.customData ?? {}) };
       const data: Prisma.JobUncheckedUpdateInput = { customData: customData as Prisma.InputJsonValue };
       if (customData.fld_b_finishing_status === "Delivered") data.proofDelivered = true;
       if (parsed.data.status !== undefined) data.status = parsed.data.status;
       return data;
     });
+
+    // Board moves and stage changes from the job page tell the team who moved which job where.
+    const moved = job.stage !== before.stage || job.status !== before.status;
+    if (moved) {
+      const to = job.status !== before.status ? job.status : job.stage;
+      broadcastLater({
+        title: "Job status changed",
+        message: `${actorName(user)} moved job ${jobLabel(job, before.client?.name)} to ${to}.`,
+        type: "JOB_UPDATED",
+        actionUrl: `/jobs/details/${jobId}`,
+        entityId: jobId,
+        entityType: "job",
+        skipUserId: user.id,
+      });
+    }
 
     revalidatePath("/jobs", "layout");
     revalidatePath("/dashboard", "layout");

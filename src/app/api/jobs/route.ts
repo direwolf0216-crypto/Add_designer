@@ -10,7 +10,7 @@ import { intParam, notFound, parseJson, route } from "@/lib/api/http";
 import { requirePermission, requireUser, userCan } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { parseAmount } from "@/lib/money";
-import { broadcastLater } from "@/lib/notifications";
+import { actorName, broadcastLater, jobLabel } from "@/lib/notifications";
 import { saveJob } from "@/lib/services/jobs";
 import { hasFullAccess } from "@/lib/permissions";
 import { jobMoneyKeys, redactJobAmounts } from "@/lib/jobs/redact";
@@ -183,8 +183,8 @@ export const POST = route(async (req) => {
   }
 
   broadcastLater({
-    title: "New Job Request",
-    message: `A new ${job.category || "job"} for ${result.client.name} has been created!`,
+    title: "New job created",
+    message: `${actorName(user)} created ${job.category ? `a ${job.category} job` : "job"} ${jobLabel(job, result.client.name)}.`,
     type: "JOB_CREATED",
     actionUrl: `/jobs/details/${job.id}`,
     entityId: job.id,

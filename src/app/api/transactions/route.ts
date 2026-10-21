@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { route, parseJson, intParam, badRequest } from "@/lib/api/http";
 import { requirePermission } from "@/lib/auth/session";
-import { broadcastLater } from "@/lib/notifications";
+import { actorName, broadcastLater } from "@/lib/notifications";
 import { newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { refreshOrderTotals } from "@/lib/services/jobs";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
@@ -134,7 +134,7 @@ export const POST = route(async (request) => {
   if (created.type === "INCOME") {
     broadcastLater({
       title: "Payment Received",
-      message: `A payment of ₹${created.amount.toLocaleString("en-IN")} was logged via ${created.paymentMode}.`,
+      message: `${actorName(user)} recorded a payment of ₹${created.amount.toLocaleString("en-IN")} via ${created.paymentMode}.`,
       type: "PAYMENT_RECEIVED",
       actionUrl: "/transactions",
       entityId: created.id,

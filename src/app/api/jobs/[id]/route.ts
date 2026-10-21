@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
 import { requireAdmin, requirePermission, requireUser, userCan } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
-import { broadcastLater } from "@/lib/notifications";
+import { actorName, broadcastLater, jobLabel } from "@/lib/notifications";
 import { hardDeleteJob, isProductionDone, softDeleteJob, updateJob } from "@/lib/services/jobs";
 import { notifyAssigned } from "@/lib/services/assignments";
 import { assertJobVisible, jobScope } from "@/lib/jobs/scope";
@@ -114,11 +114,11 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
     data: { action: "JOB_UPDATED", details: `Updated job ID: ${updated.id} via API`, userId: user.id },
   });
 
-  const label = updated.jobNumber || `#${updated.id.substring(0, 8)}`;
+  const label = jobLabel(updated, existing.client.name);
   const statusChanged = body.status !== undefined && body.status !== existing.status;
   broadcastLater({
-    title: statusChanged ? "Job Status Update" : "Job Updated",
-    message: statusChanged ? `Job ${label} status changed to ${updated.status}.` : `Job ${label} has been updated.`,
+    title: statusChanged ? "Job status changed" : "Job updated",
+    message: statusChanged ? `${actorName(user)} moved job ${label} to ${updated.status}.` : `${actorName(user)} updated job ${label}.`,
     type: "JOB_UPDATED",
     actionUrl: `/jobs/details/${updated.id}`,
     entityId: updated.id,
