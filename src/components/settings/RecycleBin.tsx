@@ -183,8 +183,7 @@ export default function RecycleBin() {
             {[
               { label: 'All Sources', val: '' },
               { label: 'Jobs', val: 'job' },
-              { label: 'Transactions', val: 'transaction' },
-              { label: 'Orders', val: 'product-order' }
+              { label: 'Transactions', val: 'transaction' }
             ].map(tab => (
               <button
                 key={tab.label}

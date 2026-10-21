@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 // Read-only checks that need no account and never write data.
 test.describe("access control smoke tests", () => {
   test("app pages redirect to login when signed out", async ({ page }) => {
-    await page.goto("/jobs/job-status");
+    await page.goto("/jobs");
     await expect(page).toHaveURL(/\/login/);
   });
 

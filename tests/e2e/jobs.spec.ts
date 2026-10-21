@@ -14,8 +14,8 @@ test.describe("jobs flow (requires E2E_USER_EMAIL / E2E_USER_PASSWORD)", () => {
     await page.click('button[type="submit"]');
     await page.waitForURL("**/dashboard/**");
 
-    await page.goto("/jobs/job-status");
-    await expect(page).toHaveURL(/\/jobs\/job-status/);
+    await page.goto("/jobs");
+    await expect(page).toHaveURL(/\/jobs(\?|$)/);
     await page.getByRole("button", { name: /new job|add new job/i }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible();
   });
