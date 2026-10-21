@@ -1,10 +1,47 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
+import { MotionConfig, motion, useAnimationControls, useMotionTemplate, useMotionValue, useSpring, useTransform, type Variants } from "framer-motion";
+import InkDrops from "./InkDrops";
+
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+
+// Entrance choreography: headline lines rise out of a mask, then the copy, badges and printer.
+const stagger = (gap: number, delay = 0): Variants => ({ hidden: {}, show: { transition: { staggerChildren: gap, delayChildren: delay } } });
+const rise: Variants = {
+  hidden: { opacity: 0, y: 22 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT_EXPO } },
+};
+const lineRise: Variants = {
+  hidden: { y: "110%" },
+  show: { y: "0%", transition: { duration: 0.8, ease: EASE_OUT_EXPO } },
+};
+const printerIn: Variants = {
+  hidden: { opacity: 0, x: -60, scale: 0.94 },
+  show: { opacity: 1, x: 0, scale: 1, transition: { duration: 1, ease: EASE_OUT_EXPO } },
+};
+
+/** Pointer position across the window as springs from -1 to 1 (still on touch or reduced motion). */
+function usePointer() {
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const px = useSpring(rawX, { stiffness: 60, damping: 18, mass: 0.6 });
+  const py = useSpring(rawY, { stiffness: 60, damping: 18, mass: 0.6 });
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.matchMedia("(pointer: coarse)").matches) return;
+    const onMove = (e: PointerEvent) => {
+      rawX.set((e.clientX / window.innerWidth) * 2 - 1);
+      rawY.set((e.clientY / window.innerHeight) * 2 - 1);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [rawX, rawY]);
+  return { px, py };
+}
 
 /** Only allow same-origin relative redirects after login. */
 function safeCallbackUrl(value: string | null): string {
@@ -23,6 +60,22 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPendingPopup, setShowPendingPopup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { px, py } = usePointer();
+  const card = useAnimationControls();
+
+  // 3D tilt: the printer turns toward the pointer; the card leans less, with a glare that follows it.
+  const printerRotY = useTransform(px, [-1, 1], [-12, 12]);
+  const printerRotX = useTransform(py, [-1, 1], [7, -7]);
+  const cardRotY = useTransform(px, [-1, 1], [-5, 5]);
+  const cardRotX = useTransform(py, [-1, 1], [4, -4]);
+  const glareX = useTransform(px, [-1, 1], [10, 90]);
+  const glareY = useTransform(py, [-1, 1], [5, 70]);
+  const glare = useMotionTemplate`radial-gradient(420px circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.55), transparent 55%)`;
+
+  const fail = (message: string) => {
+    setError(message);
+    card.start({ x: [0, -12, 10, -7, 4, 0], transition: { duration: 0.45, ease: "easeOut" } });
+  };
 
   const loginUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,11 +100,11 @@ function LoginForm() {
       if (signInData.error === "Approval pending") {
         setShowPendingPopup(true);
       } else if (signInData.error === "Account deactivated") {
-        setError("Your account has been deactivated. Please contact support.");
+        fail("Your account has been deactivated. Please contact support.");
       } else if (signInData.error.startsWith("Too many attempts")) {
-        setError(signInData.error);
+        fail(signInData.error);
       } else {
-        setError("Invalid credentials. Please try again.");
+        fail("Invalid credentials. Please try again.");
       }
       setLoading(false);
     } else {
@@ -64,69 +117,127 @@ function LoginForm() {
     <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center min-h-[80vh]">
       
       {/* LEFT COLUMN: Hero Section with Printer graphic */}
-      <div className="w-full lg:col-span-6 xl:col-span-7 flex flex-col justify-between pt-4 lg:pt-0 relative z-10 text-white">
+      <motion.div
+        className="w-full lg:col-span-6 xl:col-span-7 flex flex-col justify-between pt-4 lg:pt-0 relative z-10 text-white"
+        variants={stagger(0.1)}
+        initial="hidden"
+        animate="show"
+      >
+        <InkDrops px={px} py={py} />
         
         {/* Top Headlines */}
         <div className="space-y-4 mb-8">
 
-          <h1 className="text-4xl sm:text-5xl xl:text-6xl font-light tracking-tight text-slate-100 leading-[1.1]">
-            Bringing Your <br />
-            <span className="font-extrabold bg-gradient-to-r from-[#ff007a] via-[#ff4d00] to-[#ff007a] bg-clip-text text-transparent">
-              Ideas
-            </span>{" "}
-            <span className="font-extrabold bg-gradient-to-r from-[#00d2ff] to-[#3a7bd5] bg-clip-text text-transparent">
-              to Life
+          <h1 className="relative text-4xl sm:text-5xl xl:text-6xl font-light tracking-tight text-slate-100 leading-[1.1]">
+            <span className="block overflow-hidden pb-1">
+              <motion.span className="inline-block" variants={lineRise}>Bringing Your</motion.span>
+            </span>
+            <span className="block overflow-hidden pb-2">
+              <motion.span className="inline-block" variants={lineRise}>
+                <span className="signin-gradient-text font-extrabold bg-gradient-to-r from-[#ff007a] via-[#ff4d00] to-[#ff007a] bg-clip-text text-transparent">
+                  Ideas
+                </span>{" "}
+                <span className="signin-gradient-text font-extrabold bg-gradient-to-r from-[#00d2ff] to-[#3a7bd5] bg-clip-text text-transparent">
+                  to Life
+                </span>
+              </motion.span>
             </span>
           </h1>
 
-          <p className="text-slate-300 text-sm sm:text-base xl:text-lg max-w-lg font-normal leading-relaxed pt-1">
+          <motion.p variants={rise} className="relative text-slate-300 text-sm sm:text-base xl:text-lg max-w-lg font-normal leading-relaxed pt-1">
             High quality prints, creative designs, and custom solutions — all in one place.
-          </p>
+          </motion.p>
         </div>
 
         {/* 4 Feature Badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 my-4 max-w-xl text-center">
+        <motion.div variants={stagger(0.08)} className="relative grid grid-cols-2 sm:grid-cols-4 gap-4 my-4 max-w-xl text-center [perspective:800px]">
           
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+          <motion.div
+            variants={rise}
+            whileHover={{ y: -5, rotateX: 8, scale: 1.04 }}
+            transition={{ type: "spring", stiffness: 380, damping: 24 }}
+            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-[0_10px_30px_-18px_rgba(0,0,0,0.8)] hover:border-white/25 hover:bg-white/10 transition-colors"
+          >
             <div className="text-[#d946ef] text-xl mb-1"><i className="ph-fill ph-lightning" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Fast Service</div>
-          </div>
+          </motion.div>
 
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+          <motion.div
+            variants={rise}
+            whileHover={{ y: -5, rotateX: 8, scale: 1.04 }}
+            transition={{ type: "spring", stiffness: 380, damping: 24 }}
+            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-[0_10px_30px_-18px_rgba(0,0,0,0.8)] hover:border-white/25 hover:bg-white/10 transition-colors"
+          >
             <div className="text-[#3b82f6] text-xl mb-1"><i className="ph-fill ph-shield-check" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Premium Quality</div>
-          </div>
+          </motion.div>
 
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+          <motion.div
+            variants={rise}
+            whileHover={{ y: -5, rotateX: 8, scale: 1.04 }}
+            transition={{ type: "spring", stiffness: 380, damping: 24 }}
+            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-[0_10px_30px_-18px_rgba(0,0,0,0.8)] hover:border-white/25 hover:bg-white/10 transition-colors"
+          >
             <div className="text-[#eab308] text-xl mb-1"><i className="ph-fill ph-palette" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Custom Designs</div>
-          </div>
+          </motion.div>
 
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+          <motion.div
+            variants={rise}
+            whileHover={{ y: -5, rotateX: 8, scale: 1.04 }}
+            transition={{ type: "spring", stiffness: 380, damping: 24 }}
+            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-[0_10px_30px_-18px_rgba(0,0,0,0.8)] hover:border-white/25 hover:bg-white/10 transition-colors"
+          >
             <div className="text-[#22c55e] text-xl mb-1"><i className="ph-fill ph-heart" aria-hidden="true"></i></div>
             <div className="text-[0.75rem] font-medium text-slate-200">Customer Satisfaction</div>
-          </div>
+          </motion.div>
 
-        </div>
+        </motion.div>
 
         {/* Laser Printer Graphic at Bottom Left */}
-        <div className="relative mt-4 -ml-4 pointer-events-none">
-          <Image 
-            unoptimized 
-            src="/assets/signin/printerSignin.png" 
-            alt="Laser Printer Graphic" 
-            width={600} 
-            height={400} 
-            className="w-full max-w-[480px] h-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]" 
-          />
-        </div>
+        <motion.div variants={printerIn} className="relative mt-4 -ml-4 pointer-events-none [perspective:1100px]">
+          {/* Soft floor shadow */}
+          <div className="printer-shadow absolute bottom-[2%] left-[8%] h-[14%] w-[70%] max-w-[340px] rounded-[50%] bg-black/70 blur-2xl" aria-hidden="true" />
+          <motion.div
+            className="relative w-full max-w-[480px] [transform-style:preserve-3d]"
+            style={{ rotateY: printerRotY, rotateX: printerRotX }}
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Image 
+              unoptimized 
+              src="/assets/signin/printerSignin.png" 
+              alt="Laser Printer Graphic" 
+              width={600} 
+              height={400} 
+              className="w-full max-w-[480px] h-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]" 
+            />
+            {/* Specular light sweeping across the machine */}
+            <div className="printer-sheen absolute inset-0" aria-hidden="true" />
+            {/* Blue status light breathing */}
+            <div className="printer-glow absolute left-[30%] top-[9%] h-[6%] w-[34%] rounded-full bg-sky-400/70 blur-xl mix-blend-screen" aria-hidden="true" />
+            {/* Ink dripping off the wet print */}
+            <span className="ink-drip absolute left-[58%] top-[86%] h-3 w-2 rounded-b-full rounded-t-[40%] bg-[#ec008c] shadow-[0_0_10px_rgba(236,0,140,0.8)]" style={{ animationDelay: "0s" }} aria-hidden="true" />
+            <span className="ink-drip absolute left-[71%] top-[89%] h-3.5 w-2.5 rounded-b-full rounded-t-[40%] bg-[#00aeef] shadow-[0_0_10px_rgba(0,174,239,0.8)]" style={{ animationDelay: "-1.1s" }} aria-hidden="true" />
+            <span className="ink-drip absolute left-[84%] top-[93%] h-3 w-2 rounded-b-full rounded-t-[40%] bg-[#ffd400] shadow-[0_0_10px_rgba(255,212,0,0.8)]" style={{ animationDelay: "-2s" }} aria-hidden="true" />
+          </motion.div>
+        </motion.div>
 
-      </div>
+      </motion.div>
 
 
       {/* RIGHT COLUMN: White Auth Card with Fluid Splashes */}
-      <div className="w-full lg:col-span-6 xl:col-span-5 flex justify-center lg:justify-end">
-        <div className="bg-white w-full max-w-[450px] lg:max-w-[470px] rounded-[2.2rem] shadow-[0_25px_70px_rgba(0,0,0,0.45)] p-8 sm:p-10 relative overflow-hidden z-20">
+      <div className="w-full lg:col-span-6 xl:col-span-5 flex justify-center lg:justify-end [perspective:1400px]">
+        <motion.div
+          initial={{ opacity: 0, y: 40, rotateX: 12, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+          transition={{ duration: 0.9, ease: EASE_OUT_EXPO, delay: 0.25 }}
+          style={{ rotateY: cardRotY, rotateX: cardRotX }}
+          className="w-full max-w-[450px] lg:max-w-[470px] [transform-style:preserve-3d]"
+        >
+        <motion.div animate={card} className="bg-white w-full rounded-[2.2rem] shadow-[0_25px_70px_rgba(0,0,0,0.45)] p-8 sm:p-10 relative overflow-hidden z-20">
+          {/* Glare that follows the pointer across the card */}
+          <motion.div className="pointer-events-none absolute inset-0 z-30 opacity-40 mix-blend-soft-light" style={{ background: glare }} aria-hidden="true" />
           
           {/* Top-Right Liquid Splash Decor */}
           <Image 
@@ -149,10 +260,10 @@ function LoginForm() {
           />
 
           {/* Card Content Container */}
-          <div className="relative z-20 py-2">
+          <motion.div className="relative z-20 py-2" variants={stagger(0.07, 0.45)} initial="hidden" animate="show">
             
             {/* Header Logo & Titles */}
-            <div className="flex flex-col items-center justify-center text-center mb-6">
+            <motion.div variants={rise} className="flex flex-col items-center justify-center text-center mb-6">
               <div className="mb-3">
                 <Image 
                   unoptimized 
@@ -169,21 +280,21 @@ function LoginForm() {
               <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5">
                 Sign in to continue to your account
               </p>
-            </div>
+            </motion.div>
 
             {/* Error Notification Alert */}
             {error && (
-              <div className="bg-rose-50 text-rose-600 text-xs sm:text-sm p-3.5 rounded-2xl mb-6 text-center border border-rose-200 font-semibold flex items-center justify-center gap-2">
+              <motion.div role="alert" key={error} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="bg-rose-50 text-rose-600 text-xs sm:text-sm p-3.5 rounded-2xl mb-6 text-center border border-rose-200 font-semibold flex items-center justify-center gap-2">
                 <i className="ph-bold ph-warning-circle text-base"></i>
                 <span>{error}</span>
-              </div>
+              </motion.div>
             )}
 
             {/* Login Form */}
             <form onSubmit={loginUser} className="flex flex-col gap-5">
               
               {/* Username / Email Input */}
-              <div className="relative">
+              <motion.div variants={rise} className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                   <i className="ph ph-user text-[1.2rem]"></i>
                 </div>
@@ -195,10 +306,10 @@ function LoginForm() {
                   onChange={(e) => setData({ ...data, email: e.target.value })}
                   required
                 />
-              </div>
+              </motion.div>
 
               {/* Password Input */}
-              <div className="relative">
+              <motion.div variants={rise} className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                   <i className="ph ph-lock-key text-[1.2rem]"></i>
                 </div>
@@ -218,10 +329,10 @@ function LoginForm() {
                 >
                   <i className={`ph ${showPassword ? 'ph-eye' : 'ph-eye-slash'} text-[1.2rem]`}></i>
                 </button>
-              </div>
+              </motion.div>
 
               {/* Checkbox & Forgot Password */}
-              <div className="flex justify-between items-center px-1 mt-1 mb-1">
+              <motion.div variants={rise} className="flex justify-between items-center px-1 mt-1 mb-1">
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input 
                     type="checkbox" 
@@ -258,14 +369,18 @@ function LoginForm() {
                 >
                   Forgot Password?
                 </a>
-              </div>
+              </motion.div>
 
               {/* Gradient Action Button */}
-              <button 
+              <motion.button
+                variants={rise}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 type="submit" 
                 disabled={loading}
-                className="w-full h-[54px] mt-2 bg-gradient-to-r from-[#ff007f] via-[#ff5500] to-[#ff9f1c] hover:opacity-95 text-white font-extrabold rounded-full text-[1.05rem] shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 transition-all duration-200 flex justify-center items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed transform active:scale-[0.99]"
+                className="group relative overflow-hidden w-full h-[54px] mt-2 bg-gradient-to-r from-[#ff007f] via-[#ff5500] to-[#ff9f1c] hover:opacity-95 text-white font-extrabold rounded-full text-[1.05rem] shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 transition-shadow duration-200 flex justify-center items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
               >
+                <span aria-hidden="true" className="signin-sheen pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/35" />
                 {loading ? (
                   <div className="flex items-center gap-2.5">
                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -275,16 +390,16 @@ function LoginForm() {
                     <span>Authenticating...</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="relative flex items-center gap-2">
                     <span>Sign In</span>
-                    <i className="ph-bold ph-arrow-right text-lg"></i>
+                    <i className="ph-bold ph-arrow-right text-lg transition-transform duration-200 group-hover:translate-x-1"></i>
                   </div>
                 )}
-              </button>
+              </motion.button>
 
             </form>
 
-          </div>
+          </motion.div>
 
           {/* Approval Pending Modal Popup */}
           {showPendingPopup && (
@@ -309,7 +424,8 @@ function LoginForm() {
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
+        </motion.div>
       </div>
 
     </div>
@@ -318,8 +434,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
+    <MotionConfig reducedMotion="user">
+      <Suspense>
+        <LoginForm />
+      </Suspense>
+    </MotionConfig>
   );
 }

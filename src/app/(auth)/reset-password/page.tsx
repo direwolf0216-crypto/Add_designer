@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
+import { MotionConfig, motion, useMotionValue } from "framer-motion";
+import InkDrops from "../login/InkDrops";
 
 const noopSubscribe = () => () => {};
 const readStoredReset = () => {
@@ -84,7 +86,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="bg-white/95 backdrop-blur-2xl w-full rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 text-center">
+      <div className="bg-white/95 backdrop-blur-2xl w-full max-w-[460px] mx-auto rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 text-center">
         <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 mx-auto mb-4 border border-rose-200">
           <i className="ph-bold ph-warning-circle text-3xl"></i>
         </div>
@@ -99,7 +101,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="bg-white/95 backdrop-blur-2xl w-full rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 sm:p-10 relative overflow-hidden">
+    <div className="bg-white/95 backdrop-blur-2xl w-full max-w-[460px] mx-auto rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 sm:p-10 relative overflow-hidden">
       <div className="flex justify-center mb-6">
         <div className="bg-slate-50/80 p-3 px-6 rounded-2xl border border-slate-100/80 shadow-sm flex items-center justify-center">
           <Image unoptimized src="/assets/logo.png?v=2" alt="Add Designer Logo" width={340} height={90} className="w-[280px] sm:w-[320px] object-contain drop-shadow-sm" />
@@ -167,13 +169,27 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordPage() {
+  // Same floating ink as the sign-in page, without pointer parallax (the drops still float).
+  const still = useMotionValue(0);
   return (
+    <MotionConfig reducedMotion="user">
+    <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+      <InkDrops px={still} py={still} />
+    </div>
+    <motion.div
+      className="relative z-10"
+      initial={{ opacity: 0, y: 40, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+    >
     <Suspense fallback={
-      <div className="bg-white/95 backdrop-blur-2xl w-full rounded-[2.5rem] p-8 text-center text-slate-500 font-medium">
+      <div className="bg-white/95 backdrop-blur-2xl w-full max-w-[460px] mx-auto rounded-[2.5rem] p-8 text-center text-slate-500 font-medium">
         Loading form...
       </div>
     }>
       <ResetPasswordForm />
     </Suspense>
+    </motion.div>
+    </MotionConfig>
   );
 }
