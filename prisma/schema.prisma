@@ -380,10 +380,10 @@ model CategoryBudget {
   @@index([category, month, year])
 }
 
-/// OWNER (exactly one, full access), ADMIN (full access), STAFF (editable defaults), CUSTOM (see User.customRole).
+/// ADMIN (full access, manages the team), MANAGER and STAFF (editable defaults), CUSTOM (see User.customRole).
 enum Role {
-  OWNER
   ADMIN
+  MANAGER
   STAFF
   CUSTOM
 }

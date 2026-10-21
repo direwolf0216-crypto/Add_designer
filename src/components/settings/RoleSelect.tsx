@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { useSession } from "next-auth/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fetcher } from "@/lib/swr";
 import type { RoleSummary } from "@/lib/services/roles";
 
 export const roleIcon = (r: Pick<RoleSummary, "key" | "kind">) =>
-  r.key === "OWNER" ? "ph-crown-simple" : r.key === "ADMIN" ? "ph-shield-check" : r.key === "STAFF" ? "ph-users" : "ph-identification-badge";
+  r.key === "ADMIN" ? "ph-shield-check" : r.key === "MANAGER" ? "ph-briefcase" : r.key === "STAFF" ? "ph-users" : "ph-identification-badge";
 
 export function useRoles() {
   const { data, mutate, isLoading } = useSWR<{ roles: RoleSummary[] }>("/api/roles", fetcher, { revalidateOnFocus: false });
@@ -16,15 +15,13 @@ export function useRoles() {
 }
 
 /**
- * Role picker for inviting/editing people. Lists Admin (owner only), Staff and every custom role.
- * `value` is a role key ("ADMIN" | "STAFF" | "custom:<id>").
+ * Role picker for inviting/editing people. Lists Admin, Manager, Staff and every custom role.
+ * `value` is a role key ("ADMIN" | "MANAGER" | "STAFF" | "custom:<id>").
  */
 export default function RoleSelect({ value, onChange, disabled, fallbackLabel }: { value: string; onChange: (key: string) => void; disabled?: boolean; fallbackLabel?: string }) {
   const { roles } = useRoles();
-  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
-  const isOwner = session?.user?.role === "OWNER";
-  const options = roles.filter((r) => r.key !== "OWNER" && (r.key !== "ADMIN" || isOwner || value === "ADMIN"));
+  const options = roles;
   const current = roles.find((r) => r.key === value);
 
   return (

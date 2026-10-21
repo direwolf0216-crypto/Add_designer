@@ -55,7 +55,7 @@ export const GET = route(async (req) => {
   const assigneeIds = (job: (typeof upcomingJobs)[number]) => job.assignments.map((a) => a.userId);
   const assigned = [...new Set(upcomingJobs.flatMap(assigneeIds))];
   const [admins, activeAssigned] = await Promise.all([
-    prisma.user.findMany({ where: { role: { in: ["OWNER", "ADMIN"] }, status: "ACTIVE" }, select: { id: true } }),
+    prisma.user.findMany({ where: { role: { in: ["ADMIN", "MANAGER"] }, status: "ACTIVE" }, select: { id: true } }),
     prisma.user.findMany({ where: { id: { in: assigned }, status: "ACTIVE" }, select: { id: true } }),
   ]);
   const activeIds = new Set(activeAssigned.map((u) => u.id));

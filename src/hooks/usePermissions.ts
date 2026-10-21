@@ -18,5 +18,5 @@ export function usePermissions() {
     return isPermission(action) && (granted?.includes(action) ?? false);
   };
 
-  return { checkPermission, role, isAdmin: hasFullAccess(role), isOwner: role === "OWNER" };
+  return { checkPermission, role, isAdmin: hasFullAccess(role) };
 }

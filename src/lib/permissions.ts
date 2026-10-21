@@ -1,15 +1,19 @@
 // Shared by the client (UI gating) and the server (enforcement). Keep free of server-only imports.
 
 /** Base role kinds stored on the user. CUSTOM users take their permissions from their custom role. */
-export const ROLES = ["OWNER", "ADMIN", "STAFF", "CUSTOM"] as const;
+export const ROLES = ["ADMIN", "MANAGER", "STAFF", "CUSTOM"] as const;
 export type AppRole = (typeof ROLES)[number];
 
-/** Roles that exist out of the box. Owner and Admin always hold every permission. */
-export const SYSTEM_ROLES = ["OWNER", "ADMIN", "STAFF"] as const;
+/** Roles that exist out of the box. Admin always holds every permission; Manager and Staff are editable. */
+export const SYSTEM_ROLES = ["ADMIN", "MANAGER", "STAFF"] as const;
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
 
-/** Roles an admin can give someone directly (ownership is transferred, never assigned). */
-export const ASSIGNABLE_SYSTEM_ROLES = ["ADMIN", "STAFF"] as const;
+/** Built-in roles an admin can give someone. */
+export const ASSIGNABLE_SYSTEM_ROLES = ["ADMIN", "MANAGER", "STAFF"] as const;
+
+/** Built-in roles whose permissions an admin can switch on and off (stored as RolePermission rows). */
+export const EDITABLE_SYSTEM_ROLES = ["MANAGER", "STAFF"] as const;
+export type EditableSystemRole = (typeof EDITABLE_SYSTEM_ROLES)[number];
 
 export const PERMISSIONS = [
   "manage_jobs",
@@ -43,7 +47,7 @@ export const PERMISSION_GROUPS: { title: string; permissions: Permission[] }[] =
   { title: "Designs", permissions: ["view_designs", "manage_designs"] },
 ];
 
-export const ROLE_LABEL: Record<SystemRole, string> = { OWNER: "Owner", ADMIN: "Admin", STAFF: "Staff" };
+export const ROLE_LABEL: Record<SystemRole, string> = { ADMIN: "Admin", MANAGER: "Manager", STAFF: "Staff" };
 
 /** Staff defaults, used until an admin changes a Staff permission. */
 export const STAFF_DEFAULTS: Record<Permission, boolean> = {
@@ -59,6 +63,15 @@ export const STAFF_DEFAULTS: Record<Permission, boolean> = {
   manage_designs: false,
 };
 
+/** Manager defaults: every job, ledger, report and design permission (team and settings stay with admins). */
+export const MANAGER_DEFAULTS: Record<Permission, boolean> = Object.fromEntries(PERMISSIONS.map((p) => [p, true])) as Record<Permission, boolean>;
+
+const SYSTEM_DEFAULTS: Record<EditableSystemRole, Record<Permission, boolean>> = { MANAGER: MANAGER_DEFAULTS, STAFF: STAFF_DEFAULTS };
+
+export function isEditableSystemRole(value: unknown): value is EditableSystemRole {
+  return typeof value === "string" && (EDITABLE_SYSTEM_ROLES as readonly string[]).includes(value);
+}
+
 export function isPermission(value: string): value is Permission {
   return (PERMISSIONS as readonly string[]).includes(value);
 }
@@ -68,22 +81,27 @@ export function isRole(value: unknown): value is AppRole {
 }
 
 /**
- * Owner and Admin hold every permission, so nobody can lock the press out of its own settings.
+ * Admins hold every permission, so nobody can lock the press out of its own settings.
  * Team and role management is theirs alone (a role that could edit roles could promote itself).
  */
-export const hasFullAccess = (role: AppRole | string | null | undefined) => role === "OWNER" || role === "ADMIN";
+export const hasFullAccess = (role: AppRole | string | null | undefined) => role === "ADMIN";
 
 type Override = { role: string; permission: string; enabled: boolean };
 
-/** Staff permissions from the stored overrides, falling back to the defaults. */
-export function staffPermissions(overrides: Override[]): Permission[] {
-  return PERMISSIONS.filter((p) => overrides.find((o) => o.role === "STAFF" && o.permission === p)?.enabled ?? STAFF_DEFAULTS[p]);
+/** A Manager's or Staff member's permissions from the stored overrides, falling back to the role's defaults. */
+export function systemRolePermissions(role: EditableSystemRole, overrides: Override[]): Permission[] {
+  return PERMISSIONS.filter((p) => overrides.find((o) => o.role === role && o.permission === p)?.enabled ?? SYSTEM_DEFAULTS[role][p]);
 }
 
-/** Every permission a user holds, given their role, their custom role's list and the Staff overrides. */
-export function resolvePermissions(role: AppRole, customPermissions: readonly string[] | null | undefined, staffOverrides: Override[]): Permission[] {
+/** Staff permissions from the stored overrides, falling back to the defaults. */
+export function staffPermissions(overrides: Override[]): Permission[] {
+  return systemRolePermissions("STAFF", overrides);
+}
+
+/** Every permission a user holds, given their role, their custom role's list and the Manager/Staff overrides. */
+export function resolvePermissions(role: AppRole, customPermissions: readonly string[] | null | undefined, systemOverrides: Override[]): Permission[] {
   if (hasFullAccess(role)) return [...PERMISSIONS];
-  if (role === "STAFF") return staffPermissions(staffOverrides);
+  if (isEditableSystemRole(role)) return systemRolePermissions(role, systemOverrides);
   return (customPermissions ?? []).filter(isPermission);
 }
 
@@ -94,15 +112,17 @@ export function roleLabel(role: string, customRoleName?: string | null): string 
 }
 
 /**
- * A single string for a role, used by pickers and the roles API: "OWNER" | "ADMIN" | "STAFF" for
+ * A single string for a role, used by pickers and the roles API: "ADMIN" | "MANAGER" | "STAFF" for
  * built-in roles, "custom:<id>" for a custom role.
  */
 export function roleKey(role: string, customRoleId?: string | null): string {
   return role === "CUSTOM" && customRoleId ? `custom:${customRoleId}` : role;
 }
 
-export function parseRoleKey(key: string): { role: "ADMIN" | "STAFF" | "OWNER"; customRoleId: null } | { role: "CUSTOM"; customRoleId: string } | null {
+export function parseRoleKey(key: string): { role: SystemRole; customRoleId: null } | { role: "CUSTOM"; customRoleId: string } | null {
   if (key.startsWith("custom:") && key.length > 7) return { role: "CUSTOM", customRoleId: key.slice(7) };
+  // Saved before the Owner role was folded into Admin.
+  if (key === "OWNER") return { role: "ADMIN", customRoleId: null };
   if ((SYSTEM_ROLES as readonly string[]).includes(key)) return { role: key as SystemRole, customRoleId: null };
   return null;
 }

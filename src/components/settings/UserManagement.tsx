@@ -14,7 +14,7 @@ interface User {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: "OWNER" | "ADMIN" | "STAFF" | "CUSTOM";
+  role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOM";
   roleKey: string;
   roleName: string;
   status: "ACTIVE" | "PENDING" | "INACTIVE";
@@ -23,8 +23,8 @@ interface User {
 }
 
 const ROLE_BADGES: Record<string, { bg: string; text: string; icon: string }> = {
-  OWNER: { bg: "bg-amber-50", text: "text-amber-700", icon: "ph-crown-simple" },
   ADMIN: { bg: "bg-orange-50", text: "text-orange-600", icon: "ph-shield-check" },
+  MANAGER: { bg: "bg-emerald-50", text: "text-emerald-700", icon: "ph-briefcase" },
   STAFF: { bg: "bg-[#eff6ff]", text: "text-blue-600", icon: "ph-users" },
   CUSTOM: { bg: "bg-violet-50", text: "text-violet-600", icon: "ph-identification-badge" },
 };
@@ -64,7 +64,6 @@ export default function UserManagement() {
   const [editTarget, setEditTarget] = useState<User | null>(null);
 
   const currentUserId = session?.user?.id;
-  const viewerIsOwner = session?.user?.role === "OWNER";
 
   const getInitials = (name: string | null) => {
     if (!name) return "??";
@@ -119,17 +118,13 @@ export default function UserManagement() {
             users.map((user) => {
               const isCurrentUser = user.id === currentUserId;
               const statusStyle = STATUS_STYLES[user.status] || STATUS_STYLES.ACTIVE;
-              // Only the owner manages admins, and nobody but the owner edits the owner (enforced server-side too).
-              const isEditable = isCurrentUser || (user.role !== "OWNER" && (user.role !== "ADMIN" || viewerIsOwner));
+              // Admins manage everyone (the server keeps at least one active admin).
+              const isEditable = true;
 
               return (
                 <div
                   key={user.id}
                   onClick={() => {
-                    if (!isEditable) {
-                      toast.error(user.role === "OWNER" ? "Only the owner can edit the owner's account." : "Only the owner can edit admins.");
-                      return;
-                    }
                     setEditTarget(user);
                   }}
                   className={`px-4 py-2.5 flex items-center gap-3 transition-all group rounded-xl border ${
@@ -137,14 +132,11 @@ export default function UserManagement() {
                   } ${
                     isCurrentUser ? "bg-[#fcfaff] border-purple-100 shadow-sm hover:border-purple-200" : "bg-white border-gray-100 shadow-sm " + (isEditable ? "hover:border-orange-100" : "")
                   }`}
-                  title={isEditable ? "Click to edit user" : user.role === "OWNER" ? "The owner's account" : "Only the owner can edit admins"}
+                  title="Click to edit user"
                 >
                   {/* Avatar */}
                   <div className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 relative ${getAvatarColor(user.name)}`}>
                     {getInitials(user.name)}
-                    {user.role === "OWNER" && (
-                      <i className="ph-fill ph-crown absolute -top-1 -left-1 text-orange-400 text-[0.65rem] bg-white rounded-full p-0.5 shadow-sm"></i>
-                    )}
                   </div>
 
                   {/* Info */}

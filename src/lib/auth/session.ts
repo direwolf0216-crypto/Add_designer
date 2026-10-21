@@ -31,25 +31,18 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
-/** Throws 403 unless the signed-in user is the Owner or an Admin. */
+/** Throws 403 unless the signed-in user is an Admin. */
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
   if (!hasFullAccess(user.role)) throw forbidden();
   return user;
 }
 
-/** Throws 403 unless the signed-in user is the Owner. */
-export async function requireOwner(): Promise<SessionUser> {
-  const user = await requireUser();
-  if (user.role !== "OWNER") throw forbidden("Only the owner can do this");
-  return user;
-}
-
 /** Every permission a user currently holds, read fresh from the database (one round trip). */
 export async function loadUserPermissions(userId: string) {
-  const [user, staffOverrides] = await Promise.all([
+  const [user, systemOverrides] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { role: true, status: true, customRoleId: true, customRole: { select: { name: true, permissions: true } } } }),
-    prisma.rolePermission.findMany({ where: { role: "STAFF" }, select: { role: true, permission: true, enabled: true } }),
+    prisma.rolePermission.findMany({ where: { role: { in: ["MANAGER", "STAFF"] } }, select: { role: true, permission: true, enabled: true } }),
   ]);
   if (!user) return null;
   return {
@@ -57,7 +50,7 @@ export async function loadUserPermissions(userId: string) {
     status: user.status,
     customRoleId: user.customRoleId,
     roleName: user.customRole?.name ?? null,
-    permissions: resolvePermissions(user.role as AppRole, user.customRole?.permissions, staffOverrides),
+    permissions: resolvePermissions(user.role as AppRole, user.customRole?.permissions, systemOverrides),
   };
 }
 

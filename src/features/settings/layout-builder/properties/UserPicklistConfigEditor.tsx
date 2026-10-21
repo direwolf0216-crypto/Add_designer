@@ -11,7 +11,7 @@ interface UserPicklistConfigEditorProps {
   onChange: (updates: Partial<FormField>) => void;
 }
 
-const FALLBACK_ROLES = [{ key: "OWNER", name: "Owner" }, { key: "ADMIN", name: "Admin" }, { key: "STAFF", name: "Staff" }];
+const FALLBACK_ROLES = [{ key: "ADMIN", name: "Admin" }, { key: "MANAGER", name: "Manager" }, { key: "STAFF", name: "Staff" }];
 
 /** USER_PICKLIST / MULTI_USER_PICKLIST: which users the pick-list offers, and availability display. */
 export default function UserPicklistConfigEditor({ field: selectedField, users: allUsers, onChange: updateSelectedField }: UserPicklistConfigEditorProps) {

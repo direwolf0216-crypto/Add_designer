@@ -8,7 +8,7 @@ import { roleIcon } from "../RoleSelect";
 
 /** Delete a custom role; anyone still holding it is moved to the chosen role in the same request. */
 export default function DeleteRoleDialog({ role, roles, onClose, onDeleted }: { role: RoleSummary; roles: RoleSummary[]; onClose: () => void; onDeleted: () => void }) {
-  const targets = roles.filter((r) => r.key === "STAFF" || (r.kind === "custom" && r.key !== role.key));
+  const targets = roles.filter((r) => r.key === "MANAGER" || r.key === "STAFF" || (r.kind === "custom" && r.key !== role.key));
   const [moveTo, setMoveTo] = useState("STAFF");
   const [busy, setBusy] = useState(false);
 

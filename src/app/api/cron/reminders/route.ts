@@ -90,7 +90,7 @@ export const GET = route(async (req) => {
   const calendarDate = (d: Date) => d.toISOString().slice(0, 10);
   const now = new Date();
 
-  const admins = await prisma.user.findMany({ where: { role: { in: ["OWNER", "ADMIN"] }, status: "ACTIVE" }, select: { id: true } });
+  const admins = await prisma.user.findMany({ where: { role: { in: ["ADMIN", "MANAGER"] }, status: "ACTIVE" }, select: { id: true } });
   if (admins.length === 0) return NextResponse.json({ success: true, notificationsCreated: 0 });
 
   const [advanceMissing, proofPendingJobs, finishingPendingJobs, dueJobs] = await Promise.all([

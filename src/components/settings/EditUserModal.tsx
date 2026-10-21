@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
-import { useConfirm } from "@/components/ui/confirm-dialog";
 import RoleSelect from "./RoleSelect";
 
 interface User {
@@ -13,7 +11,7 @@ interface User {
   name: string | null;
   email: string | null;
   phone: string | null;
-  role: "OWNER" | "ADMIN" | "STAFF" | "CUSTOM";
+  role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOM";
   roleKey: string;
   roleName: string;
   status: "ACTIVE" | "PENDING" | "INACTIVE";
@@ -36,11 +34,6 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
   const [name, setName] = useState(user.name || "");
   const [phone, setPhone] = useState(user.phone || "");
   const [role, setRole] = useState(user.roleKey);
-  const { data: session } = useSession();
-  const confirm = useConfirm();
-  const isOwnerTarget = user.role === "OWNER";
-  const canTransfer = session?.user?.role === "OWNER" && !isCurrentUser && user.status === "ACTIVE";
-  const [isTransferring, setIsTransferring] = useState(false);
   const [status, setStatus] = useState(user.status);
   
   const [isSaving, setIsSaving] = useState(false);
@@ -77,28 +70,6 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
       toast.error(err.message);
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleTransfer = async () => {
-    const ok = await confirm({
-      title: `Make ${user.name || "this person"} the owner?`,
-      description: "They get full control, including managing admins. You stay on as an admin and can't undo this yourself.",
-      confirmLabel: "Transfer ownership",
-      tone: "danger",
-      icon: "ph-crown-simple",
-    });
-    if (!ok) return;
-    setIsTransferring(true);
-    try {
-      const res = await fetch(`/api/users/${user.id}/transfer-ownership`, { method: "POST" });
-      if (!res.ok) throw new Error((await res.json()).error || "Couldn't transfer ownership");
-      toast.success(`${user.name || "They"} now own the account`);
-      onSuccess();
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setIsTransferring(false);
     }
   };
 
@@ -205,7 +176,7 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Role
                 </label>
-                <RoleSelect value={role} onChange={setRole} disabled={isCurrentUser || isOwnerTarget} fallbackLabel={user.roleName} />
+                <RoleSelect value={role} onChange={setRole} disabled={isCurrentUser} fallbackLabel={user.roleName} />
               </div>
 
               {/* Status Dropdown */}
@@ -214,13 +185,13 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
                   Status
                 </label>
                 <div 
-                  onClick={() => !isCurrentUser && !isOwnerTarget && setStatusDropdownOpen(!statusDropdownOpen)}
-                  className={`w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm transition-all shadow-sm flex items-center justify-between ${isCurrentUser || isOwnerTarget ? "bg-slate-100 cursor-not-allowed text-slate-500" : "cursor-pointer hover:border-orange-200"}`}
+                  onClick={() => !isCurrentUser && setStatusDropdownOpen(!statusDropdownOpen)}
+                  className={`w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm transition-all shadow-sm flex items-center justify-between ${isCurrentUser ? "bg-slate-100 cursor-not-allowed text-slate-500" : "cursor-pointer hover:border-orange-200"}`}
                 >
                   <span className="font-medium">{STATUS_LABELS[status]}</span>
                   <i className={`ph ph-caret-down text-slate-400 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`}></i>
                 </div>
-                {statusDropdownOpen && !isCurrentUser && !isOwnerTarget && (
+                {statusDropdownOpen && !isCurrentUser && (
                   <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] py-1.5 animate-in fade-in zoom-in-95 duration-100">
                     {(Object.keys(STATUS_LABELS) as Array<keyof typeof STATUS_LABELS>).map((s) => (
                       <div 
@@ -238,25 +209,7 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
             </div>
           </div>
 
-          {canTransfer && (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900">Transfer ownership</p>
-                <p className="text-xs text-slate-500">Hand the account over. You become an admin.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleTransfer}
-                disabled={isTransferring}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-200 transition-colors hover:bg-amber-100 disabled:opacity-50"
-              >
-                <i className={`ph-bold ${isTransferring ? "ph-circle-notch animate-spin" : "ph-crown-simple"}`} aria-hidden="true"></i>
-                Make owner
-              </button>
-            </div>
-          )}
-
-          {!isCurrentUser && !isOwnerTarget && (
+          {!isCurrentUser && (
             <div className="pt-4 border-t border-red-100">
               {showDeleteConfirm ? (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">

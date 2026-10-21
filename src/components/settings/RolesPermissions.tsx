@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
@@ -41,7 +41,7 @@ function RoleItem({ r, on, onSelect }: { r: RoleSummary; on: boolean; onSelect: 
 }
 
 
-/** Settings → Roles & Permissions: Owner, Admin and Staff plus custom roles (create, duplicate, edit, delete). */
+/** Settings → Roles & Permissions: Admin, Manager and Staff plus custom roles (create, duplicate, rename, edit, delete). */
 export default function RolesPermissions() {
   const { roles, mutate, isLoading } = useRoles();
   const [selectedKey, setSelectedKey] = useState("STAFF");
@@ -60,6 +60,7 @@ export default function RolesPermissions() {
   const [creating, setCreating] = useState<{ from: RoleSummary | null } | null>(null);
   const [deleting, setDeleting] = useState<RoleSummary | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const toggle = (p: Permission) =>
     setDraft((d) => (d ? { ...d, permissions: d.permissions.includes(p) ? d.permissions.filter((x) => x !== p) : PERMISSIONS.filter((x) => x === p || d.permissions.includes(x)) } : d));
@@ -97,7 +98,7 @@ export default function RolesPermissions() {
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900">Roles & Permissions</h2>
-          <p className="mt-1 text-sm text-slate-500">Owner, Admin and Staff come built in. Create your own roles or duplicate one to start from its permissions.</p>
+          <p className="mt-1 text-sm text-slate-500">Admin, Manager and Staff come built in. Create your own roles, rename or delete them, or duplicate one to start from its permissions.</p>
         </div>
         <button
           type="button"
@@ -142,6 +143,7 @@ export default function RolesPermissions() {
                 {selected.kind === "custom" ? (
                   <>
                     <input
+                      ref={nameRef}
                       value={draft.name}
                       onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                       maxLength={40}
@@ -173,6 +175,30 @@ export default function RolesPermissions() {
                 </div>
               </div>
 
+              {selected.kind === "custom" && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      nameRef.current?.focus();
+                      nameRef.current?.select();
+                    }}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition-colors hover:bg-slate-50"
+                  >
+                    <i className="ph-bold ph-pencil-simple" aria-hidden="true"></i>
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleting(selected)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-rose-600 ring-1 ring-rose-200 transition-colors hover:bg-rose-50"
+                  >
+                    <i className="ph-bold ph-trash" aria-hidden="true"></i>
+                    Delete
+                  </button>
+                </div>
+              )}
+
               <Popover open={menuOpen} onOpenChange={setMenuOpen}>
                 <PopoverTrigger aria-label="Role actions" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-900">
                   <i className="ph-bold ph-dots-three text-lg" aria-hidden="true"></i>
@@ -189,19 +215,6 @@ export default function RolesPermissions() {
                     <i className="ph-bold ph-copy" aria-hidden="true"></i>
                     Duplicate
                   </button>
-                  {selected.kind === "custom" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setDeleting(selected);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50"
-                    >
-                      <i className="ph-bold ph-trash" aria-hidden="true"></i>
-                      Delete role
-                    </button>
-                  )}
                 </PopoverContent>
               </Popover>
             </header>
@@ -209,9 +222,7 @@ export default function RolesPermissions() {
             {selected.locked && (
               <p className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-amber-100">
                 <i className="ph-bold ph-lock-simple" aria-hidden="true"></i>
-                {selected.key === "OWNER"
-                  ? "The owner always has full access and is the only one who can manage admins."
-                  : "Admins always have full access, so nobody gets locked out of settings."}
+                Admins always have full access, including the team, roles and settings, so nobody gets locked out.
               </p>
             )}
 
