@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { toast } from "sonner";
 import { MotionConfig, motion, useAnimationControls, useMotionTemplate, useMotionValue, useSpring, useTransform, type Variants } from "framer-motion";
 import InkDrops from "./InkDrops";
@@ -398,6 +399,13 @@ function LoginForm() {
               </motion.button>
 
             </form>
+
+            <motion.p variants={rise} className="mt-4 text-center text-[0.7rem] font-medium text-slate-400 sm:mt-5">
+              By signing in you agree to our{" "}
+              <Link href="/terms" className="font-bold text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline">Terms</Link>
+              {" "}and{" "}
+              <Link href="/privacy" className="font-bold text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline">Privacy Policy</Link>.
+            </motion.p>
 
           </motion.div>
 
