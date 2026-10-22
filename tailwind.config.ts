@@ -11,6 +11,11 @@ const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
+      // `short:` targets viewports under 800px tall (1366x768 laptops, phones in landscape), where
+      // hero pages must shrink to fit without scrolling.
+      screens: {
+        short: { raw: "(max-height: 800px)" },
+      },
       // base-ui marks state with bare data attributes (data-open, data-closed, …).
       data: {
         open: "open",

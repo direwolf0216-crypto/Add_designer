@@ -158,8 +158,8 @@ export default function TopNavigation() {
 
 
   return (
-    <header className={`relative flex ${title ? 'justify-between' : 'justify-end'} items-center px-4 md:px-10 py-4 md:py-5 bg-transparent z-50`}>
-      <div className="flex items-center gap-3">
+    <header className={`relative flex ${title ? 'justify-between' : 'justify-end'} items-center gap-3 px-4 md:px-6 xl:px-10 py-4 md:py-5 bg-transparent z-50`}>
+      <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
           aria-label="Open navigation menu"
@@ -191,11 +191,11 @@ export default function TopNavigation() {
             </div>
           </div>
         ) : (
-          title && <h1 className="hidden font-display text-xl font-semibold tracking-[-0.02em] text-slate-900 sm:block md:text-[2.4rem] md:leading-none">{title}</h1>
+          title && <h1 className="hidden truncate font-display text-xl font-semibold tracking-[-0.02em] text-slate-900 sm:block md:text-[1.75rem] md:leading-none xl:text-[2.4rem]">{title}</h1>
         )}
       </div>
 
-      <div className="flex items-center gap-3 md:gap-5">
+      <div className="flex shrink-0 items-center gap-3 md:gap-4 xl:gap-5">
         <div ref={searchRef} className="relative">
           <button
             className="md:hidden w-[45px] h-[45px] flex items-center justify-center rounded-full bg-white border border-gray-200 text-slate-600 shadow-sm"
@@ -208,7 +208,7 @@ export default function TopNavigation() {
           </button>
 
           <div className={`
-            absolute right-0 top-14 md:top-auto md:relative md:flex bg-white border border-gray-200 rounded-2xl md:rounded-full px-4 py-2 items-center gap-2.5 w-[calc(100vw-32px)] sm:w-[300px] shadow-lg md:shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent z-[100]
+            absolute right-0 top-14 md:top-auto md:relative md:flex bg-white border border-gray-200 rounded-2xl md:rounded-full px-4 py-2 items-center gap-2.5 w-[calc(100vw-32px)] sm:w-[300px] md:w-[220px] lg:w-[240px] xl:w-[300px] shadow-lg md:shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent z-[100]
             ${isMobileSearchOpen ? 'flex' : 'hidden'}
           `}>
             <input

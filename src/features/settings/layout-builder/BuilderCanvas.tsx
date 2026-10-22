@@ -34,7 +34,7 @@ export default function BuilderCanvas({
   const sections = layout.schema.sections;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-10 relative bg-white" onClick={() => onSelectField(null)}>
+    <div className="flex-1 min-h-[320px] lg:overflow-y-auto p-4 sm:p-6 lg:p-10 relative bg-white" onClick={() => onSelectField(null)}>
       <div className="max-w-[850px] mx-auto flex flex-col gap-6 lg:gap-8 pb-20">
         {(!sections || sections.length === 0) ? (
           <div className="border-2 border-dashed border-gray-200 bg-slate-50/50 rounded-2xl p-16 text-center shadow-sm">

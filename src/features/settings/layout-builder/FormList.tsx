@@ -14,22 +14,22 @@ interface FormListProps {
 /** View 1: grid of all form layouts. */
 export default function FormList({ layouts, onOpen, onCreateClick, children }: FormListProps) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden h-[750px] flex flex-col">
-      <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden md:h-[750px] flex flex-col">
+      <div className="px-5 py-5 md:px-8 md:py-6 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-white shrink-0">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900">Form Layouts</h2>
           <p className="text-slate-500 text-sm mt-0.5">Manage and customize your data entry forms.</p>
         </div>
         <button
           onClick={onCreateClick}
-          className="px-5 py-2.5 bg-orange-500 text-white font-semibold text-sm rounded-xl hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2"
+          className="shrink-0 whitespace-nowrap px-5 py-2.5 bg-orange-500 text-white font-semibold text-sm rounded-xl hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2"
         >
           <i className="ph-bold ph-plus"></i> Create Form
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="flex-1 overflow-y-auto p-5 md:p-8 bg-slate-50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
           {layouts.map(layout => (
             <div
               key={layout.formKey}

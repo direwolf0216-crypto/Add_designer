@@ -83,7 +83,7 @@ export default function RolesPermissions() {
 
   if (isLoading && roles.length === 0) {
     return (
-      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
         <div className="h-72 animate-pulse rounded-3xl bg-slate-100" />
         <div className="h-[28rem] animate-pulse rounded-3xl bg-slate-100" />
       </div>
@@ -110,18 +110,18 @@ export default function RolesPermissions() {
         </button>
       </div>
 
-      <div className="grid items-start gap-5 md:grid-cols-[260px_1fr]">
-        <nav aria-label="Roles" className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/80 p-2.5 md:sticky md:top-4">
+      <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr]">
+        <nav aria-label="Roles" className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/80 p-2.5 lg:sticky lg:top-4">
           <div>
             <p className="px-3 pt-1 pb-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Built in</p>
-            <ul className="flex flex-col gap-0.5">
+            <ul className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 lg:flex lg:flex-col">
               {system.map((r) => <RoleItem key={r.key} r={r} on={r.key === selected?.key} onSelect={() => setSelectedKey(r.key)} />)}
             </ul>
           </div>
           <div>
             <p className="px-3 pb-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Custom</p>
             {custom.length ? (
-              <ul className="flex flex-col gap-0.5">
+              <ul className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 lg:flex lg:flex-col">
                 {custom.map((r) => <RoleItem key={r.key} r={r} on={r.key === selected?.key} onSelect={() => setSelectedKey(r.key)} />)}
               </ul>
             ) : (

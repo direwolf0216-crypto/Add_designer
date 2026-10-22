@@ -31,7 +31,7 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
         className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-transparent p-3 transition-all hover:border-slate-200 hover:bg-slate-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 sm:p-4 group ${isChild ? 'bg-slate-50/50 my-1 py-2 sm:py-2.5 rounded-xl' : ''}`}
       >
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${colorClass.bg} ${colorClass.text} ${isChild ? 'w-10 h-10 rounded-lg' : ''}`}>
+          <div className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${colorClass.bg} ${colorClass.text} ${isChild ? 'w-10 h-10 rounded-lg' : ''}`}>
             <i className={`ph-bold ${iconClass} ${isChild ? 'text-lg' : 'text-xl'}`}></i>
           </div>
           <div className="min-w-0">
@@ -62,14 +62,14 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-right sm:gap-2">
-          <div className="min-w-[100px] text-right">
+          <div className="min-w-0 text-right sm:min-w-[100px]">
             <div className={`text-sm font-bold sm:text-base ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
               {tx.type === 'EXPENSE' ? '\u2212' : ''}{formatINR(tx.amount)}
             </div>
           </div>
 
           {!tx.isGroup && (
-            <div className="flex items-center gap-1 w-[64px] justify-end">
+            <div className="hidden sm:flex items-center gap-1 w-[64px] justify-end">
               <button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -93,7 +93,7 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
             </div>
           )}
           {tx.isGroup && (
-            <div className="flex items-center gap-1 w-[64px] justify-end">
+            <div className="hidden sm:flex items-center gap-1 w-[64px] justify-end">
               <button
                 onClick={(event) => {
                   event.stopPropagation();

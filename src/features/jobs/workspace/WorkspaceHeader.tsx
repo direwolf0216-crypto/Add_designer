@@ -20,7 +20,7 @@ const VIEWS = [
   { id: "queue", label: "Queue", icon: "ph-list-numbers" },
 ] as const;
 
-function Segmented<T extends string>({ value, options, hrefFor, label }: { value: T; options: { id: T; label: string; icon?: string; badge?: number }[]; hrefFor: (id: T) => string; label: string }) {
+function Segmented<T extends string>({ value, options, hrefFor, label, compact = false }: { value: T; options: { id: T; label: string; icon?: string; badge?: number }[]; hrefFor: (id: T) => string; label: string; /** Icons only below `sm` (labels stay for screen readers). */ compact?: boolean }) {
   return (
     <div role="tablist" aria-label={label} className="inline-flex rounded-2xl bg-slate-900/5 p-1 ring-1 ring-slate-900/5 backdrop-blur">
       {options.map((o) => {
@@ -32,10 +32,11 @@ function Segmented<T extends string>({ value, options, hrefFor, label }: { value
             aria-selected={active}
             href={hrefFor(o.id)}
             scroll={false}
-            className={`relative inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold transition-all ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+            title={compact ? o.label : undefined}
+            className={`relative inline-flex items-center gap-1.5 rounded-xl py-1.5 text-sm font-bold transition-all ${compact ? "px-2.5 sm:px-3" : "px-3"} ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
           >
-            {o.icon && <i className={`ph-bold ${o.icon}`} aria-hidden="true"></i>}
-            {o.label}
+            {o.icon && <i className={`ph-bold ${o.icon} ${compact ? "text-[15px]" : ""}`} aria-hidden="true"></i>}
+            <span className={compact ? "sr-only sm:not-sr-only" : undefined}>{o.label}</span>
             {o.badge !== undefined && (
               <span className={`rounded-full px-1.5 text-[0.65rem] font-black ${active ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-600"}`}>{o.badge}</span>
             )}
@@ -97,7 +98,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
           </span>
           <div className="min-w-0">
             <h1 className="text-2xl font-black tracking-tight text-slate-950">Jobs</h1>
-            <p className="truncate text-sm font-medium text-slate-500">
+            <p className="text-sm font-medium text-slate-500 sm:truncate">
               {params.scope === "mine" ? "Jobs assigned to you" : "Every print job across the press"} · {data.stats.active} open
             </p>
           </div>
@@ -155,6 +156,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
           <FiltersMenu data={data} />
           <Segmented
             label="View"
+            compact
             value={params.view}
             options={VIEWS.map((v) => ({ ...v }))}
             hrefFor={(id) => hrefWith({ view: id === "board" ? null : id, more: null, sort: null, dir: null, team: id === "queue" ? params.team || null : null })}

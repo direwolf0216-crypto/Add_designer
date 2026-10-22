@@ -243,7 +243,7 @@ export default function RecycleBin() {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-gray-200">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-[640px] text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-gray-200">
               <th className="p-4 w-[40px]">

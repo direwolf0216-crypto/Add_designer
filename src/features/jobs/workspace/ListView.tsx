@@ -10,14 +10,16 @@ import StageBadge from "./StageBadge";
 import DueChip from "./DueChip";
 import { useWorkspaceUrl } from "./url";
 
-const COLUMNS: { key: WorkspaceSort | null; label: string; className: string }[] = [
-  { key: null, label: "Job", className: "w-[30%]" },
-  { key: null, label: "Stage", className: "w-[18%]" },
-  { key: "due", label: "Due", className: "w-[13%]" },
-  { key: "amount", label: "Amount", className: "w-[16%] text-right" },
-  { key: null, label: "Assigned", className: "w-[12%]" },
-  { key: "order", label: "Ordered", className: "w-[11%]" },
+// `cell` is shared by the header and body cells: narrower screens hide the last columns rather than squeezing all of them.
+const COLUMNS: { key: WorkspaceSort | null; label: string; className: string; cell?: string }[] = [
+  { key: null, label: "Job", className: "w-[34%]" },
+  { key: null, label: "Stage", className: "w-[17%]" },
+  { key: "due", label: "Due", className: "w-[14%]" },
+  { key: "amount", label: "Amount", className: "w-[15%] text-right" },
+  { key: null, label: "Assigned", className: "w-[11%]", cell: "hidden lg:table-cell" },
+  { key: "order", label: "Ordered", className: "w-[9%]", cell: "hidden xl:table-cell" },
 ];
+const CELL = Object.fromEntries(COLUMNS.map((c) => [c.label, c.cell ?? ""]));
 
 /** Dense, sortable job table (cards on small screens), server-paginated. */
 export default function ListView({ data }: { data: WorkspaceData }) {
@@ -38,7 +40,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
             {columns.map((c) => {
               const active = c.key && sort === c.key;
               return (
-                <th key={c.label} scope="col" className={`px-4 py-3 ${c.className}`} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
+                <th key={c.label} scope="col" className={`px-4 py-3 ${c.className} ${c.cell ?? ""}`} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
                   {c.key ? (
                     <Link
                       href={hrefWith({ sort: c.key, dir: active && dir === "asc" ? "desc" : "asc" })}
@@ -86,7 +88,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
                 <DueChip due={job.dueDate} today={data.today} closed={/^delivered$|cancel/i.test(job.stage.trim())} />
               </td>
               {job.amount !== null && (
-                <td className="px-4 py-3 text-right">
+                <td className="whitespace-nowrap px-4 py-3 text-right">
                   <Amount value={job.amount} className="block text-sm font-extrabold text-slate-900" />
                   {job.amount > 0 && (
                     <span className={`text-[0.7rem] font-bold ${(job.balance ?? 0) > 0 ? "text-rose-600" : "text-emerald-600"}`}>
@@ -101,10 +103,10 @@ export default function ListView({ data }: { data: WorkspaceData }) {
                   )}
                 </td>
               )}
-              <td className="px-4 py-3">
+              <td className={`px-4 py-3 ${CELL.Assigned}`}>
                 <AssigneeAvatars assignees={job.assignees.map((a) => ({ ...a, user: { ...a.user, image: a.user.image ?? undefined } }))} size={26} />
               </td>
-              <td className="px-4 py-3 text-xs font-semibold text-slate-500">{job.orderDate.split("-").reverse().join("/")}</td>
+              <td className={`whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-500 ${CELL.Ordered}`}>{job.orderDate.split("-").reverse().join("/")}</td>
             </tr>
           ))}
         </tbody>

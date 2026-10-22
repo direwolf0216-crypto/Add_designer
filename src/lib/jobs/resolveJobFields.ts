@@ -312,8 +312,11 @@ export function buildStatusSteps(layout: FormLayout | null | undefined): StatusS
   const statusF = layout?.sections?.flatMap((s) => s.fields || []).find((f) => f.type === "STATUS_PICKER");
   if (!statusF || !statusF.statusOptions || statusF.statusOptions.length === 0) return DEFAULT_STEPS;
 
-  return statusF.statusOptions.map((opt) => {
-    const lower = opt.label.toLowerCase();
+  return statusF.statusOptions.map((raw) => {
+    // Options are `{ label, color }` objects, but older/default layouts may store plain strings.
+    const opt = typeof raw === "string" ? { label: raw as string } : raw;
+    const label = String(opt?.label ?? "");
+    const lower = label.toLowerCase();
     let icon = "ph-fill ph-check-circle";
     let color = "text-slate-500";
     if (lower.includes("pending") || lower.includes("confirmed")) { icon = "ph-fill ph-clock"; color = "text-amber-500"; }
@@ -323,6 +326,6 @@ export function buildStatusSteps(layout: FormLayout | null | undefined): StatusS
     else if (lower.includes("deliver") || lower.includes("dispatch")) { icon = "ph-fill ph-package"; color = "text-green-500"; }
     else if (lower.includes("cancel")) { icon = "ph-fill ph-x-circle"; color = "text-red-500"; }
     else if (lower.includes("completed") || lower.includes("done")) { icon = "ph-fill ph-check-circle"; color = "text-emerald-500"; }
-    return { label: opt.label, value: opt.label, icon, color };
+    return { label, value: label, icon, color };
   });
 }

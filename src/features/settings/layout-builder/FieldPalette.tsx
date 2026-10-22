@@ -13,7 +13,7 @@ interface FieldPaletteProps {
 /** Left column: draggable field types + "Add Section". */
 export default function FieldPalette({ onAddField, onAddSection, onDragTypeStart, onDragTypeEnd }: FieldPaletteProps) {
   return (
-    <div className="w-full lg:w-[280px] h-[250px] lg:h-auto bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shrink-0">
+    <div className="w-full lg:w-[280px] h-[220px] lg:h-auto bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shrink-0">
       <div className="flex border-b border-gray-100 px-4 py-3">
         <span className="text-[0.75rem] font-extrabold text-slate-500 uppercase tracking-wider">New Fields</span>
       </div>

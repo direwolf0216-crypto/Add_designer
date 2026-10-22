@@ -105,7 +105,22 @@ function SettingsPage() {
   const router = useRouter();
 
   const activeSection = (searchParams.get("section") as SectionId) ?? "users";
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // The top bar's menu button (phones) navigates to ?menu=open; the sheet also opens from that.
+  const menuRequested = searchParams.get("menu") === "open";
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(menuRequested);
+  const [prevMenuRequested, setPrevMenuRequested] = useState(menuRequested);
+  if (menuRequested !== prevMenuRequested) {
+    setPrevMenuRequested(menuRequested);
+    if (menuRequested) setIsMobileMenuOpen(true);
+  }
+  const closeMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
+    if (menuRequested) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("menu");
+      router.replace(`?${next.toString()}`, { scroll: false });
+    }
+  }, [menuRequested, router, searchParams]);
   const [isCollapsed, setIsCollapsed] = useStoredBoolean('settingsPanelCollapsed');
 
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
@@ -139,7 +154,7 @@ function SettingsPage() {
     <div className="w-full h-full flex flex-col md:flex-row gap-6 lg:gap-8 relative">
       
       {/* Desktop Sidebar */}
-      <aside className={`hidden md:block shrink-0 bg-white rounded-2xl border border-gray-200 shadow-sm h-[calc(100vh-140px)] sticky top-6 transition-all duration-200 ease-in-out ${isCollapsed ? 'w-[56px]' : 'w-[220px]'}`}>
+      <aside className={`hidden md:block shrink-0 bg-white rounded-2xl border border-gray-200 shadow-sm h-[calc(100dvh-140px)] sticky top-6 transition-all duration-200 ease-in-out ${isCollapsed ? 'w-[56px]' : 'w-[220px]'}`}>
         <SidebarContent 
           groups={groupsMemo} 
           activeSection={activeSection} 
@@ -158,7 +173,7 @@ function SettingsPage() {
       {/* Mobile Bottom Sheet Overlay */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end" style={{ animation: "fadeIn 0.2s ease-out forwards" }}>
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeMobileMenu}></div>
           <div 
             className="relative w-full bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden" 
             style={{ animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
@@ -168,7 +183,7 @@ function SettingsPage() {
             </div>
             <div className="flex justify-between items-center px-6 pb-2 border-b border-gray-100">
               <h3 className="font-bold text-slate-800">Settings Menu</h3>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
+              <button onClick={closeMobileMenu} aria-label="Close settings menu" className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
                 <i className="ph-bold ph-x"></i>
               </button>
             </div>
@@ -186,8 +201,9 @@ function SettingsPage() {
       {/* Content Area */}
       <div className="flex-1 min-w-0">
         <div 
-          className={`transition-all duration-300 ease-in-out ${
-            isTransitioning ? "opacity-0 translate-x-2" : "opacity-100 translate-x-0"
+          className={`transition-[opacity,transform] duration-300 ease-in-out ${
+            // No transform at rest: a transform here would become the containing block for fixed children (bottom sheets).
+            isTransitioning ? "opacity-0 translate-x-2" : "opacity-100"
           }`}
         >
           {displayedSection === "users" && <UserManagement />}

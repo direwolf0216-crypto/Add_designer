@@ -65,7 +65,7 @@ export default function PressPipeline({ stages }: { stages: Stage[] }) {
                       <i className={`ph-bold ${l.icon} text-[18px]`} aria-hidden="true"></i>
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold text-slate-500">{s.stage}</span>
+                      <span className="line-clamp-2 text-xs font-semibold leading-tight text-slate-500">{s.stage}</span>
                       <span className="flex items-baseline gap-1.5">
                         <span className="num text-xl font-black tracking-tight text-slate-900">{s.count.toLocaleString("en-IN")}</span>
                         <span className="num text-xs font-bold text-slate-400">{share(s.count)}%</span>

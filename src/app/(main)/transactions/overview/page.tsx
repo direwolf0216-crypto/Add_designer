@@ -75,7 +75,7 @@ function OverviewPageContent() {
       />
 
       {/* Row 2: Income & Expenses */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 mb-8 items-start">
         <DonutBreakdownCard variant="income" total={todayIncome} segments={todayIncomeSegments} />
         <DonutBreakdownCard variant="expense" total={todayExpense} segments={todayExpenseSegments} />
       </div>
@@ -105,7 +105,7 @@ function OverviewPageContent() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xl:gap-5 mb-8 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-5 mb-8 items-stretch md:[&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
         <ExpenseHeatmapCard totalExpenses={week.totals.expense} donutSegments={donutSegments} />
         <IncomeFlowChart days={week.days} weekIncome={week.totals.income} previousWeekIncome={week.previous.income} />
         <NetTrendChart days={week.days} weekNet={week.totals.net} previousWeekNet={week.previous.net} />

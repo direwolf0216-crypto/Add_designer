@@ -64,12 +64,12 @@ export default function LayoutBuilder() {
 
   // --- View 2: Form Editor (3-Column Layout) ---
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden h-[850px] flex flex-col font-sans">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden lg:h-[850px] flex flex-col font-sans">
 
       {/* Top Header */}
       <EditorHeader title={activeLayout.name} saving={builder.saving} onBack={builder.closeForm} onSave={builder.handleSave} />
 
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden bg-slate-50">
+      <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden bg-slate-50">
 
         {/* Left Column: Palette */}
         <FieldPalette
@@ -108,6 +108,7 @@ export default function LayoutBuilder() {
           onChange={builder.updateSelectedField}
           onRemoveOption={builder.handleRemoveOption}
           checkingUsage={builder.checkingUsage}
+          onClose={() => builder.selectField(null)}
         />
       </div>
 

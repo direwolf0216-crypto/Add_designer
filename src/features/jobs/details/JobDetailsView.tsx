@@ -99,17 +99,17 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   };
 
   const content = (
-    <div className={`w-full bg-[#fcfcfc] flex flex-col overflow-hidden relative print:!h-auto print:!max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none ${standaloneJobId ? "h-[calc(100dvh-8.5rem)] rounded-3xl border border-slate-200/80 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]" : "h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
+    <div className={`w-full bg-[#fcfcfc] flex flex-col relative print:!h-auto print:!max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none ${standaloneJobId ? "md:h-[calc(100dvh-8.5rem)] md:overflow-hidden rounded-3xl border border-slate-200/80 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]" : "overflow-hidden h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
       {!job ? (
         <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4" />
           <p className="text-slate-500 font-medium">Loading job details...</p>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+        <div className={`flex-1 flex flex-col w-full relative ${standaloneJobId ? "md:h-full md:overflow-hidden" : "h-full overflow-hidden"}`}>
           {/* Header */}
           {/* A div, not <header>: the print stylesheet hides headers, and this one names the job on the printout. */}
-          <div className="shrink-0 sticky top-0 z-40 bg-[#fcfcfc] px-6 md:px-8 py-4 border-b border-slate-100 flex flex-col gap-4 print:static print:border-0 print:px-0">
+          <div className={`shrink-0 top-0 z-40 bg-[#fcfcfc] px-4 sm:px-6 md:px-8 py-4 border-b border-slate-100 flex flex-col gap-4 print:static print:border-0 print:px-0 ${standaloneJobId ? "md:sticky" : "sticky"}`}>
             {/* Back Button */}
             <div className="flex justify-between items-center w-full">
               <button
@@ -124,7 +124,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
             <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">{job.client?.name || job.title || "Job Details"}</h1>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{job.client?.name || job.title || "Job Details"}</h1>
                   <span className="print:hidden">
                     <JobPriority jobId={job.id} priority={job.priority} canEdit={canManageJobs} onChanged={refreshJob} />
                   </span>
@@ -157,7 +157,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
             <div className="print:hidden"><JobTabs tabs={tabs} activeId={activeTabId} onChange={setActiveTabId} /></div>
           </div>
 
-          <main id="job-details-content" className="flex-1 overflow-y-auto px-6 md:px-8 pb-10 pt-6 flex flex-col gap-6 print:overflow-visible print:px-0">
+          <main id="job-details-content" className={`flex-1 px-4 sm:px-6 md:px-8 pb-10 pt-6 flex flex-col gap-6 print:overflow-visible print:px-0 ${standaloneJobId ? "md:overflow-y-auto" : "overflow-y-auto"}`}>
             {activeExtraTab ? activeExtraTab.render(job.id) : renderDetails()}
           </main>
         </div>

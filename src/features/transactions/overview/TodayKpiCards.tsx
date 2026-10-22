@@ -36,7 +36,7 @@ function Chip({ icon, iconClass, label, value }: { icon: string; iconClass: stri
 export function TodayKpiCards({ todayIncome, todayExpense, todayNet, todayCashNet, todayUpiNet, highestExpenseCategory, weekIncome, weekExpense }: TodayKpiCardsProps) {
   const pct = highestExpenseCategory ? Math.round(highestExpenseCategory.pct * 100) : 0;
   return (
-    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1400px]:grid-cols-4">
       <Link href="/transactions/allTransactions?view=day&type=INCOME" className="group block min-w-0 outline-none animate-rise" style={{ ["--i" as string]: 0 }}>
         <div className={CARD}>
           <div className="flex items-start justify-between gap-2">
@@ -49,7 +49,7 @@ export function TodayKpiCards({ todayIncome, todayExpense, todayNet, todayCashNe
             </span>
           </div>
           <div className="flex items-end justify-between gap-2">
-            <span className="text-xs font-bold text-slate-500">This week</span>
+            <span className="whitespace-nowrap text-xs font-bold text-slate-500">This week</span>
             <Sparkline values={weekIncome} stroke={["#6ee7d3", "#10b981"]} id="spark-income" className="h-10 w-28" />
           </div>
         </div>
@@ -67,7 +67,7 @@ export function TodayKpiCards({ todayIncome, todayExpense, todayNet, todayCashNe
             </span>
           </div>
           <div className="flex items-end justify-between gap-2">
-            <span className="text-xs font-bold text-slate-500">This week</span>
+            <span className="whitespace-nowrap text-xs font-bold text-slate-500">This week</span>
             <Sparkline values={weekExpense} stroke={["#fda4af", "#ef4444"]} id="spark-expense" className="h-10 w-28" />
           </div>
         </div>

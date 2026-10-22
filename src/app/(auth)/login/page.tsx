@@ -114,21 +114,21 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center min-h-[80vh]">
+    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-12 items-center lg:min-h-[80dvh]">
       
       {/* LEFT COLUMN: Hero Section with Printer graphic */}
       <motion.div
-        className="w-full lg:col-span-6 xl:col-span-7 flex flex-col justify-between pt-4 lg:pt-0 relative z-10 text-white"
+        className="w-full lg:col-span-6 xl:col-span-7 flex flex-col justify-between pt-1 lg:pt-0 relative z-10 text-white text-center lg:text-left"
         variants={stagger(0.1)}
         initial="hidden"
         animate="show"
       >
-        <InkDrops px={px} py={py} />
+        <div className="hidden lg:contents"><InkDrops px={px} py={py} /></div>
         
         {/* Top Headlines */}
-        <div className="space-y-4 mb-8">
+        <div className="space-y-2 sm:space-y-4 mb-3 sm:mb-5 lg:mb-8 lg:short:mb-5">
 
-          <h1 className="relative text-4xl sm:text-5xl xl:text-6xl font-light tracking-tight text-slate-100 leading-[1.1]">
+          <h1 className="relative text-3xl sm:text-4xl xl:text-6xl lg:short:text-5xl font-light tracking-tight text-slate-100 leading-[1.1]">
             <span className="block overflow-hidden pb-1">
               <motion.span className="inline-block" variants={lineRise}>Bringing Your</motion.span>
             </span>
@@ -144,13 +144,13 @@ function LoginForm() {
             </span>
           </h1>
 
-          <motion.p variants={rise} className="relative text-slate-300 text-sm sm:text-base xl:text-lg max-w-lg font-normal leading-relaxed pt-1">
+          <motion.p variants={rise} className="relative hidden sm:block text-slate-300 text-sm sm:text-base xl:text-lg max-w-lg mx-auto lg:mx-0 font-normal leading-relaxed pt-1">
             High quality prints, creative designs, and custom solutions — all in one place.
           </motion.p>
         </div>
 
         {/* 4 Feature Badges */}
-        <motion.div variants={stagger(0.08)} className="relative grid grid-cols-2 sm:grid-cols-4 gap-4 my-4 max-w-xl text-center [perspective:800px]">
+        <motion.div variants={stagger(0.08)} className="relative hidden md:grid grid-cols-4 gap-3 lg:gap-4 my-2 lg:my-4 lg:short:my-2 max-w-xl mx-auto lg:mx-0 text-center [perspective:800px]">
           
           <motion.div
             variants={rise}
@@ -195,11 +195,11 @@ function LoginForm() {
         </motion.div>
 
         {/* Laser Printer Graphic at Bottom Left */}
-        <motion.div variants={printerIn} className="relative mt-4 -ml-4 pointer-events-none [perspective:1100px]">
+        <motion.div variants={printerIn} className="relative hidden lg:block mt-4 lg:short:mt-2 -ml-4 pointer-events-none [perspective:1100px]">
           {/* Soft floor shadow */}
           <div className="printer-shadow absolute bottom-[2%] left-[8%] h-[14%] w-[70%] max-w-[340px] rounded-[50%] bg-black/70 blur-2xl" aria-hidden="true" />
           <motion.div
-            className="relative w-full max-w-[480px] [transform-style:preserve-3d]"
+            className="relative w-full max-w-[480px] lg:short:max-w-[380px] [transform-style:preserve-3d]"
             style={{ rotateY: printerRotY, rotateX: printerRotX }}
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
@@ -235,7 +235,7 @@ function LoginForm() {
           style={{ rotateY: cardRotY, rotateX: cardRotX }}
           className="w-full max-w-[450px] lg:max-w-[470px] [transform-style:preserve-3d]"
         >
-        <motion.div animate={card} className="bg-white w-full rounded-[2.2rem] shadow-[0_25px_70px_rgba(0,0,0,0.45)] p-8 sm:p-10 relative overflow-hidden z-20">
+        <motion.div animate={card} className="bg-white w-full rounded-[1.75rem] sm:rounded-[2.2rem] shadow-[0_25px_70px_rgba(0,0,0,0.45)] p-6 sm:p-8 lg:p-10 lg:short:p-8 relative overflow-hidden z-20">
           {/* Glare that follows the pointer across the card */}
           <motion.div className="pointer-events-none absolute inset-0 z-30 opacity-40 mix-blend-soft-light" style={{ background: glare }} aria-hidden="true" />
           
@@ -246,7 +246,7 @@ function LoginForm() {
             alt="Top Right Splash" 
             width={180} 
             height={180} 
-            className="absolute top-0 right-0 w-[140px] sm:w-[170px] h-auto pointer-events-none select-none z-10" 
+            className="absolute top-0 right-0 w-[110px] sm:w-[170px] h-auto pointer-events-none select-none z-10" 
           />
 
           {/* Bottom-Left Liquid Splash Decor */}
@@ -256,22 +256,22 @@ function LoginForm() {
             alt="Bottom Left Splash" 
             width={180} 
             height={180} 
-            className="absolute bottom-0 left-0 w-[140px] sm:w-[170px] h-auto pointer-events-none select-none z-10" 
+            className="absolute bottom-0 left-0 w-[110px] sm:w-[170px] h-auto pointer-events-none select-none z-10" 
           />
 
           {/* Card Content Container */}
-          <motion.div className="relative z-20 py-2" variants={stagger(0.07, 0.45)} initial="hidden" animate="show">
+          <motion.div className="relative z-20 py-0 sm:py-2 lg:short:py-0" variants={stagger(0.07, 0.45)} initial="hidden" animate="show">
             
             {/* Header Logo & Titles */}
-            <motion.div variants={rise} className="flex flex-col items-center justify-center text-center mb-6">
-              <div className="mb-3">
+            <motion.div variants={rise} className="flex flex-col items-center justify-center text-center mb-4 sm:mb-6 lg:short:mb-4">
+              <div className="mb-2 sm:mb-3">
                 <Image 
                   unoptimized 
                   src="/assets/logo.png?v=2" 
                   alt="Add Designer Logo" 
                   width={340} 
                   height={90} 
-                  className="w-[250px] sm:w-[280px] h-auto object-contain drop-shadow-sm" 
+                  className="w-[200px] sm:w-[250px] lg:w-[280px] lg:short:w-[230px] h-auto object-contain drop-shadow-sm" 
                 />
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -291,7 +291,7 @@ function LoginForm() {
             )}
 
             {/* Login Form */}
-            <form onSubmit={loginUser} className="flex flex-col gap-5">
+            <form onSubmit={loginUser} className="flex flex-col gap-3.5 sm:gap-5 lg:short:gap-4">
               
               {/* Username / Email Input */}
               <motion.div variants={rise} className="relative">
@@ -301,7 +301,7 @@ function LoginForm() {
                 <input 
                   type="email" 
                   placeholder="Email / Username"
-                  className="w-full h-[52px] pl-12 pr-4 bg-white border border-slate-200/90 rounded-full text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all placeholder:text-slate-400"
+                  className="w-full h-12 sm:h-[52px] pl-12 pr-4 bg-white border border-slate-200/90 rounded-full text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all placeholder:text-slate-400"
                   value={data.email}
                   onChange={(e) => setData({ ...data, email: e.target.value })}
                   required
@@ -316,7 +316,7 @@ function LoginForm() {
                 <input 
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="w-full h-[52px] pl-12 pr-12 bg-white border border-slate-200/90 rounded-full text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all placeholder:text-slate-400"
+                  className="w-full h-12 sm:h-[52px] pl-12 pr-12 bg-white border border-slate-200/90 rounded-full text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all placeholder:text-slate-400"
                   value={data.password}
                   onChange={(e) => setData({ ...data, password: e.target.value })}
                   required
@@ -378,7 +378,7 @@ function LoginForm() {
                 whileTap={{ scale: 0.98 }}
                 type="submit" 
                 disabled={loading}
-                className="group relative overflow-hidden w-full h-[54px] mt-2 bg-gradient-to-r from-[#ff007f] via-[#ff5500] to-[#ff9f1c] hover:opacity-95 text-white font-extrabold rounded-full text-[1.05rem] shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 transition-shadow duration-200 flex justify-center items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+                className="group relative overflow-hidden w-full h-12 sm:h-[54px] mt-1 sm:mt-2 bg-gradient-to-r from-[#ff007f] via-[#ff5500] to-[#ff9f1c] hover:opacity-95 text-white font-extrabold rounded-full text-[1.05rem] shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 transition-shadow duration-200 flex justify-center items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 <span aria-hidden="true" className="signin-sheen pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/35" />
                 {loading ? (

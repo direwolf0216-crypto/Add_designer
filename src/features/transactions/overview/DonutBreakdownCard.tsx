@@ -97,7 +97,7 @@ export function DonutBreakdownCard({ variant, total, segments }: DonutBreakdownC
                 <Amount value={total} maxChars={8} className="max-w-[72%] truncate text-center text-[0.95rem] font-black text-[#0B1E40] sm:text-[1.05rem]" />
               </div>
             </div>
-            <div className="flex flex-col gap-3 w-[60%] sm:w-[65%] shrink-0">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
               {legend.map((seg, i) => {
                 const iconStr = getRelatableIcon(seg.category);
                 return (

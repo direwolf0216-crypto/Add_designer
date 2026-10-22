@@ -265,13 +265,13 @@ export default function TeamsSettings() {
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => setEditing(t)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-white hover:text-slate-900">
+                  <button type="button" onClick={() => setEditing(t)} aria-label={`Edit ${t.name}`} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-white hover:text-slate-900">
                     <i className="ph-bold ph-pencil-simple" aria-hidden="true"></i>
-                    Edit
+                    <span className="sr-only sm:not-sr-only">Edit</span>
                   </button>
-                  <button type="button" onClick={() => remove(t)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50">
+                  <button type="button" onClick={() => remove(t)} aria-label={`Delete ${t.name}`} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50">
                     <i className="ph-bold ph-trash" aria-hidden="true"></i>
-                    Delete
+                    <span className="sr-only sm:not-sr-only">Delete</span>
                   </button>
                 </div>
               </div>

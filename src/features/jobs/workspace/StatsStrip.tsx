@@ -18,7 +18,7 @@ export default function StatsStrip({ data }: { data: WorkspaceData }) {
   // Every job in "My jobs" is assigned by definition, so that tile would always read 0.
   const tiles = data.params.scope === "mine" ? TILES.filter((t) => t.id !== "unassigned") : TILES;
   return (
-    <nav aria-label="Quick filters" className={`grid grid-cols-2 gap-3 ${tiles.length === 5 ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"}`}>
+    <nav aria-label="Quick filters" className={`grid grid-cols-2 gap-3 ${tiles.length === 5 ? "sm:grid-cols-3 xl:grid-cols-5" : "sm:grid-cols-4"}`}>
       {tiles.map((t, i) => {
         const selected = data.params.focus === t.id;
         const value = data.stats[t.key];
