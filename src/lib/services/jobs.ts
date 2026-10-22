@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma, { type TxClient } from "@/lib/prisma";
 import { computeBalance, parseAmount, round2 } from "@/lib/money";
 import { newJobNumber, newTransactionRef, withUniqueRetry } from "@/lib/ids";
-import { calendarDateToUtc } from "@/lib/dates";
+import { calendarDateToUtc, recordInstantForDate } from "@/lib/dates";
 import { notFound } from "@/lib/api/http";
 import { type SessionUser, userCan } from "@/lib/auth/session";
 import { jobScope } from "@/lib/jobs/scope";
@@ -137,7 +137,7 @@ async function syncInstallments(
   for (const inst of installments) {
     const amount = parseAmount(inst.amount);
     if (amount <= 0) continue;
-    const date = inst.date ? new Date(inst.date) : new Date();
+    const date = recordInstantForDate(inst.date);
     const paymentMode = inst.paymentMode || "Cash";
 
     if (inst.transactionId && existingIds.has(inst.transactionId)) {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma, type Transaction } from "@prisma/client";
 import prisma, { type TxClient } from "@/lib/prisma";
 import { round2 } from "@/lib/money";
-import { businessMonthRange, toBusinessISODate } from "@/lib/dates";
+import { businessMonthRange, toBusinessISODate, recordInstantForDate } from "@/lib/dates";
 import { refreshOrderTotals } from "@/lib/services/jobs";
 import { type SessionUser, userCan } from "@/lib/auth/session";
 import { HttpError, badRequest, conflict, forbidden, notFound } from "@/lib/api/http";
@@ -109,7 +109,7 @@ export function transactionData(item: TransactionItem) {
   return {
     amount: item.amount,
     type: item.type,
-    date: new Date(item.recordDate ?? item.date),
+    date: recordInstantForDate(item.recordDate ?? item.date),
     category: item.category,
     paymentMode: item.paymentMode,
     description: item.description?.trim() || null,
@@ -140,7 +140,7 @@ export async function updateTransaction(id: string, body: unknown, user: Session
       data: {
         ...(input.amount !== undefined && { amount: input.amount }),
         ...(input.type && { type: input.type }),
-        ...(date && { date: new Date(date) }),
+        ...(date && { date: recordInstantForDate(date) }),
         ...(input.category && { category: input.category }),
         ...(input.paymentMode && { paymentMode: input.paymentMode }),
         ...(input.description !== undefined && { description: input.description?.trim() || null }),

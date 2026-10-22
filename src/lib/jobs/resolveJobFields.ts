@@ -173,6 +173,8 @@ export interface SpecEntry {
   unit: PricingUnit;
   /** Area in sq ft parsed from the size, for per-sq-ft lines with a readable size. */
   area: number | null;
+  /** The category's pricing unit has changed since this job was saved (edit and save to reprice). */
+  repricedSince: boolean;
   /** rate × quantity, or null without a numeric rate. */
   total: number | null;
 }
@@ -186,6 +188,10 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
   let financialRates: Record<string, string> = {};
   if (typeof financialRatesRaw === "string") financialRates = parseJson(financialRatesRaw, {});
   else if (financialRatesRaw && typeof financialRatesRaw === "object") financialRates = financialRatesRaw;
+  const unitsRaw = job.customData?.fld_financial_units;
+  let savedUnits: Record<string, string> = {};
+  if (typeof unitsRaw === "string") savedUnits = parseJson(unitsRaw, {});
+  else if (unitsRaw && typeof unitsRaw === "object") savedUnits = unitsRaw;
 
   if (jdSec && jdSec.isRepeatable) entries = repeatableEntries(job.customData, jdSec.id);
   if (!entries || entries.length === 0) entries = [job.customData];
@@ -228,7 +234,11 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
     if (!cVal) cVal = summary.displayCategory && summary.displayCategory !== "N/A" ? summary.displayCategory : undefined;
 
     const hasValidRate = rVal !== "N/A" && !isNaN(parseFloat(String(rVal)));
-    const { unit } = pricingRuleFor(rules, cVal);
+    // Price the line the way it was priced when saved; jobs from before per-sq-ft pricing were per piece.
+    const current = pricingRuleFor(rules, cVal).unit;
+    const savedKey = jdSec && jdSec.isRepeatable ? `rep_${jdSec.id}_${index}` : "";
+    const saved = savedUnits[savedKey];
+    const unit: PricingUnit = saved === "sqft" || saved === "piece" ? saved : "piece";
     const { multiplier, area } = lineMultiplier(unit, qVal, sVal);
     const rateText = String(rVal).startsWith("₹") || rVal === "N/A" ? String(rVal) : `₹ ${parseFloat(String(rVal)).toLocaleString("en-IN")}`;
     return {
@@ -239,6 +249,7 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
       total: hasValidRate ? (parseFloat(String(rVal)) || 0) * multiplier : null,
       unit,
       area,
+      repricedSince: hasValidRate && current !== unit,
     };
   });
 }

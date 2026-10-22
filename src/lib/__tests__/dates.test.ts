@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { businessDayRange, businessMonthRange, businessRangeFromISO, calendarDateToUtc, toBusinessISODate } from "../dates";
+import { businessDayRange, businessMonthRange, businessRangeFromISO, calendarDateToUtc, toBusinessISODate, recordInstantForDate } from "../dates";
 
 describe("business timezone dates (Asia/Kolkata, UTC+5:30)", () => {
   it("treats 00:30 IST as the new day even though it is the previous day in UTC", () => {
@@ -27,5 +27,20 @@ describe("business timezone dates (Asia/Kolkata, UTC+5:30)", () => {
 
   it("calendar dates are stored as UTC midnight", () => {
     expect(calendarDateToUtc("2026-10-20").toISOString()).toBe("2026-10-20T00:00:00.000Z");
+  });
+});
+
+
+describe("recordInstantForDate", () => {
+  it("keeps a full timestamp and uses noon IST for a past calendar date", () => {
+    const iso = "2026-05-01T04:00:00.000Z";
+    expect(recordInstantForDate(iso).toISOString()).toBe(iso);
+    expect(recordInstantForDate("2026-05-01").toISOString()).toBe("2026-05-01T06:30:00.000Z");
+  });
+  it("uses the current time for today", () => {
+    const before = Date.now();
+    const t = recordInstantForDate(toBusinessISODate()).getTime();
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(Date.now());
   });
 });

@@ -33,6 +33,21 @@ export function calendarDateToUtc(value: string): Date {
   return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
 }
 
+/**
+ * The instant to record for a payment or ledger entry entered as a bare `yyyy-MM-dd`: right now when it is
+ * today in the business timezone, otherwise noon of that day there. `new Date("yyyy-MM-dd")` would be UTC
+ * midnight, which reads as 05:30 am in India and can land on the previous day elsewhere.
+ */
+export function recordInstantForDate(value: string | Date | null | undefined): Date {
+  if (value instanceof Date) return value;
+  if (!value) return new Date();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(value);
+  if (value === toBusinessISODate()) return new Date();
+  const [y, m, d] = value.split("-").map(Number);
+  // 12:00 IST is 06:30 UTC.
+  return new Date(Date.UTC(y, (m || 1) - 1, d || 1, 6, 30));
+}
+
 /** UTC-midnight Date for "today" in the business timezone (to compare with stored job dates). */
 export function businessTodayUtc(): Date {
   return calendarDateToUtc(toBusinessISODate());

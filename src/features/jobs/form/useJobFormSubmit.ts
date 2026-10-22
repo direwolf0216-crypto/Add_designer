@@ -89,6 +89,7 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       installments,
       layout: layoutSchema,
       fieldMap: JOB_FORM_FIELD_MAP,
+      rules: state.pricingRules,
     });
     formData.set("assigneeIds", JSON.stringify(state.assigneeIds));
     const result = await saveJobAction(formData);

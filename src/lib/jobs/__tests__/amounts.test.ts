@@ -14,7 +14,7 @@ describe("job amounts", () => {
   const keys = moneyKeys(layout);
 
   it("treats the Financials section, currency fields and rates as money", () => {
-    expect([...keys].sort()).toEqual(["fld_b_package", "fld_discount", "fld_extra_fee", "fld_financial_rates", "fld_item_price", "package"].sort());
+    expect([...keys].sort()).toEqual(["fld_b_package", "fld_discount", "fld_extra_fee", "fld_financial_rates", "fld_financial_units", "fld_item_price", "package"].sort());
   });
 
   it("strips money values, including inside repeatable entries", () => {

@@ -192,6 +192,7 @@ describe("validation and payload", () => {
       ["installments", '[{"amount":"100","date":"2026-05-01","paymentMode":"Cash"}]'],
       ["rep_items", '[{"fld_item_cat":"A"}]'],
       ["fld_financial_rates", '{"rep_items_0":"100"}'],
+      ["fld_financial_units", '{"rep_items_0":"piece"}'],
       ["recordDate", "2026-05-01"],
     ]);
   });

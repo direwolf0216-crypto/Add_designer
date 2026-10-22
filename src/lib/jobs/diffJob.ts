@@ -32,7 +32,7 @@ const STANDARD_LABELS: Record<string, string> = {
 };
 
 // customData keys that are bookkeeping, not user-entered fields.
-const HIDDEN_CUSTOM_KEYS = new Set(["fld_financial_rates", "installments"]);
+const HIDDEN_CUSTOM_KEYS = new Set(["fld_financial_rates", "fld_financial_units", "installments"]);
 
 function display(value: unknown): string | null {
   if (value === undefined || value === null || value === "") return null;

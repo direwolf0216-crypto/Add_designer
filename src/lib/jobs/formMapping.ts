@@ -2,6 +2,7 @@
 // → the FormData sent to saveJobAction. Pure: no React, no network.
 
 import { toLocalISODate } from "@/lib/dates";
+import { lineItemRows, pricingRuleFor, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
 import { categoryFromCustomData } from "@/lib/jobs/category";
 import { allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import { collapseFileArray, isUploadableFile } from "@/lib/forms/files";
@@ -292,10 +293,12 @@ export interface JobPayloadInput {
   installments: Installment[];
   layout: FormLayout | null | undefined;
   fieldMap: FieldMap;
+  /** Pricing rules in force now; each line's unit is stored with the job so later rule changes don't reprice it. */
+  rules?: PricingRules;
 }
 
 /** The FormData sent to saveJobAction (job fields, repeatable entries, rates, record date, installments). */
-export function buildJobFormData({ data, repeatableData, financialRates, installments, layout, fieldMap }: JobPayloadInput): FormData {
+export function buildJobFormData({ data, repeatableData, financialRates, installments, layout, fieldMap, rules = {} }: JobPayloadInput): FormData {
   const formData = new FormData();
   Object.entries(data).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
@@ -309,6 +312,9 @@ export function buildJobFormData({ data, repeatableData, financialRates, install
   });
 
   formData.append("fld_financial_rates", JSON.stringify(financialRates));
+  const units: Record<string, PricingUnit> = {};
+  for (const row of lineItemRows(repeatableData, layout, fieldMap)) units[row.rateKey] = pricingRuleFor(rules, row.category).unit;
+  formData.append("fld_financial_units", JSON.stringify(units));
 
   const recordDateField = allFields(layout).find((f) => f.isRecordDate);
   if (recordDateField) {

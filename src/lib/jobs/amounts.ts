@@ -7,10 +7,12 @@ import type { FormLayout } from "@/lib/forms/types";
 export const FINANCIAL_SECTION_ID = "sec_job_financial";
 /** customData key holding the per-line-item rates. */
 export const RATES_KEY = "fld_financial_rates";
+/** customData key holding how each line was priced when saved ("piece" | "sqft" per rate key). */
+export const UNITS_KEY = "fld_financial_units";
 
 /** customData keys that hold money: every Financials field, any currency field, and the rates. */
 export function moneyKeys(layout: FormLayout | null | undefined): Set<string> {
-  const keys = new Set<string>([RATES_KEY]);
+  const keys = new Set<string>([RATES_KEY, UNITS_KEY]);
   for (const section of layout?.sections ?? []) {
     for (const field of section.fields ?? []) {
       if (section.id === FINANCIAL_SECTION_ID || field.type === "CURRENCY") {
