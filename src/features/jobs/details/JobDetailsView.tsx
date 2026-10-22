@@ -28,6 +28,7 @@ import { usePricingRules } from "@/hooks/usePricingRules";
 import { useJobMutations } from "./useJobMutations";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
 import SendWhatsAppDialog from "./SendWhatsAppDialog";
+import { WHATSAPP_UI_ENABLED } from "@/lib/whatsapp/flags";
 
 export type { JobDetailsTab } from "./JobTabs";
 
@@ -197,7 +198,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 onDelete={() => setIsDeleteConfirmOpen(true)}
                 onExport={exportPdf}
                 onInvoice={mutations.generateInvoice}
-                onWhatsApp={canEditJobs && job.client?.phone ? () => setWhatsAppOpen(true) : undefined}
+                onWhatsApp={WHATSAPP_UI_ENABLED && canEditJobs && job.client?.phone ? () => setWhatsAppOpen(true) : undefined}
                 assigneesSlot={<JobAssignees job={job} teamUsers={teamUsers} />}
               />
             </div>
@@ -211,7 +212,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
         </div>
       )}
 
-      {job?.client?.phone && (
+      {WHATSAPP_UI_ENABLED && job?.client?.phone && (
         <SendWhatsAppDialog
           open={whatsAppOpen}
           jobId={job.id}

@@ -6,6 +6,7 @@ import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import PageReveal from "@/components/motion/PageReveal";
+import { WHATSAPP_UI_ENABLED } from "@/lib/whatsapp/flags";
 
 // Each settings tab is code-split; only the open tab's bundle is downloaded.
 const tabLoading = () => <div className="h-40 animate-pulse rounded-2xl bg-white/60" aria-busy="true" />;
@@ -40,7 +41,7 @@ const GROUPS = [
     label: "Integrations",
     items: [
       { id: "google-drive", label: "Google Drive", icon: "ph-google-logo" },
-      { id: "whatsapp", label: "WhatsApp", icon: "ph-whatsapp-logo" },
+      ...(WHATSAPP_UI_ENABLED ? [{ id: "whatsapp" as const, label: "WhatsApp", icon: "ph-whatsapp-logo" }] : []),
     ]
   },
   {
@@ -216,7 +217,7 @@ function SettingsPage() {
           {displayedSection === "layouts" && <LayoutsFieldsBuilder />}
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
-          {displayedSection === "whatsapp" && <WhatsAppIntegration />}
+          {WHATSAPP_UI_ENABLED && displayedSection === "whatsapp" && <WhatsAppIntegration />}
           {displayedSection === "business" && <BusinessDetails />}
           {displayedSection === "pricing" && <PricingRules />}
           {displayedSection === "teams" && <TeamsSettings />}
