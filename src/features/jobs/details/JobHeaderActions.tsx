@@ -9,6 +9,7 @@ export default function JobHeaderActions({
   job,
   canEditJobs,
   canDeleteJobs,
+  cancelled = false,
   canManageTransactions,
   isExporting,
   isGeneratingInvoice,
@@ -21,6 +22,8 @@ export default function JobHeaderActions({
   job: DetailsJob;
   canEditJobs: boolean;
   canDeleteJobs: boolean;
+  /** The job is cancelled (by status or board stage): the badge reads Cancelled in red. */
+  cancelled?: boolean;
   canManageTransactions: boolean;
   isExporting: boolean;
   isGeneratingInvoice: boolean;
@@ -36,8 +39,8 @@ export default function JobHeaderActions({
       {assigneesSlot}
 
       {/* Status Badge */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-100 rounded-lg text-sm font-bold">
-        <span className="w-2 h-2 rounded-full bg-orange-500"></span> {job.status || "Pending"}
+      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold border ${cancelled ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-orange-50 text-orange-600 border-orange-100"}`}>
+        <span className={`w-2 h-2 rounded-full ${cancelled ? "bg-rose-500" : "bg-orange-500"}`}></span> {cancelled ? "Cancelled" : job.status || "Pending"}
       </div>
 
       {/* Edit, delete, export, invoice: icons only, with a tooltip each */}

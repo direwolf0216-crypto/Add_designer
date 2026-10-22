@@ -86,6 +86,8 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const tabs = [DETAILS_TAB, ...extraTabs];
   const activeExtraTab = extraTabs.find((t) => t.id === activeTabId);
 
+  const isCancelled = !!job && (isCancelStage(job.status) || isCancelStage(job.customData?.fld_b_status));
+
   const renderDetails = () => {
     if (!job) return null;
     const summary = resolveJobSummary(job, layoutSchema, JOB_DETAILS_FIELD_MAP);
@@ -111,7 +113,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6">
             <ClientCard job={job} />
-            {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} cancellation={isCancelStage(job.status) || isCancelStage(job.customData?.fld_b_status) ? readCancellation(job.customData) ?? { charge: 0, reason: "", at: "" } : null} />}
+            {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} cancellation={isCancelled ? readCancellation(job.customData) ?? { charge: 0, reason: "", at: "" } : null} />}
           </div>
 
           {/* RIGHT COLUMN */}
@@ -169,6 +171,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 job={job}
                 canEditJobs={canEditJobs}
                 canDeleteJobs={canDeleteJobs}
+                cancelled={isCancelled}
                 canManageTransactions={canManageTransactions && canSeeAmounts}
                 isExporting={isExporting}
                 isGeneratingInvoice={mutations.isGeneratingInvoice}
