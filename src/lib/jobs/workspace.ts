@@ -278,10 +278,8 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
   } | null = null;
 
   if (params.view === "board") {
-    // Cancelled stays off the board unless explicitly filtered for; "My jobs" on a team shows only that team's stages.
-    const columns = stages
-      .filter((s) => !/cancel/i.test(s.label) || params.stages.some((x) => x.toLowerCase() === s.label.toLowerCase()))
-      .filter((s) => params.scope !== "mine" || myStageSet.size === 0 || myStageSet.has(s.label.toLowerCase()));
+    // Every stage is a column, Cancelled included; "My jobs" on a team shows only that team's stages.
+    const columns = stages.filter((s) => params.scope !== "mine" || myStageSet.size === 0 || myStageSet.has(s.label.toLowerCase()));
     board = await Promise.all(
       columns.map(async (s) => {
         const colWhere: Prisma.JobWhereInput = { ...where, AND: [...(where.AND as Prisma.JobWhereInput[]), stageWhere([s.label], firstStage)] };

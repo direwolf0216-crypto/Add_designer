@@ -10,6 +10,8 @@ import type { WorkspaceData, WorkspaceJob } from "@/lib/jobs/workspace";
 import JobCard from "./JobCard";
 import { stageHex, stageIcon } from "./stageStyle";
 import { useWorkspaceUrl } from "./url";
+import { CANCELLATION_KEY, isCancelStage } from "@/lib/jobs/cancellation";
+import CancelJobDialog from "@/features/jobs/details/CancelJobDialog";
 
 type Column = NonNullable<WorkspaceData["board"]>[number];
 
@@ -32,8 +34,15 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
     setColumns(data.board ?? []);
   }
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  // Moving a card to a Cancelled column asks for the (optional) cancellation charge first.
+  const [cancelling, setCancelling] = useState<{ jobId: string; toStage: string } | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
-  const move = async (jobId: string, toStage: string) => {
+  const move = async (jobId: string, toStage: string, extra?: Record<string, unknown>) => {
+    if (isCancelStage(toStage) && !extra) {
+      setCancelling({ jobId, toStage });
+      return;
+    }
     const previous = columns;
     let moved: WorkspaceJob | undefined;
     const next = columns.map((c) => {
@@ -45,7 +54,10 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
     const card = { ...moved, stage: toStage };
     setColumns(next.map((c) => (c.stage === toStage ? { ...c, count: c.count + 1, jobs: [card, ...c.jobs] } : c)));
 
-    const res = await updateJobTrackingAction(jobId, { customData: { fld_b_status: toStage } });
+    const res = await updateJobTrackingAction(jobId, {
+      ...(isCancelStage(toStage) || isCancelStage(moved.stage) ? { status: toStage } : {}),
+      customData: { fld_b_status: toStage, ...(isCancelStage(toStage) || isCancelStage(moved.stage) ? { fld_b_job_status: toStage } : {}), ...(extra ?? {}), ...(isCancelStage(moved.stage) && !isCancelStage(toStage) ? { [CANCELLATION_KEY]: null } : {}) },
+    });
     if (!res.success) {
       setColumns(previous);
       toast.error(res.error || "Couldn't move the job");
@@ -61,6 +73,7 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
   const label = (stage: string) => data.stageLabels[stage] ?? stage;
 
   return (
+    <>
     <div
       className={
         wide
@@ -129,5 +142,25 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
         );
       })}
     </div>
+      {cancelling && (() => {
+        const target = columns.flatMap((c) => c.jobs).find((j) => j.id === cancelling.jobId);
+        return (
+          <CancelJobDialog
+            open
+            onOpenChange={(o) => { if (!o) setCancelling(null); }}
+            clientName={target?.clientName || "This client"}
+            advance={target?.paid ?? 0}
+            showAmounts={data.canSeeAmounts}
+            busy={cancelBusy}
+            onConfirm={async (input) => {
+              setCancelBusy(true);
+              await move(cancelling.jobId, cancelling.toStage, { [CANCELLATION_KEY]: { ...input, at: new Date().toISOString() } });
+              setCancelBusy(false);
+              setCancelling(null);
+            }}
+          />
+        );
+      })()}
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { deleteJobAction, generateInvoiceAction, updateJobStatusAction, updateJobTrackingAction } from "@/app/actions";
 import { invalidateJobs } from "@/lib/swr";
 import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
+import { CANCELLATION_KEY } from "@/lib/jobs/cancellation";
 
 /** Statuses that are written through the tracking action (also mirrored into customData). */
 const TRACKING_STATUSES = ["designing", "designing completed", "printing", "ready for delivery", "delivered"];
@@ -37,6 +38,31 @@ export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJo
     setIsUpdatingStatus(false);
     if (res.success) afterStatusChange(newStatus);
     else toast.error("Failed to update status");
+  };
+
+  /** Move the job to `cancelStage`, keeping the charge and reason with it. */
+  const cancelJob = async (cancelStage: string, input: { charge: number; reason: string }) => {
+    if (!job) return false;
+    setIsUpdatingStatus(true);
+    const res = await updateJobTrackingAction(job.id, {
+      status: cancelStage,
+      customData: { fld_b_job_status: cancelStage, fld_b_status: cancelStage, [CANCELLATION_KEY]: { ...input, at: new Date().toISOString() } },
+    });
+    setIsUpdatingStatus(false);
+    if (res.success) afterStatusChange(cancelStage);
+    else toast.error(res.error || "Couldn't cancel the job");
+    return res.success;
+  };
+
+  /** Put a cancelled job back at `stage` and drop the cancellation details. */
+  const reopenJob = async (stage: string) => {
+    if (!job) return false;
+    setIsUpdatingStatus(true);
+    const res = await updateJobTrackingAction(job.id, { status: stage, customData: { fld_b_job_status: stage, fld_b_status: stage, [CANCELLATION_KEY]: null } });
+    setIsUpdatingStatus(false);
+    if (res.success) afterStatusChange(stage);
+    else toast.error(res.error || "Couldn't reopen the job");
+    return res.success;
   };
 
   /** Update a STATUS_PICKER stored in customData (e.g. a finishing status); `fld_b_status` is the job status. */
@@ -95,6 +121,8 @@ export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJo
   return {
     changeStatus,
     changeSectionStatus,
+    cancelJob,
+    reopenJob,
     deleteJob,
     generateInvoice,
     isDeleting,

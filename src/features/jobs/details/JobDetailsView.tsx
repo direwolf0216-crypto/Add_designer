@@ -20,6 +20,7 @@ import JobSummaryStrip from "./JobSummaryStrip";
 import JobTabs, { type JobDetailsTab } from "./JobTabs";
 import JobTimeline from "./JobTimeline";
 import { exportJobPdf } from "./exportJobPdf";
+import { isCancelStage, readCancellation } from "@/lib/jobs/cancellation";
 import { toast } from "sonner";
 import { useJob } from "./useJob";
 import { usePricingRules } from "@/hooks/usePricingRules";
@@ -92,7 +93,16 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
       <>
         {/* Status first: the stage is what people change most, so it sits right under the header. */}
         <div className="mb-4">
-          <JobTimeline job={job} layout={layoutSchema} onStatusChange={mutations.changeStatus} />
+          <JobTimeline
+            job={job}
+            layout={layoutSchema}
+            canEdit={canEditJobs}
+            showAmounts={canSeeAmounts}
+            busy={mutations.isUpdatingStatus}
+            onStatusChange={mutations.changeStatus}
+            onCancel={mutations.cancelJob}
+            onReopen={mutations.reopenJob}
+          />
         </div>
 
         <JobSummaryStrip job={job} summary={summary} />
@@ -101,7 +111,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6">
             <ClientCard job={job} />
-            {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} />}
+            {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} cancellation={isCancelStage(job.status) || isCancelStage(job.customData?.fld_b_status) ? readCancellation(job.customData) ?? { charge: 0, reason: "", at: "" } : null} />}
           </div>
 
           {/* RIGHT COLUMN */}

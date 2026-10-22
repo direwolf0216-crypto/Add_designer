@@ -247,7 +247,8 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
 
   try {
     const { before, job } = await updateJob(user, jobId, (existing) => {
-      const customData = { ...readCustomData(existing.customData), ...(parsed.data.customData ?? {}) };
+      const customData: Record<string, unknown> = { ...readCustomData(existing.customData), ...(parsed.data.customData ?? {}) };
+      for (const [k, v] of Object.entries(customData)) if (v === null) delete customData[k];
       const data: Prisma.JobUncheckedUpdateInput = { customData: customData as Prisma.InputJsonValue };
       if (customData.fld_b_finishing_status === "Delivered") data.proofDelivered = true;
       if (parsed.data.status !== undefined) data.status = parsed.data.status;

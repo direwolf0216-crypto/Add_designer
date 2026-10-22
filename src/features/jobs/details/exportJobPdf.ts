@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import type { FieldMap, FormLayout } from "@/lib/forms/types";
 import type { PricingRules } from "@/lib/jobs/pricing";
+import { isCancelStage, readCancellation, refundDue } from "@/lib/jobs/cancellation";
 import {
   dynamicFieldValue,
   resolveDynamicSections,
@@ -134,10 +135,14 @@ export async function exportJobPdf(job: DetailsJob, layout: FormLayout | null, f
   }
 
   if (showAmounts) {
+    const cancelled = isCancelStage(job.status) || isCancelStage(job.customData?.fld_b_status);
+    const cancellation = cancelled ? readCancellation(job.customData) : null;
     table("Financials", [
       ["Total amount", money(financials.totalAmount)],
       [`Advance paid${financials.paymentMethod && financials.paymentMethod !== "N/A" ? ` (${financials.paymentMethod})` : ""}`, money(financials.advanceAmount)],
-      ["Outstanding balance", money(financials.dueAmount)],
+      ...(cancelled
+        ? [["Cancellation charge", money(cancellation?.charge ?? 0)], ["Refund due to client", money(refundDue(financials.advanceAmount, cancellation?.charge ?? 0))]]
+        : [["Outstanding balance", money(financials.dueAmount)]]),
     ]);
   }
 
