@@ -78,7 +78,7 @@ export default function SizeUnitsEditor({ field, onChange }: FieldEditorProps) {
         </button>
       </div>
       <p className="mt-2 text-[0.7rem] text-slate-500 leading-snug">
-        Tap a unit to preselect it. Per-sq-ft pricing converts {CONVERTIBLE_UNITS.join(", ")}; other units are priced per piece.
+        Tap a unit to preselect it. Per-sq-ft pricing converts {CONVERTIBLE_UNITS.join(", ")} (sqft and sqm take the area as one number); other units are priced per piece.
       </p>
     </div>
   );

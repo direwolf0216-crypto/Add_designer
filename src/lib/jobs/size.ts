@@ -9,7 +9,12 @@ export const DEFAULT_SIZE_UNITS = ["ft", "in", "cm", "mm", "m"];
 export const DEFAULT_SIZE_UNIT = "ft";
 
 /** Units `parseAreaSqFt` can convert, so per-sq-ft pricing works for them. */
-export const CONVERTIBLE_UNITS = ["ft", "in", "cm", "mm", "m", "yd"];
+export const CONVERTIBLE_UNITS = ["ft", "in", "cm", "mm", "m", "yd", "sqft", "sqm"];
+
+/** Area units: the size is a single number (the area itself), not two dimensions. */
+export const AREA_UNITS = ["sqft", "sqm"];
+
+export const isAreaUnit = (unit: string) => AREA_UNITS.includes(unit.toLowerCase().replace(/[\s.]/g, ""));
 
 const ALIASES: Record<string, string> = {
   feet: "ft", foot: "ft", "'": "ft",
@@ -17,9 +22,10 @@ const ALIASES: Record<string, string> = {
   cms: "cm",
   mtr: "m", mtrs: "m", meter: "m", meters: "m", metre: "m", metres: "m",
   yard: "yd", yards: "yd",
+  "sq.ft": "sqft", "sq ft": "sqft", sqf: "sqft", "ft²": "sqft", "sq.m": "sqm", "sq m": "sqm", "m²": "sqm",
 };
 
-const TRAILING_UNIT = /^(.*?\d)\s*([a-z"'][a-z"'.\-/²]*)$/i;
+const TRAILING_UNIT = /^(.*?)\s*([a-z"'][a-z"'.\-/²]*)$/i;
 
 type SizeFieldLike = { sizeUnits?: string[]; defaultUnit?: string } | null | undefined;
 

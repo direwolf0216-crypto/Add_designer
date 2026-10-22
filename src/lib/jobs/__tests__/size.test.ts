@@ -9,6 +9,10 @@ describe("size strings", () => {
     expect(splitSize("4*6 ft")).toEqual({ dims: "4*6", unit: "ft" });
     expect(splitSize("2 x 3 meters")).toEqual({ dims: "2 x 3", unit: "m" });
     expect(splitSize("")).toEqual({ dims: "", unit: "ft" });
+    // Half-typed dimensions keep the unit out of the text box.
+    expect(splitSize("10* sqft", { sizeUnits: ["ft", "sqft"] })).toEqual({ dims: "10*", unit: "sqft" });
+    expect(splitSize("10 x sqft", { sizeUnits: ["ft", "sqft"] })).toEqual({ dims: "10 x", unit: "sqft" });
+    expect(splitSize("3 x 6 Sq.Ft")).toEqual({ dims: "3 x 6", unit: "sqft" });
     expect(splitSize(undefined)).toEqual({ dims: "", unit: "ft" });
   });
 
@@ -37,6 +41,12 @@ describe("size strings", () => {
     expect(parseAreaSqFt(composeSize("1000 x 1000", "mm"))).toBe(10.764);
     expect(parseAreaSqFt(composeSize("1 x 1", "yd"))).toBe(9);
     expect(parseAreaSqFt(composeSize("2 x 2", "pcs"))).toBeNull();
+    // Area units take the area itself.
+    expect(parseAreaSqFt("10 sqft")).toBe(10);
+    expect(parseAreaSqFt("10 sq. ft")).toBe(10);
+    expect(parseAreaSqFt("2 sqm")).toBe(21.528);
+    expect(parseAreaSqFt("3 x 6 sqft")).toBe(18);
+    expect(parseAreaSqFt("10* sqft")).toBeNull();
   });
 });
 

@@ -25,7 +25,10 @@ export type PricingUnit = "piece" | "sqft";
 export type PricingRule = { unit: PricingUnit; defaultRate?: number };
 export type PricingRules = Record<string, PricingRule>;
 
-const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 1 / 144, inch: 1 / 144, inches: 1 / 144, '"': 1 / 144, cm: 1 / 929.0304, mm: 1 / 92903.04, m: 10.7639, mtr: 10.7639, meter: 10.7639, metre: 10.7639, yd: 9, yard: 9, yards: 9 };
+const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 1 / 144, inch: 1 / 144, inches: 1 / 144, '"': 1 / 144, cm: 1 / 929.0304, mm: 1 / 92903.04, m: 10.7639, mtr: 10.7639, meter: 10.7639, metre: 10.7639, yd: 9, yard: 9, yards: 9, sqft: 1, sqm: 10.7639 };
+
+/** Square feet per unit of area for sizes given as one number, e.g. "10 sqft" or "2 sqm". */
+const SQFT_PER_AREA: Record<string, number> = { sqft: 1, sqf: 1, "ft²": 1, sqm: 10.7639, "m²": 10.7639 };
 
 /**
  * Area in square feet from a size like "10 x 10", "4*6 ft", "3.5 x 2 in" or "120 x 60 cm". Feet when no unit
@@ -33,7 +36,13 @@ const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 
  */
 export function parseAreaSqFt(size: unknown): number | null {
   if (size === null || size === undefined) return null;
-  const text = String(size).trim().toLowerCase().replace(/×/g, "x");
+  const text = String(size).trim().toLowerCase().replace(/×/g, "x").replace(/sq\.?\s*(ft|m)\b/g, "sq$1");
+  // A plain area: "10 sqft", "2.5 sqm".
+  const area1 = text.match(/^(\d+(?:\.\d+)?)\s*(sqft|sqf|ft²|sqm|m²)$/);
+  if (area1) {
+    const a = parseFloat(area1[1]) * SQFT_PER_AREA[area1[2]];
+    return Number.isFinite(a) && a > 0 ? Math.round(a * 1000) / 1000 : null;
+  }
   const m = text.match(/^(\d+(?:\.\d+)?)\s*([a-z'"]+)?\s*[x*]\s*(\d+(?:\.\d+)?)\s*([a-z'"]+)?\s*(?:sq\.?\s*ft)?$/);
   if (!m) return null;
   const unit = m[4] || m[2] || "ft";
