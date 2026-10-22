@@ -29,7 +29,7 @@ function activeSlot(now: Date, times: [string, string]) {
 function DayCard({ title, label, accent, jobs, onNavigate }: { title: string; label: string; accent: "purple" | "pink"; jobs: BannerJob[]; onNavigate: () => void }) {
   const tone = accent === "purple" ? { chip: "bg-purple-500", sub: "text-purple-300" } : { chip: "bg-pink-500", sub: "text-pink-300" };
   return (
-    <div className="flex-1 w-full bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-lg">
+    <div className="flex-1 w-full bg-white/10 border border-white/10 rounded-2xl p-4 shadow-lg">
       <div className="flex items-center gap-3 mb-3">
         <div className={`w-8 h-8 rounded-lg ${tone.chip} text-white flex items-center justify-center shadow-sm`}>
           <Calendar size={16} aria-hidden="true" />
@@ -127,29 +127,29 @@ export default function UpcomingJobsBanner() {
   const day2 = data?.day2 ?? [];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="upcoming-banner-title">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-contain p-3 sm:p-4 md:items-center animate-in fade-in-0 duration-300" role="dialog" aria-modal="true" aria-labelledby="upcoming-banner-title">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={dismiss} aria-hidden="true" />
-      <div className="relative w-full max-w-[960px] min-h-[420px] rounded-[24px] shadow-2xl overflow-hidden flex flex-col md:flex-row bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-900">
+      <div className="relative my-auto w-full max-w-[960px] md:min-h-[420px] rounded-3xl md:rounded-[24px] shadow-2xl overflow-hidden flex flex-col md:flex-row bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-900">
         <button
           type="button"
           onClick={dismiss}
           autoFocus
           aria-label="Dismiss"
-          className="absolute top-4 right-4 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/50 hover:bg-slate-900 text-white transition-colors border border-white/10"
+          className="fixed md:absolute top-5 right-5 md:top-4 md:right-4 z-40 w-9 h-9 md:w-8 md:h-8 flex items-center justify-center rounded-full bg-slate-900/70 hover:bg-slate-900 text-white transition-colors border border-white/10"
         >
           <X size={18} strokeWidth={2.5} aria-hidden="true" />
         </button>
 
-        <div className="p-8 md:p-10 w-full md:w-[45%] relative z-20 flex flex-col justify-center shrink-0">
-          <div className="flex items-center gap-2 bg-purple-500/20 w-fit px-3 py-1.5 rounded-full border border-purple-500/30 mb-6">
+        <div className="px-5 pt-6 pb-4 sm:p-8 md:p-10 w-full md:w-[45%] relative z-20 flex flex-col justify-center shrink-0">
+          <div className="flex items-center gap-2 bg-purple-500/20 w-fit px-3 py-1.5 rounded-full border border-purple-500/30 mb-4 sm:mb-6">
             <Calendar size={14} className="text-purple-300" aria-hidden="true" />
             <span className="text-xs font-bold text-purple-200">Next 2 Days</span>
           </div>
-          <h2 id="upcoming-banner-title" className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-2 tracking-tight">
+          <h2 id="upcoming-banner-title" className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight mb-2 tracking-tight">
             Coming up <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">next</span>
           </h2>
-          <p className="text-slate-300 text-lg mb-8 max-w-sm">
+          <p className="text-slate-300 text-base sm:text-lg mb-5 sm:mb-8 max-w-sm">
             Here&apos;s your job plan for the <span className="text-pink-400 font-semibold">next 2 days</span>.
           </p>
           <Link
@@ -162,7 +162,7 @@ export default function UpcomingJobsBanner() {
           </Link>
         </div>
 
-        <div className="w-full md:w-[55%] relative z-20 flex flex-col justify-center p-6 md:p-8 pt-0 md:pt-8">
+        <div className="w-full md:w-[55%] relative z-20 flex flex-col justify-center px-4 pb-4 sm:px-6 sm:pb-6 md:p-8 pt-0 md:pt-8">
           <div className={`w-full grid ${day1.length > 0 && day2.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"} gap-3`}>
             {day1.length > 0 && <DayCard title="Tomorrow" label="Day 1" accent="purple" jobs={day1} onNavigate={dismiss} />}
             {day2.length > 0 && <DayCard title="Day after tomorrow" label="Day 2" accent="pink" jobs={day2} onNavigate={dismiss} />}
