@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Inter, Alex_Brush, Montserrat, Outfit } from "next/font/google";
 import "@phosphor-icons/web/fill";
 import "@phosphor-icons/web/regular";
@@ -24,11 +25,15 @@ export const viewport: Viewport = {
   themeColor: "#0b0f19",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Every page renders per request: the proxy sets a per-request CSP nonce, and Next can only stamp it on
+  // its inline scripts while rendering dynamically (a prerendered page would ship nonce-less scripts the
+  // policy then blocks). Reading the headers here opts the whole app in.
+  await headers();
   return (
     <html lang="en" className={cn("font-sans", inter.variable, display.variable, brandScript.variable, brandAccent.variable)}>
 

@@ -1,6 +1,45 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * Content Security Policy for pages. A fresh nonce per request lets Next.js mark its own inline
+ * scripts (and <Script> tags) as trusted; `strict-dynamic` then trusts what those load (the Google
+ * Picker pulls in more from apis.google.com). Styles stay 'unsafe-inline' because framer-motion,
+ * Base UI and recharts set styles inline.
+ */
+function buildCsp(nonce: string): string {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    // Avatars and Drive thumbnails come from Google-hosted URLs; images are low risk, so any https host is allowed.
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://www.googleapis.com https://docs.google.com https://content.googleapis.com",
+    "frame-src 'self' https://docs.google.com https://drive.google.com https://accounts.google.com",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://accounts.google.com",
+    "frame-ancestors 'none'",
+    ...(dev ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+}
+
+/** Pass the nonce to Next (it reads the CSP from the request headers) and set the policy on the response. */
+function withCsp(req: NextRequest, response: NextResponse): NextResponse {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = buildCsp(nonce);
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+  // Redirects carry the header too; for rendered pages Next needs the request headers to apply the nonce.
+  const res = response.headers.get("location") ? response : NextResponse.next({ request: { headers: requestHeaders } });
+  res.headers.set("Content-Security-Policy", csp);
+  return res;
+}
+
 const AUTH_PAGES = ["/login", "/reset-password"];
 // Legal pages are public: Google OAuth verification and customers need to read them without an account.
 const PUBLIC_PAGES = ["/privacy", "/terms"];
@@ -9,22 +48,22 @@ export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
-  if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return NextResponse.next();
+  if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return withCsp(req, NextResponse.next());
 
   if (isAuthPage) {
     if (token && pathname.startsWith("/login")) {
-      return NextResponse.redirect(new URL("/dashboard/overview", req.url));
+      return withCsp(req, NextResponse.redirect(new URL("/dashboard/overview", req.url)));
     }
-    return NextResponse.next();
+    return withCsp(req, NextResponse.next());
   }
 
   if (!token) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname + search);
-    return NextResponse.redirect(loginUrl);
+    return withCsp(req, NextResponse.redirect(loginUrl));
   }
 
-  return NextResponse.next();
+  return withCsp(req, NextResponse.next());
 }
 
 export const config = {
