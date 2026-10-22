@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
+import { useDropPlacement } from '@/hooks/useDropPlacement';
 
 interface AutocompleteProps {
   suggestions: string[];
@@ -15,6 +16,7 @@ interface AutocompleteProps {
 export default function Autocomplete({ suggestions, value, onChange, placeholder = "", className = "form-control", style, error }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const placement = useDropPlacement(containerRef, isOpen, 220);
 
   const filteredSuggestions = suggestions.filter(s => 
     s.toLowerCase().includes((value || '').toLowerCase())
@@ -49,7 +51,7 @@ export default function Autocomplete({ suggestions, value, onChange, placeholder
       />
       
       {isOpen && filteredSuggestions.length > 0 && value.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-[1000] max-h-[200px] overflow-y-auto py-2">
+        <div className={`absolute left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-[1000] max-h-[200px] overflow-y-auto py-2 ${placement === "top" ? "bottom-full mb-1" : "top-full mt-1"}`}>
           {filteredSuggestions.map((suggestion) => (
             <div 
               key={suggestion}

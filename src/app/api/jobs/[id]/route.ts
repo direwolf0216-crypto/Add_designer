@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { categoryFromCustomData } from "@/lib/jobs/category";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
@@ -93,7 +94,7 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
       if (!fitsIn(MAX_CUSTOM_DATA_CHARS * 2)(customData)) throw badRequest("Custom data is too large");
     }
     return {
-      category: body.category,
+      category: body.category || categoryFromCustomData(body.customData) || undefined,
       date,
       time: body.time,
       location: body.location,

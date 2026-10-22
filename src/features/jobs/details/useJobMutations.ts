@@ -10,13 +10,12 @@ import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
 /** Statuses that are written through the tracking action (also mirrored into customData). */
 const TRACKING_STATUSES = ["designing", "designing completed", "printing", "ready for delivery", "delivered"];
 
-/** Actions available from the job details view: status changes, delete, invoice and PDF export. */
+/** Actions available from the job details view: status changes, delete and invoice. */
 export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJob | null; refreshJob: () => void; onDeleted: () => void }) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
   const afterStatusChange = (newStatus: string) => {
     toast.success(`Status updated to ${newStatus}`);
@@ -93,40 +92,13 @@ export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJo
     }
   };
 
-  /** Snapshot of #job-details-content as a single-page PDF. */
-  const exportJob = async () => {
-    setIsExporting(true);
-    try {
-      const element = document.getElementById("job-details-content");
-      if (!element || !job) return;
-      const html2canvas = (await import("html2canvas")).default;
-      const { jsPDF } = await import("jspdf");
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: canvas.height > canvas.width ? "p" : "l",
-        unit: "px",
-        format: [canvas.width, canvas.height],
-      });
-      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`Job_Export_${job.jobNumber || job.id.slice(-6).toUpperCase()}.pdf`);
-      toast.success("Job exported successfully!");
-    } catch {
-      toast.error("Failed to export job");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   return {
     changeStatus,
     changeSectionStatus,
     deleteJob,
     generateInvoice,
-    exportJob,
     isDeleting,
     isUpdatingStatus,
     isGeneratingInvoice,
-    isExporting,
   };
 }

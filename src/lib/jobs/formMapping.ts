@@ -2,6 +2,7 @@
 // → the FormData sent to saveJobAction. Pure: no React, no network.
 
 import { toLocalISODate } from "@/lib/dates";
+import { categoryFromCustomData } from "@/lib/jobs/category";
 import { allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import { collapseFileArray, isUploadableFile } from "@/lib/forms/files";
 import { defaultsToFirstOption, firstOptionDefault } from "@/lib/forms/options";
@@ -93,7 +94,7 @@ export function jobToFormState(job: JobRecord, today: string = toLocalISODate())
         : new Date(b.date).toISOString().split("T")[0]
       : parsedCustomData.fld_b_date || "",
     time: parsedCustomData.fld_b_time || b.time || "",
-    category: b.category || parsedCustomData.fld_b_job_category || "",
+    category: b.category || categoryFromCustomData(parsedCustomData),
     location: b.location || parsedCustomData.fld_b_location || "",
     status: b.status || parsedCustomData.fld_b_status || "",
     package: b.order?.package ? b.order.package.toString() : parsedCustomData.fld_b_package || "",

@@ -19,6 +19,8 @@ import JobSpecsCard from "./JobSpecsCard";
 import JobSummaryStrip from "./JobSummaryStrip";
 import JobTabs, { type JobDetailsTab } from "./JobTabs";
 import JobTimeline from "./JobTimeline";
+import { exportJobPdf } from "./exportJobPdf";
+import { toast } from "sonner";
 import { useJob } from "./useJob";
 import { useJobMutations } from "./useJobMutations";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
@@ -50,6 +52,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const layoutSchema = canSeeAmounts ? fullLayout : layoutWithoutMoney(fullLayout ?? null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [activeTabId, setActiveTabId] = useState(DETAILS_TAB.id);
+  const [isExporting, setIsExporting] = useState(false);
   const mutations = useJobMutations({
     job,
     refreshJob,
@@ -62,6 +65,18 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const handleClose = () => {
     // Back inside the app; deep links (search, notifications) go to the jobs board instead of leaving.
     closeJobDetails();
+  };
+
+  const exportPdf = async () => {
+    if (!job) return;
+    setIsExporting(true);
+    try {
+      await exportJobPdf(job, layoutSchema ?? null, JOB_DETAILS_FIELD_MAP, canSeeAmounts);
+    } catch {
+      toast.error("Couldn't build the PDF");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const tabs = [DETAILS_TAB, ...extraTabs];
@@ -141,14 +156,14 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 job={job}
                 canManageJobs={canManageJobs}
                 canManageTransactions={canManageTransactions && canSeeAmounts}
-                isExporting={mutations.isExporting}
+                isExporting={isExporting}
                 isGeneratingInvoice={mutations.isGeneratingInvoice}
                 onEdit={() => {
                   openJobForm(job.id, undefined);
                   closeJobDetails();
                 }}
                 onDelete={() => setIsDeleteConfirmOpen(true)}
-                onExport={mutations.exportJob}
+                onExport={exportPdf}
                 onInvoice={mutations.generateInvoice}
                 assigneesSlot={<JobAssignees job={job} teamUsers={teamUsers} />}
               />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useDropPlacement } from "@/hooks/useDropPlacement";
 import { UserItem } from "./MultiUserPicklist";
 
 interface UserPicklistProps {
@@ -15,6 +16,7 @@ interface UserPicklistProps {
 export default function UserPicklist({ users, value, onChange, placeholder = "Select user...", error, showAvailability = false }: UserPicklistProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const placement = useDropPlacement(containerRef, isOpen);
 
   const selectedUser = users.find(u => u.id === value);
 
@@ -68,7 +70,7 @@ export default function UserPicklist({ users, value, onChange, placeholder = "Se
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-xl z-[100] max-h-[250px] overflow-y-auto py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className={`absolute left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl z-[100] max-h-[250px] overflow-y-auto py-2 animate-in fade-in duration-200 ${placement === "top" ? "bottom-full mb-1.5 slide-in-from-bottom-2" : "top-full mt-1.5 slide-in-from-top-2"}`}>
           {users.length === 0 ? (
             <div className="px-4 py-3 text-sm text-slate-500 text-center font-medium">No users found.</div>
           ) : (

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { categoryFromCustomData } from "@/lib/jobs/category";
 import { parseJobFilters } from "@/lib/jobs/filters";
 import { buildJobWhere } from "@/lib/jobs/where";
 import { jobScope, mineWhere } from "@/lib/jobs/scope";
@@ -155,7 +156,7 @@ export const POST = route(async (req) => {
   const result = await saveJob(
     {
       client: { name: client.name, phone: client.phone, email: client.email || null },
-      category: body.category ?? "",
+      category: body.category || categoryFromCustomData(body.customData),
       date: body.date,
       time: body.time,
       location: body.location,
