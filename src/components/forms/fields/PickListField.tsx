@@ -17,7 +17,7 @@ export default function PickListField({ field, value, onChange, error, variant }
         value={asText(value)}
         onChange={onChange}
         error={!!error}
-        placeholder={`Select ${field.name}...`}
+        placeholder={field.placeholder || `Select ${field.name}...`}
       />
     );
   }
@@ -28,7 +28,7 @@ export default function PickListField({ field, value, onChange, error, variant }
       value={asText(value)}
       onChange={(val) => onChange(val)}
       error={!!error}
-      placeholder={`Select ${field.name}...`}
+      placeholder={field.placeholder || `Select ${field.name}...`}
       className="pl-10"
     />
   );

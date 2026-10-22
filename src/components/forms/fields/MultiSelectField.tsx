@@ -15,7 +15,7 @@ export default function MultiSelectField({ field, value, onChange, error, varian
         value={selectedArray}
         onChange={join}
         error={!!error}
-        placeholder={`Select ${field.name}...`}
+        placeholder={field.placeholder || `Select ${field.name}...`}
       />
     );
   }
@@ -26,7 +26,7 @@ export default function MultiSelectField({ field, value, onChange, error, varian
       value={selectedArray}
       onChange={join}
       error={!!error}
-      placeholder={`Select ${field.name}...`}
+      placeholder={field.placeholder || `Select ${field.name}...`}
       className="pl-10"
     />
   );

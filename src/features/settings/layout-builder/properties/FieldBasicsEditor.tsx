@@ -28,6 +28,35 @@ export default function FieldBasicsEditor({ field: selectedField, layout: active
         />
       </div>
 
+      {/* Sample text shown inside the empty control */}
+      {selectedField.type !== "CHECKBOX" && (
+        <div>
+          <label className="text-[0.75rem] font-bold text-slate-600 mb-1.5 flex items-center justify-between gap-2">
+            <span>Sample text</span>
+            {selectedField.placeholder ? (
+              <button
+                type="button"
+                onClick={() => updateSelectedField({ placeholder: undefined })}
+                className="text-[0.7rem] font-bold text-orange-600 hover:text-orange-700 transition-colors"
+              >
+                Reset
+              </button>
+            ) : null}
+          </label>
+          <input
+            type="text"
+            value={selectedField.placeholder ?? ''}
+            maxLength={200}
+            onChange={(e) => updateSelectedField({ placeholder: e.target.value || undefined })}
+            placeholder={defaultSampleText(selectedField)}
+            className="w-full text-sm font-semibold text-slate-800 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all placeholder:font-normal placeholder:text-slate-400"
+          />
+          <p className="mt-1.5 text-[0.7rem] text-slate-500 leading-snug">
+            Shown in grey inside the field until someone types or picks a value, e.g. &ldquo;Rahul Sharma&rdquo; or &ldquo;3 x 6 ft&rdquo;.
+          </p>
+        </div>
+      )}
+
       {/* Mandatory Toggle */}
       <div className="pt-2">
         <label
@@ -91,4 +120,20 @@ export default function FieldBasicsEditor({ field: selectedField, layout: active
       )}
     </>
   );
+}
+
+/** What the control shows when no sample text has been set, mirroring the form fields' own fallbacks. */
+function defaultSampleText(field: FieldEditorProps["field"]): string {
+  const name = field.name || "value";
+  switch (field.type) {
+    case "DATE": return "Select Date...";
+    case "TIME": return "e.g. HH:MM AM/PM";
+    case "PICK_LIST":
+    case "MULTI_SELECT":
+    case "USER_PICKLIST":
+    case "MULTI_USER_PICKLIST":
+      return `Select ${name}...`;
+    case "STATUS_PICKER": return "Select Status...";
+    default: return `e.g. Enter ${name}...`;
+  }
 }

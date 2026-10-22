@@ -3,6 +3,9 @@
 import { getFieldTypeDef } from "@/lib/layout-builder/fieldTypes";
 import type { FormField } from "@/lib/layout-builder/types";
 
+/** Types whose control is a picker, so the preview reads "Select ..." like the real form. */
+const PICK_STYLE_TYPES = new Set(['PICK_LIST', 'DATE', 'TIME', 'MULTI_SELECT', 'STATUS_PICKER', 'USER_PICKLIST', 'MULTI_USER_PICKLIST']);
+
 interface FieldTileProps {
   field: FormField;
   locked: boolean;
@@ -91,7 +94,7 @@ export default function FieldTile({
         ) : (
           <div className="w-full h-[52px] bg-white border border-gray-200 rounded-xl flex items-center justify-between px-4 shadow-sm pointer-events-none">
             <span className="text-[0.95rem] text-slate-400 truncate">
-              {field.placeholder || (field.type === 'PICK_LIST' || field.type === 'DATE' ? `Select ${(field.name ?? '').toLowerCase()}...` : `e.g. Enter ${(field.name ?? '').toLowerCase()}...`)}
+              {field.placeholder || (PICK_STYLE_TYPES.has(field.type) ? `Select ${(field.name ?? '').toLowerCase()}...` : `e.g. Enter ${(field.name ?? '').toLowerCase()}...`)}
             </span>
             <i className={`ph ${typeDef?.icon || 'ph-text-t'} text-slate-400 text-lg`}></i>
           </div>

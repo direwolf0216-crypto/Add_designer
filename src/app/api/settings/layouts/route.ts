@@ -13,6 +13,7 @@ const fieldSchema = z.looseObject({
   name: z.string().max(200).optional(),
   label: z.string().max(200).optional(),
   type: z.string().min(1).max(50),
+  placeholder: z.string().max(200).optional(),
 });
 
 const sectionSchema = z.looseObject({

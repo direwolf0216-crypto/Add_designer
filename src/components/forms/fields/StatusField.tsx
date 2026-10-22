@@ -11,7 +11,7 @@ export default function StatusField({ field, value, onChange, error, variant, co
         value={asText(value) || (opts.length > 0 ? opts[0].label : "")}
         onChange={onChange}
         error={!!error}
-        placeholder={`Select Status...`}
+        placeholder={field.placeholder || "Select Status..."}
       />
     );
   }
@@ -30,7 +30,7 @@ export default function StatusField({ field, value, onChange, error, variant, co
       value={asText(value)}
       onChange={(val) => onChange(val)}
       error={!!error}
-      placeholder={`Select Status...`}
+      placeholder={field.placeholder || "Select Status..."}
       className="pl-10"
     />
   );

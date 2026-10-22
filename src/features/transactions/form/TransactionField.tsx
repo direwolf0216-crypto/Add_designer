@@ -36,7 +36,7 @@ export default function TransactionField({ field, form, errors, set, driveStatus
             step="0.01"
             value={form[fieldName] || ""}
             onChange={(e) => set(fieldName)(e.target.value)}
-            placeholder="0.00"
+            placeholder={field.placeholder || "0.00"}
             className="w-full bg-transparent border-none outline-none text-4xl font-extrabold text-slate-900 placeholder:text-slate-200 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
           />
         </div>

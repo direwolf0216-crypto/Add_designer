@@ -13,7 +13,7 @@ export default function UserField({ field, value, onChange, error, context, mult
       users={filteredUsers}
       value={asText(value)}
       onChange={(val) => onChange(val)}
-      placeholder={`Select ${field.name}...`}
+      placeholder={field.placeholder || `Select ${field.name}...`}
       error={!!error}
       showAvailability={field.userPicklistConfig?.showAvailability}
       className="pl-10"
