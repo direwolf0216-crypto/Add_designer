@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
@@ -158,7 +159,7 @@ export default function TopNavigation() {
 
 
   return (
-    <header className={`relative flex ${title ? 'justify-between' : 'justify-end'} items-center gap-3 px-4 md:px-6 xl:px-10 py-4 md:py-5 bg-transparent z-50`}>
+    <header className="relative flex items-center justify-between gap-3 px-4 md:px-6 xl:px-10 py-4 md:py-5 bg-transparent z-50">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
@@ -436,6 +437,12 @@ export default function TopNavigation() {
                     <span className="text-[0.75rem] text-slate-500 truncate">{userEmail}</span>
                     <span className="text-[0.65rem] text-slate-500 mt-1 truncate">Role: <strong className="text-slate-700">{roleLabel(userRole, session?.user?.roleName)}</strong></span>
                   </div>
+                </div>
+
+                <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-3 text-[0.7rem] font-semibold text-slate-400">
+                  <Link href="/privacy" onClick={() => setIsProfileOpen(false)} className="hover:text-slate-700">Privacy Policy</Link>
+                  <span aria-hidden="true">·</span>
+                  <Link href="/terms" onClick={() => setIsProfileOpen(false)} className="hover:text-slate-700">Terms of Use</Link>
                 </div>
 
 
