@@ -155,7 +155,7 @@ export default function QueueView({ data }: { data: WorkspaceData }) {
             return (
               <span key={s} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200">
                 <i className={`ph-bold ${stageIcon(s)}`} style={{ color: hex }} aria-hidden="true"></i>
-                {s}
+                {data.stageLabels[s] ?? s}
                 <span className="rounded-full px-1.5 text-[0.65rem] font-black text-white" style={{ backgroundColor: hex }}>{count}</span>
               </span>
             );
@@ -261,7 +261,7 @@ export default function QueueView({ data }: { data: WorkspaceData }) {
                       </Link>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        <StageBadge stage={job.stage} color={stageColor(job.stage)} size="xs" />
+                        <StageBadge stage={data.stageLabels[job.stage] ?? job.stage} color={stageColor(job.stage)} size="xs" />
                         <DueChip due={job.dueDate} today={data.today} />
                         <AssigneeAvatars assignees={job.assignees.map((a) => ({ ...a, user: { ...a.user, image: a.user.image ?? undefined } }))} size={22} />
                       </div>
@@ -299,7 +299,7 @@ export default function QueueView({ data }: { data: WorkspaceData }) {
                               style={{ backgroundColor: stageHex(stageColor(next)) }}
                             >
                               <i className={`ph-bold ${stageIcon(next)}`} aria-hidden="true"></i>
-                              {next}
+                              {data.stageLabels[next] ?? next}
                             </button>
                           )}
                         </div>

@@ -18,12 +18,17 @@ type Props = {
   onMove?: (jobId: string, stage: string) => void;
   draggable?: boolean;
   showStage?: boolean;
+  /** What the viewer's team calls this stage (defaults to the stage itself). */
+  stageLabel?: string;
+  /** "lg" on wide boards with few columns: more padding and bigger type. */
+  size?: "md" | "lg";
 };
 
 // "Ready for Delivery" is still open; only Delivered and Cancelled are closed.
 const CLOSED = /^delivered$|cancel/i;
 
-export default function JobCard({ job, today, stages = [], onMove, draggable = false, showStage = false }: Props) {
+export default function JobCard({ job, today, stages = [], onMove, draggable = false, showStage = false, stageLabel, size = "md" }: Props) {
+  const lg = size === "lg";
   const amount = job.amount ?? 0;
   const balance = job.balance ?? 0;
   const paidPct = amount > 0 ? Math.min(100, Math.round(((job.paid ?? 0) / amount) * 100)) : 0;
@@ -39,14 +44,14 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
         e.currentTarget.classList.add("opacity-50");
       }}
       onDragEnd={(e) => e.currentTarget.classList.remove("opacity-50")}
-      className={`group relative rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`group relative rounded-2xl border border-slate-200/80 bg-white ${lg ? "p-5" : "p-3.5"} shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       <Link href={`/jobs/details/${job.id}`} className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label={`Open ${job.jobNumber ?? "job"} for ${job.clientName}`} />
 
       <div className="pointer-events-none relative z-10 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-mono text-[0.65rem] font-bold tracking-wide text-slate-400">{job.jobNumber ?? `#${job.id.slice(-6).toUpperCase()}`}</p>
-          <h3 className="truncate text-sm font-extrabold text-slate-900">{job.clientName}</h3>
+          <p className={`font-mono font-bold tracking-wide text-slate-400 ${lg ? "text-xs" : "text-[0.65rem]"}`}>{job.jobNumber ?? `#${job.id.slice(-6).toUpperCase()}`}</p>
+          <h3 className={`truncate font-extrabold text-slate-900 ${lg ? "text-base" : "text-sm"}`}>{job.clientName}</h3>
         </div>
         {onMove && stages.length > 0 && (
           <Popover>
@@ -76,7 +81,7 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
         )}
       </div>
 
-      <div className="pointer-events-none relative z-10 mt-2 flex flex-wrap items-center gap-1.5">
+      <div className={`pointer-events-none relative z-10 flex flex-wrap items-center gap-1.5 ${lg ? "mt-3" : "mt-2"}`}>
         {job.priority !== "NORMAL" && (
           <span
             className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[0.7rem] font-black"
@@ -90,7 +95,7 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
         {showStage && (
           <span className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[0.7rem] font-bold" style={{ color: stageHex(stageColor), backgroundColor: `${stageHex(stageColor)}14` }}>
             <i className={`ph-bold ${stageIcon(job.stage)}`} aria-hidden="true"></i>
-            {job.stage}
+            {stageLabel ?? job.stage}
           </span>
         )}
         <DueChip due={job.dueDate} today={today} closed={closed} />
@@ -98,7 +103,7 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
 
       {amount > 0 && (
         <div className="pointer-events-none relative z-10 mt-3">
-          <div className="mb-1 flex items-baseline justify-between text-[0.7rem] font-bold">
+          <div className={`mb-1 flex items-baseline justify-between font-bold ${lg ? "text-sm" : "text-[0.7rem]"}`}>
             <Amount value={amount} maxChars={10} className="text-slate-800" />
             {balance > 0 ? (
               <span className="text-rose-600">
@@ -115,7 +120,7 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
       )}
 
       <div className="pointer-events-none relative z-10 mt-3 flex items-center justify-between gap-2">
-        <AssigneeAvatars assignees={job.assignees.map((a) => ({ ...a, user: { ...a.user, image: a.user.image ?? undefined } }))} size={24} />
+        <AssigneeAvatars assignees={job.assignees.map((a) => ({ ...a, user: { ...a.user, image: a.user.image ?? undefined } }))} size={lg ? 28 : 24} />
         {job.location && (
           <span className="flex min-w-0 items-center gap-1 truncate text-[0.7rem] font-semibold text-slate-400">
             <i className="ph-bold ph-map-pin" aria-hidden="true"></i>

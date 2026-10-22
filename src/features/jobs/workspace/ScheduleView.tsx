@@ -4,8 +4,8 @@ import type { StageOption } from "@/lib/jobs/tracking";
 import type { WorkspaceData, WorkspaceJob } from "@/lib/jobs/workspace";
 import JobCard from "./JobCard";
 
-function DaySection({ id, badge, tone, title, subtitle, jobs, today, stages }: {
-  id: string; badge: ReactNode; tone: string; title: string; subtitle: string; jobs: WorkspaceJob[]; today: string; stages: StageOption[];
+function DaySection({ id, badge, tone, title, subtitle, jobs, today, stages, labels }: {
+  id: string; badge: ReactNode; tone: string; title: string; subtitle: string; jobs: WorkspaceJob[]; today: string; stages: StageOption[]; labels: Record<string, string>;
 }) {
   return (
     <section aria-labelledby={`sched-${id}`}>
@@ -21,7 +21,7 @@ function DaySection({ id, badge, tone, title, subtitle, jobs, today, stages }: {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {jobs.map((job, i) => (
           <div key={job.id} className="animate-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
-            <JobCard job={job} today={today} stages={stages} showStage />
+            <JobCard job={job} today={today} stages={stages} showStage stageLabel={labels[job.stage]} />
           </div>
         ))}
       </div>
@@ -56,6 +56,7 @@ export default function ScheduleView({ data }: { data: WorkspaceData }) {
           jobs={s.overdue}
           today={data.today}
           stages={data.stages}
+          labels={data.stageLabels}
         />
       )}
       {busy.map((d) => {
@@ -77,6 +78,7 @@ export default function ScheduleView({ data }: { data: WorkspaceData }) {
             jobs={d.jobs}
             today={data.today}
             stages={data.stages}
+            labels={data.stageLabels}
           />
         );
       })}

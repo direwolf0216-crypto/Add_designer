@@ -55,8 +55,20 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
     startTransition(() => router.refresh());
   };
 
+  // A team's board (My jobs with a few stages) spreads its columns across the page with bigger cards;
+  // the full board keeps fixed columns that scroll sideways.
+  const wide = columns.length > 0 && columns.length <= 4;
+  const label = (stage: string) => data.stageLabels[stage] ?? stage;
+
   return (
-    <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
+    <div
+      className={
+        wide
+          ? "-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:grid md:gap-5 md:overflow-visible md:px-0"
+          : "-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0"
+      }
+      style={wide ? { gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` } : undefined}
+    >
       {columns.map((col) => {
         const hex = stageHex(col.color);
         const isTarget = dropTarget === col.stage;
@@ -77,21 +89,24 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
               const id = e.dataTransfer.getData("text/job-id");
               if (id) move(id, col.stage);
             }}
-            className={`flex w-[290px] shrink-0 snap-start flex-col rounded-3xl border p-3 transition-colors md:w-[300px] ${isTarget ? "border-dashed bg-white/90" : "border-slate-200/70 bg-slate-50/70 backdrop-blur"}`}
+            className={`flex w-[290px] shrink-0 snap-start flex-col rounded-3xl border p-3 transition-colors ${wide ? "md:w-auto md:min-w-0 md:p-4" : "md:w-[300px]"} ${isTarget ? "border-dashed bg-white/90" : "border-slate-200/70 bg-slate-50/70 backdrop-blur"}`}
             style={isTarget ? { borderColor: hex } : undefined}
           >
             <header className="mb-3 flex items-center gap-2 px-1">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${hex}1a`, color: hex }}>
-                <i className={`ph-bold ${stageIcon(col.stage)} text-sm`} aria-hidden="true"></i>
+              <span className={`flex items-center justify-center rounded-lg ${wide ? "h-9 w-9 rounded-xl" : "h-7 w-7"}`} style={{ backgroundColor: `${hex}1a`, color: hex }}>
+                <i className={`ph-bold ${stageIcon(col.stage)} ${wide ? "text-base" : "text-sm"}`} aria-hidden="true"></i>
               </span>
-              <h2 className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">{col.stage}</h2>
+              <div className="min-w-0 flex-1">
+                <h2 className={`truncate font-extrabold text-slate-800 ${wide ? "text-base" : "text-sm"}`}>{label(col.stage)}</h2>
+                {label(col.stage) !== col.stage && <p className="truncate text-[0.65rem] font-semibold text-slate-400">{col.stage}</p>}
+              </div>
               <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-600 ring-1 ring-slate-200">{col.count}</span>
             </header>
 
-            <div className="flex max-h-[calc(100dvh-22rem)] min-h-[120px] flex-col gap-2.5 overflow-y-auto pr-0.5">
+            <div className={`flex max-h-[calc(100dvh-22rem)] min-h-[120px] flex-col overflow-y-auto pr-0.5 ${wide ? "gap-3" : "gap-2.5"}`}>
               {col.jobs.map((job, i) => (
                 <div key={job.id} className="animate-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
-                  <JobCard job={job} today={data.today} stages={data.stages} onMove={canMove ? move : undefined} draggable={canMove} />
+                  <JobCard job={job} today={data.today} stages={data.stages} onMove={canMove ? move : undefined} draggable={canMove} size={wide ? "lg" : "md"} />
                 </div>
               ))}
               {col.jobs.length === 0 && (

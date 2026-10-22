@@ -536,6 +536,7 @@ model Team {
   color     String       @default("#3b82f6")
   /// Board stage labels this team works on. A stage belongs to at most one team.
   stages    String[]
+  stageLabels Json?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   members   TeamMember[]

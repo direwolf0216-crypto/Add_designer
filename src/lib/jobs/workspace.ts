@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import type { SessionUser } from "@/lib/auth/session";
 import { userCan } from "@/lib/auth/session";
 import { jobScope, mineWhere } from "@/lib/jobs/scope";
-import { listTeams, stageInWhere, type TeamSummary } from "@/lib/services/teams";
+import { listTeams, stageInWhere, stageLabelFor, type TeamSummary } from "@/lib/services/teams";
 import { stageOptions, type StageOption } from "@/lib/jobs/tracking";
 import { addDays, businessTodayUtc } from "@/lib/dates";
 
@@ -197,7 +197,8 @@ export async function buildWorkspaceQuery(user: SessionUser, raw: Raw) {
   const today = businessTodayUtc();
 
   // Mine = assigned to me, or waiting in one of my teams' stages.
-  const mine = await mineWhere(user.id);
+  const [mine, allTeams] = await Promise.all([mineWhere(user.id), listTeams()]);
+  const myTeams = allTeams.filter((t) => t.members.some((m) => m.id === user.id));
   const scoped = (...extra: Prisma.JobWhereInput[]): Prisma.JobWhereInput => ({
     deletedAt: null,
     ...visibility,
@@ -230,7 +231,7 @@ export async function buildWorkspaceQuery(user: SessionUser, raw: Raw) {
   // Stats ignore the quick-filter focus (they are the focus buttons) but respect everything else.
   const filtered: Prisma.JobWhereInput = { ...base, AND: [...((base.AND as Prisma.JobWhereInput[]) ?? []), ...filters] };
   const where: Prisma.JobWhereInput = { ...filtered, AND: [...(filtered.AND as Prisma.JobWhereInput[]), focus] };
-  return { canSeeAll, canSeeAmounts, params, stages, firstStage, readyStage, categories, today, scoped, mine, filtered, where, otherFilters, focus };
+  return { canSeeAll, canSeeAmounts, params, stages, firstStage, readyStage, categories, today, scoped, mine, filtered, where, otherFilters, focus, allTeams, myTeams };
 }
 
 /** Rows for CSV/PDF export with the current filters (capped). */
@@ -241,8 +242,16 @@ export async function loadWorkspaceExport(user: SessionUser, raw: Raw, limit = 5
 }
 
 export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
-  const { canSeeAll, canSeeAmounts, params, stages, firstStage, readyStage, categories, today, scoped, mine, filtered, where, otherFilters, focus } =
+  const { canSeeAll, canSeeAmounts, params, stages, firstStage, readyStage, categories, today, scoped, mine, filtered, where, otherFilters, focus, allTeams, myTeams } =
     await buildWorkspaceQuery(user, raw);
+  // "My jobs" for someone on a team shows only their teams' stages, under the names those teams gave them.
+  const myStageSet = new Set(myTeams.flatMap((t) => t.stages.map((s) => s.toLowerCase())));
+  const labelTeams: Pick<TeamSummary, "stages" | "stageLabels">[] = myTeams;
+  const stageLabels: Record<string, string> = {};
+  for (const s of stages) {
+    const label = stageLabelFor(labelTeams, s.label);
+    if (label !== s.label) stageLabels[s.label] = label;
+  }
 
   const statsWhere = (extra: Prisma.JobWhereInput) => ({ ...filtered, AND: [...(filtered.AND as Prisma.JobWhereInput[]), extra] });
   const statsPromise = Promise.all([
@@ -269,8 +278,10 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
   } | null = null;
 
   if (params.view === "board") {
-    // Cancelled stays off the board unless explicitly filtered for.
-    const columns = stages.filter((s) => !/cancel/i.test(s.label) || params.stages.some((x) => x.toLowerCase() === s.label.toLowerCase()));
+    // Cancelled stays off the board unless explicitly filtered for; "My jobs" on a team shows only that team's stages.
+    const columns = stages
+      .filter((s) => !/cancel/i.test(s.label) || params.stages.some((x) => x.toLowerCase() === s.label.toLowerCase()))
+      .filter((s) => params.scope !== "mine" || myStageSet.size === 0 || myStageSet.has(s.label.toLowerCase()));
     board = await Promise.all(
       columns.map(async (s) => {
         const colWhere: Prisma.JobWhereInput = { ...where, AND: [...(where.AND as Prisma.JobWhereInput[]), stageWhere([s.label], firstStage)] };
@@ -289,9 +300,16 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
     ]);
     listData = { jobs: rows.map((r) => toCard(r, firstStage, canSeeAmounts)), total, page: params.page, pageSize: LIST_PAGE };
   } else if (params.view === "queue") {
-    const teams = await listTeams();
-    const myTeam = teams.find((t) => t.members.some((m) => m.id === user.id));
+    const teams = allTeams;
+    const myTeam = myTeams[0];
     const team = teams.find((t) => t.id === params.team) ?? myTeam ?? teams[0] ?? null;
+    if (team) {
+      for (const s of stages) {
+        const label = stageLabelFor([team], s.label);
+        if (label !== s.label) stageLabels[s.label] = label;
+        else delete stageLabels[s.label];
+      }
+    }
     let jobs: WorkspaceJob[] = [];
     let total = 0;
     const stageCounts: Record<string, number> = {};
@@ -346,6 +364,10 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
     list: listData,
     schedule,
     queue,
+    /** Stage display names for the viewer (their teams' renames), keyed by the stage's real label. */
+    stageLabels,
+    /** True when "My jobs" is limited to the viewer's teams' stages. */
+    teamBoard: params.scope === "mine" && myStageSet.size > 0,
     today: today.toISOString().slice(0, 10),
   };
 }

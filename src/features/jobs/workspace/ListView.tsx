@@ -82,7 +82,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
                 </div>
               </td>
               <td className="px-4 py-3">
-                <StageBadge stage={job.stage} color={stageColor(job.stage)} />
+                <StageBadge stage={data.stageLabels[job.stage] ?? job.stage} color={stageColor(job.stage)} />
               </td>
               <td className="px-4 py-3">
                 <DueChip due={job.dueDate} today={data.today} closed={/^delivered$|cancel/i.test(job.stage.trim())} />
@@ -115,7 +115,7 @@ export default function ListView({ data }: { data: WorkspaceData }) {
       {/* Mobile cards */}
       <div className="flex flex-col gap-2.5 p-3 md:hidden">
         {list.jobs.map((job) => (
-          <JobCard key={job.id} job={job} today={data.today} stages={data.stages} showStage />
+          <JobCard key={job.id} job={job} today={data.today} stages={data.stages} showStage stageLabel={data.stageLabels[job.stage]} />
         ))}
       </div>
 

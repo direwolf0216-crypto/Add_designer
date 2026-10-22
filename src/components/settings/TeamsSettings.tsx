@@ -63,11 +63,12 @@ function TeamDialog({
   const [name, setName] = useState(team?.name ?? "");
   const [color, setColor] = useState(team?.color ?? COLORS[teams.length % COLORS.length]);
   const [picked, setPicked] = useState<string[]>(team?.stages ?? []);
+  const [labels, setLabels] = useState<Record<string, string>>(team?.stageLabels ?? {});
   const [members, setMembers] = useState((team?.members ?? []).map((m) => m.id).join(","));
   const [busy, setBusy] = useState(false);
 
-  // Each stage belongs to one team, so a job always has exactly one queue.
-  const ownerOf = (stage: string) => teams.find((t) => t.id !== team?.id && t.stages.some((s) => lower(s) === lower(stage)));
+  // Stages can be shared: a job at a shared stage sits in every one of those teams' queues.
+  const sharedWith = (stage: string) => teams.filter((t) => t.id !== team?.id && t.stages.some((s) => lower(s) === lower(stage)));
   const toggle = (stage: string) => setPicked((cur) => (cur.some((s) => lower(s) === lower(stage)) ? cur.filter((s) => lower(s) !== lower(stage)) : [...cur, stage]));
 
   const save = async () => {
@@ -80,7 +81,7 @@ function TeamDialog({
       const res = await fetch(team ? `/api/teams/${team.id}` : "/api/teams", {
         method: team ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, color, stages: picked, memberIds: members.split(",").filter(Boolean) }),
+        body: JSON.stringify({ name, color, stages: picked, stageLabels: labels, memberIds: members.split(",").filter(Boolean) }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Couldn't save the team");
       toast.success(team ? `Saved ${name.trim()}` : `Created the ${name.trim()} team`);
@@ -138,7 +139,7 @@ function TeamDialog({
           <span className="text-[0.8rem] font-bold text-slate-700">Takes over jobs at</span>
           <div className="flex flex-wrap gap-2">
             {stages.map((s) => {
-              const owner = ownerOf(s.label);
+              const shared = sharedWith(s.label);
               const on = picked.some((p) => lower(p) === lower(s.label));
               const hex = stageHex(s.color);
               return (
@@ -146,21 +147,48 @@ function TeamDialog({
                   key={s.label}
                   type="button"
                   aria-pressed={on}
-                  disabled={!!owner}
                   onClick={() => toggle(s.label)}
-                  title={owner ? `Belongs to the ${owner.name} team` : undefined}
+                  title={shared.length ? `Also in the ${shared.map((t) => t.name).join(", ")} team${shared.length > 1 ? "s" : ""}` : undefined}
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold ring-1 transition-all disabled:cursor-not-allowed disabled:opacity-40 ${on ? "shadow-sm" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"}`}
                   style={on ? { backgroundColor: `${hex}14`, color: hex, ["--tw-ring-color" as string]: `${hex}55` } : undefined}
                 >
                   <i className={`ph-bold ${on ? "ph-check" : stageIcon(s.label)}`} aria-hidden="true"></i>
                   {s.label}
-                  {owner && <span className="font-semibold">· {owner.name}</span>}
+                  {shared.length > 0 && <span className="font-semibold opacity-60">· also {shared.map((t) => t.name).join(", ")}</span>}
                 </button>
               );
             })}
           </div>
-          <span className="text-[0.7rem] text-slate-400">For a printing team, pick Designing Completed (waiting to print) and Printing.</span>
+          <span className="text-[0.7rem] text-slate-400">A stage can belong to more than one team. For a printing team, pick Designing Completed (waiting to print) and Printing.</span>
         </div>
+
+        {picked.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[0.8rem] font-bold text-slate-700">What this team calls them <span className="font-medium text-slate-400">(optional)</span></span>
+            <div className="flex flex-col gap-1.5 rounded-2xl border border-slate-100 bg-slate-50/60 p-2">
+              {stages.filter((s) => picked.some((p) => lower(p) === lower(s.label))).map((s) => {
+                const hex = stageHex(s.color);
+                return (
+                  <label key={s.label} className="flex items-center gap-2">
+                    <span className="inline-flex w-[42%] shrink-0 items-center gap-1.5 truncate text-xs font-bold" style={{ color: hex }} title={s.label}>
+                      <i className={`ph-bold ${stageIcon(s.label)} shrink-0`} aria-hidden="true"></i>
+                      <span className="truncate">{s.label}</span>
+                    </span>
+                    <input
+                      value={labels[s.label] ?? ""}
+                      onChange={(e) => setLabels({ ...labels, [s.label]: e.target.value })}
+                      maxLength={40}
+                      placeholder={s.label}
+                      aria-label={`Name for ${s.label}`}
+                      className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder:font-medium placeholder:text-slate-300 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/15"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            <span className="text-[0.7rem] text-slate-400">Shown to this team&apos;s people on their board, list and queue. Everyone else sees the stage&apos;s own name.</span>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <span className="text-[0.8rem] font-bold text-slate-700">People</span>
@@ -278,9 +306,10 @@ export default function TeamsSettings() {
               <div className="relative mt-4 flex flex-wrap gap-1.5">
                 {t.stages.length ? (
                   t.stages.map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[0.7rem] font-bold" style={{ color: stageColor(s), backgroundColor: `${stageColor(s)}14` }}>
+                    <span key={s} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[0.7rem] font-bold" style={{ color: stageColor(s), backgroundColor: `${stageColor(s)}14` }} title={t.stageLabels[s] ? `${s}, shown to the team as "${t.stageLabels[s]}"` : undefined}>
                       <i className={`ph-bold ${stageIcon(s)}`} aria-hidden="true"></i>
-                      {s}
+                      {t.stageLabels[s] ?? s}
+                      {t.stageLabels[s] && <span className="opacity-50">({s})</span>}
                     </span>
                   ))
                 ) : (
