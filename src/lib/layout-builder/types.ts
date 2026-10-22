@@ -72,6 +72,10 @@ export interface FormSchema {
 }
 
 export interface FormLayout {
+  /** Set by the server: the live version number and when a draft was last saved. */
+  publishedVersion?: number | null;
+  draftUpdatedAt?: string | null;
+  draftSchema?: FormSchema | null;
   id?: string;
   formKey: string;
   name: string;

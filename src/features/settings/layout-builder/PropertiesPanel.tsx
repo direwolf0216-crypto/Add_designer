@@ -15,6 +15,9 @@ import SizeUnitsEditor from "./properties/SizeUnitsEditor";
 import RequiredRuleEditor from "./properties/RequiredRuleEditor";
 import ValidationEditor from "./properties/ValidationEditor";
 import RolesChecklist from "./RolesChecklist";
+import CategoryPricingCard from "./properties/CategoryPricingCard";
+import StatusStagesCard from "./properties/StatusStagesCard";
+import { effectiveRole } from "@/lib/forms/roles";
 import { hasConditions } from "@/lib/forms/visibility";
 import { hasValidation } from "@/lib/forms/validation";
 import type { FieldRole } from "@/lib/layout-builder/types";
@@ -110,6 +113,9 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
                 )}
                 {selectedField.type === "STATUS_PICKER" && <StatusOptionsEditor field={selectedField} onChange={onChange} />}
                 {selectedField.type === "SIZE" && <SizeUnitsEditor field={selectedField} layout={layout} onChange={onChange} />}
+                {/* Settings that live elsewhere but belong to this field, shown in place. */}
+                {layout.formKey === "JOB_FORM" && effectiveRole(layout.schema, selectedField) === "category" && <CategoryPricingCard field={selectedField} />}
+                {layout.formKey === "JOB_FORM" && selectedField.type === "STATUS_PICKER" && <StatusStagesCard field={selectedField} />}
               </>
             )}
 

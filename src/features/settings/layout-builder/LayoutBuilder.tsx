@@ -14,6 +14,9 @@ import MigrateOptionDialog from "./MigrateOptionDialog";
 import RemoveFieldDialog from "./RemoveFieldDialog";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
 import LayoutPreviewDialog, { PREVIEWABLE_FORMS } from "./LayoutPreviewDialog";
+import PublishDialog from "./PublishDialog";
+import HistoryDialog from "./HistoryDialog";
+import { diffLayouts } from "@/lib/layout-builder/diff";
 
 const isTypingTarget = (el: EventTarget | null) => {
   const node = el as HTMLElement | null;
@@ -33,7 +36,8 @@ const isTypingTarget = (el: EventTarget | null) => {
  */
 export default function LayoutBuilder() {
   const builder = useLayoutBuilder();
-  const { activeLayout, selectedField, dirty } = builder;
+  const { activeLayout, selectedField, dirty, unpublished } = builder;
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const drag = useBuilderDrag({
     onInsertNewField: (sectionId, fieldType, index) =>
@@ -81,7 +85,7 @@ export default function LayoutBuilder() {
       const key = e.key.toLowerCase();
       if (key === "s") {
         e.preventDefault();
-        void handleSave();
+        void handleSave("draft");
         return;
       }
       if (isTypingTarget(e.target)) return;
@@ -141,13 +145,17 @@ export default function LayoutBuilder() {
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col font-sans lg:h-[calc(100dvh-140px)] lg:min-h-[560px]">
       <EditorHeader
         title={activeLayout.name}
+        version={activeLayout.publishedVersion}
+        status={dirty ? "unsaved" : unpublished ? "draft" : "live"}
         saving={builder.saving}
-        dirty={dirty}
         canUndo={builder.canUndo}
         canRedo={builder.canRedo}
         canPreview={canPreview}
+        canPublish={unpublished || dirty}
         onBack={requestBack}
-        onSave={() => void builder.handleSave()}
+        onSaveDraft={() => void builder.handleSave("draft")}
+        onPublish={() => setPublishOpen(true)}
+        onHistory={() => builder.setHistoryOpen(true)}
         onUndo={builder.undo}
         onRedo={builder.redo}
         onPreview={() =>
@@ -266,9 +274,9 @@ export default function LayoutBuilder() {
 
       <UnsavedChangesDialog
         open={leavePrompt}
-        saving={builder.saving}
+        saving={!!builder.saving}
         onSave={async () => {
-          const ok = await builder.handleSave();
+          const ok = await builder.handleSave("draft");
           if (ok) {
             setLeavePrompt(false);
             builder.closeForm();
@@ -288,6 +296,29 @@ export default function LayoutBuilder() {
           onClose={closePreview}
         />
       )}
+
+      <PublishDialog
+        open={publishOpen}
+        formName={activeLayout.name}
+        nextVersion={(activeLayout.publishedVersion ?? 0) + 1}
+        changes={diffLayouts(builder.publishedSchema as never, activeLayout.schema as never)}
+        publishing={builder.saving === "publish"}
+        onConfirm={async (note) => {
+          const ok = await builder.handleSave("publish", note);
+          if (ok) setPublishOpen(false);
+        }}
+        onCancel={() => setPublishOpen(false)}
+      />
+
+      <HistoryDialog
+        open={builder.historyOpen}
+        versions={builder.versions}
+        loading={builder.versionsLoading}
+        liveVersion={activeLayout.publishedVersion}
+        draft={activeLayout.schema}
+        onRestore={builder.restoreVersion}
+        onClose={() => builder.setHistoryOpen(false)}
+      />
     </div>
   );
 }

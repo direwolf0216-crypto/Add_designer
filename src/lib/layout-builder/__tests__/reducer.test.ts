@@ -300,3 +300,29 @@ describe("field roles in the builder", () => {
     expect(getActiveLayout(s)!.schema.sections[0].fields[1].role).toBeUndefined();
   });
 });
+
+describe("drafts and publishing", () => {
+  it("edits the draft when one exists and knows when it differs from the live schema", async () => {
+    const { hasUnpublished, isDirty } = await import("../reducer");
+    const live = layout("JOB");
+    const draft = { ...live.schema, sections: [live.schema.sections[0]] };
+    let s = reduce(initialLayoutBuilderState, { type: "seed", defaults: [], fromServer: [{ ...live, draftSchema: draft, publishedVersion: 3 }] });
+    s = reduce(s, { type: "openForm", formKey: "JOB" });
+    expect(getActiveLayout(s)!.schema.sections).toHaveLength(1);
+    expect(isDirty(s)).toBe(false);
+    expect(hasUnpublished(s)).toBe(true);
+    s = reduce(s, { type: "markPublished", formKey: "JOB", version: 4 });
+    expect(hasUnpublished(s)).toBe(false);
+    expect(getActiveLayout(s)!.publishedVersion).toBe(4);
+    expect(getActiveLayout(s)!.draftSchema).toBeNull();
+  });
+
+  it("restores a version into the draft as an undoable step", () => {
+    let s = reduce(initialLayoutBuilderState, { type: "seed", defaults: [layout("JOB")], fromServer: [] });
+    s = reduce(s, { type: "openForm", formKey: "JOB" });
+    s = reduce(s, { type: "replaceSchema", schema: { sections: [] } });
+    expect(getActiveLayout(s)!.schema.sections).toHaveLength(0);
+    s = reduce(s, { type: "undo" });
+    expect(getActiveLayout(s)!.schema.sections).toHaveLength(2);
+  });
+});

@@ -308,13 +308,35 @@ model ProductOrder {
 }
 
 model FormLayout {
+  id               String   @id @default(cuid())
+  formKey          String   @unique
+  name             String
+  description      String?
+  /// The live layout the forms render.
+  schema           Json
+  /// Work in progress from the layout builder; published copies it into `schema`.
+  draftSchema      Json?
+  draftUpdatedAt   DateTime?
+  publishedVersion Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Every publish of a layout, so admins can see who changed what and restore an earlier version.
+model FormLayoutVersion {
   id          String   @id @default(cuid())
-  formKey     String   @unique
+  formKey     String
+  version     Int
   name        String
   description String?
   schema      Json
+  authorId    String?
+  authorName  String?
+  note        String?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  @@unique([formKey, version])
+  @@index([formKey, createdAt])
 }
 
 model SystemSetting {

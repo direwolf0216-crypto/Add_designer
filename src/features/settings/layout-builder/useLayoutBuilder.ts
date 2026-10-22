@@ -11,6 +11,7 @@ import {
   canUndo,
   findSelectedField,
   getActiveLayout,
+  hasUnpublished,
   initialLayoutBuilderState,
   isDirty,
   layoutBuilderReducer,
@@ -37,6 +38,18 @@ export interface RemoveFieldPrompt {
   count: number;
 }
 
+export interface LayoutVersion {
+  id: string;
+  version: number;
+  name: string;
+  note: string | null;
+  authorName: string | null;
+  createdAt: string;
+  schema: FormLayout["schema"];
+}
+
+export type SaveAction = "draft" | "publish";
+
 export interface BuilderUser {
   id: string;
   name: string;
@@ -46,7 +59,8 @@ export interface BuilderUser {
 
 export function useLayoutBuilder() {
   const [state, dispatch] = useReducer(layoutBuilderReducer, initialLayoutBuilderState);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<SaveAction | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [removePrompt, setRemovePrompt] = useState<RemoveFieldPrompt | null>(null);
   const [checkingField, setCheckingField] = useState<string | null>(null);
 
@@ -76,27 +90,47 @@ export function useLayoutBuilder() {
   const selectedField = selected?.field ?? null;
   const selectedSectionId = selected?.sectionId ?? null;
 
-  const handleSave = async () => {
-    if (!activeLayout) return;
-    setSaving(true);
+  /**
+   * "draft" stores the work in progress without touching the live form; "publish" makes it live and
+   * records a version. Returns whether it succeeded.
+   */
+  const handleSave = async (action: SaveAction = "draft", note?: string) => {
+    if (!activeLayout) return false;
+    setSaving(action);
     try {
       const res = await fetch("/api/settings/layouts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(activeLayout),
+        body: JSON.stringify({ formKey: activeLayout.formKey, name: activeLayout.name, description: activeLayout.description, schema: activeLayout.schema, action, note }),
       });
       if (!res.ok) throw new Error("Failed to save layout");
-      dispatch({ type: "markSaved", formKey: activeLayout.formKey });
-      toast.success(`${activeLayout.name} saved successfully!`);
-      globalMutate(`/api/settings/layouts/${activeLayout.formKey}`);
+      const saved = (await res.json()) as { publishedVersion?: number | null };
+      if (action === "publish") {
+        dispatch({ type: "markPublished", formKey: activeLayout.formKey, version: saved.publishedVersion ?? 0 });
+        toast.success(`${activeLayout.name} published`, { description: `Version ${saved.publishedVersion ?? ""} is live for everyone now.` });
+        globalMutate(`/api/settings/layouts/${activeLayout.formKey}`);
+        globalMutate(`/api/settings/layouts/${activeLayout.formKey}/versions`);
+      } else {
+        dispatch({ type: "markSaved", formKey: activeLayout.formKey });
+        toast.success("Draft saved", { description: "The live form is unchanged until you publish." });
+      }
       globalMutate(`/api/settings/layouts`);
     } catch {
-      toast.error("Failed to save layout");
+      toast.error(action === "publish" ? "Failed to publish layout" : "Failed to save draft");
       return false;
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
     return true;
+  };
+
+  // Publish history, loaded when the panel opens.
+  const versionsKey = historyOpen && activeLayout ? `/api/settings/layouts/${activeLayout.formKey}/versions` : null;
+  const { data: versionsData, isLoading: versionsLoading } = useSWR<{ versions: LayoutVersion[] }>(versionsKey, fetcher, { revalidateOnFocus: false });
+  const restoreVersion = (v: LayoutVersion) => {
+    dispatch({ type: "replaceSchema", schema: v.schema });
+    setHistoryOpen(false);
+    toast.success(`Version ${v.version} loaded into the draft`, { description: "Review it, then publish to make it live. Undo reverts." });
   };
 
   // --- Navigation / selection ---
@@ -235,6 +269,13 @@ export function useLayoutBuilder() {
     selectedField,
     selectedSectionId,
     handleSave,
+    unpublished: hasUnpublished(state),
+    publishedSchema: activeLayout ? (JSON.parse(state.published[activeLayout.formKey] ?? "null") as FormLayout["schema"] | null) : null,
+    historyOpen,
+    setHistoryOpen,
+    versions: versionsData?.versions ?? [],
+    versionsLoading,
+    restoreVersion,
     dirty: isDirty(state),
     canUndo: canUndo(state),
     canRedo: canRedo(state),

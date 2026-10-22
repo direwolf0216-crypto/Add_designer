@@ -42,7 +42,11 @@ export default function FormList({ layouts, onOpen, onCreateClick, children }: F
               <h3 className="font-extrabold text-slate-900 text-lg mb-1">{layout.name}</h3>
               <p className="text-sm text-slate-500 mb-4 line-clamp-2">{layout.description}</p>
               <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-                <span>{layout.schema.sections?.length || 0} Sections</span>
+                <span className="flex items-center gap-2">
+                  {layout.schema.sections?.length || 0} Sections
+                  {layout.publishedVersion ? <span className="rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[0.65rem] font-bold text-emerald-700">v{layout.publishedVersion} live</span> : null}
+                  {layout.draftSchema ? <span className="rounded-md bg-violet-50 border border-violet-200 px-1.5 py-0.5 text-[0.65rem] font-bold text-violet-700">Draft pending</span> : null}
+                </span>
                 <span className="text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                   Edit Layout <i className="ph-bold ph-arrow-right"></i>
                 </span>

@@ -22,6 +22,8 @@ export interface LayoutBuilderState {
   coalesceKey: string | null;
   /** JSON of each layout as last loaded or saved, keyed by formKey; the draft is dirty when it differs. */
   baselines: Record<string, string>;
+  /** JSON of each layout's live schema (what the forms render), keyed by formKey. */
+  published: Record<string, string>;
 }
 
 export const initialLayoutBuilderState: LayoutBuilderState = {
@@ -33,6 +35,7 @@ export const initialLayoutBuilderState: LayoutBuilderState = {
   future: [],
   coalesceKey: null,
   baselines: {},
+  published: {},
 };
 
 /** Most undo steps kept per open form. */
@@ -61,7 +64,9 @@ export type LayoutBuilderAction =
   | { type: "setFieldRole"; fieldId: string; role: FieldRole | null }
   | { type: "undo" }
   | { type: "redo" }
-  | { type: "markSaved"; formKey: string };
+  | { type: "markSaved"; formKey: string }
+  | { type: "markPublished"; formKey: string; version: number }
+  | { type: "replaceSchema"; schema: FormLayout["schema"] };
 
 // ---------------------------------------------------------------------------------------------------------
 // Helpers / selectors
@@ -95,6 +100,12 @@ const snapshot = (layout: FormLayout) => JSON.stringify(layout);
 export const isDirty = (state: LayoutBuilderState): boolean => {
   const layout = getActiveLayout(state);
   return !!layout && state.baselines[layout.formKey] !== snapshot(layout);
+};
+
+/** True when the draft's schema differs from what the forms currently render. */
+export const hasUnpublished = (state: LayoutBuilderState): boolean => {
+  const layout = getActiveLayout(state);
+  return !!layout && state.published[layout.formKey] !== JSON.stringify(layout.schema);
 };
 
 export const canUndo = (state: LayoutBuilderState) => state.past.length > 0;
@@ -218,6 +229,17 @@ export function layoutBuilderReducer(state: LayoutBuilderState, action: LayoutBu
     const layout = state.layouts.find((l) => l.formKey === action.formKey);
     return layout ? { ...state, baselines: { ...state.baselines, [action.formKey]: snapshot(layout) } } : state;
   }
+  if (action.type === "markPublished") {
+    const layout = state.layouts.find((l) => l.formKey === action.formKey);
+    if (!layout) return state;
+    const live: FormLayout = { ...layout, publishedVersion: action.version, draftSchema: null, draftUpdatedAt: null };
+    return {
+      ...state,
+      layouts: state.layouts.map((l) => (l.formKey === action.formKey ? live : l)),
+      baselines: { ...state.baselines, [action.formKey]: snapshot(live) },
+      published: { ...state.published, [action.formKey]: JSON.stringify(live.schema) },
+    };
+  }
 
   const next = coreReducer(state, action);
   const after = getActiveLayout(next);
@@ -238,14 +260,18 @@ function coreReducer(state: LayoutBuilderState, action: LayoutBuilderAction): La
   switch (action.type) {
     case "seed": {
       if (state.seeded) return state;
-      // Layouts saved before field roles existed get the roles the label heuristics imply, as the
-      // starting point the admin can correct; the baseline includes them so the draft starts clean.
-      const layouts = mergeWithDefaults(action.defaults, action.fromServer).map((l) =>
-        l.formKey === "JOB_FORM" ? withInferredRoles(l as unknown as Parameters<typeof withInferredRoles>[0]) as unknown as FormLayout : l
-      );
+      // The builder edits the draft when one exists, else the live schema. Layouts saved before field
+      // roles existed get the roles the label heuristics imply; the baseline includes them so the draft
+      // starts clean.
+      const published: Record<string, string> = {};
+      const layouts = mergeWithDefaults(action.defaults, action.fromServer).map((raw) => {
+        published[raw.formKey] = JSON.stringify(raw.schema);
+        const withDraft: FormLayout = raw.draftSchema ? { ...raw, schema: raw.draftSchema } : raw;
+        return withDraft.formKey === "JOB_FORM" ? (withInferredRoles(withDraft as unknown as Parameters<typeof withInferredRoles>[0]) as unknown as FormLayout) : withDraft;
+      });
       const baselines: Record<string, string> = {};
       layouts.forEach((l) => { baselines[l.formKey] = snapshot(l); });
-      return { ...state, seeded: true, layouts, baselines };
+      return { ...state, seeded: true, layouts, baselines, published };
     }
 
     case "openForm":
@@ -389,6 +415,9 @@ function coreReducer(state: LayoutBuilderState, action: LayoutBuilderAction): La
       const next = withSections(state, layout, mapSection(sections, action.sectionId, (s) => ({ ...s, fields })));
       return { ...next, selectedFieldId: copy.id };
     }
+
+    case "replaceSchema":
+      return { ...state, layouts: state.layouts.map((l) => (l.formKey === layout.formKey ? { ...l, schema: action.schema } : l)), selectedFieldId: null };
 
     case "setFieldRole":
       // A role belongs to one field: assigning it here takes it away from any other field.
