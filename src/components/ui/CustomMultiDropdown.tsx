@@ -235,7 +235,7 @@ export default function CustomMultiDropdown({
   ) : null;
 
   return (
-    <div className={cn("relative w-full", className)} ref={containerRef}>
+    <div className="relative w-full" ref={containerRef}>
       <button 
         ref={buttonRef}
         type="button" 
@@ -244,7 +244,8 @@ export default function CustomMultiDropdown({
         className={cn(
           "flex h-[44px] w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-[14px] font-semibold text-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
           error ? "border-red-500" : "border-slate-200 hover:border-slate-300",
-          value.length === 0 && "text-slate-400 font-normal"
+          value.length === 0 && "text-slate-400 font-normal",
+          className
         )}
       >
         {value.length > 0 ? (

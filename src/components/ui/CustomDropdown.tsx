@@ -33,16 +33,21 @@ export default function CustomDropdown({
   const updateDropdownPosition = useCallback(() => {
     if (isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      // Add a small offset (8px) below the button
+      // Add a small offset (8px) below the button. Compact triggers (unit pickers) still get a readable menu, kept on screen.
+      const width = Math.max(rect.width, 112);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      // Open upwards when the menu would run off the bottom of a short screen (phones).
+      const estimatedHeight = Math.min(250, options.length * 40 + 12);
+      const flip = rect.bottom + 8 + estimatedHeight > window.innerHeight && rect.top > estimatedHeight;
       setDropdownStyle({
         position: 'fixed',
-        top: `${rect.bottom + 8}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
+        ...(flip ? { bottom: `${window.innerHeight - rect.top + 8}px` } : { top: `${rect.bottom + 8}px` }),
+        left: `${left}px`,
+        width: `${width}px`,
         zIndex: 9999,
       });
     }
-  }, [isOpen]);
+  }, [isOpen, options.length]);
 
   useEffect(() => {
     if (isOpen) {
@@ -188,7 +193,7 @@ export default function CustomDropdown({
   ) : null;
 
   return (
-    <div className={cn("relative w-full", className)} ref={containerRef}>
+    <div className="relative w-full" ref={containerRef}>
       <button 
         ref={buttonRef}
         type="button" 
@@ -198,7 +203,8 @@ export default function CustomDropdown({
           "flex h-[45px] w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-[0.95rem] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
           error ? "border-red-500" : "border-slate-200 hover:border-slate-300",
           !value && "text-slate-400",
-          value && "text-slate-800 font-medium"
+          value && "text-slate-800 font-medium",
+          className
         )}
       >
         <div className="flex items-center gap-2 truncate">

@@ -8,6 +8,7 @@ import { FieldShell, IconWrap } from "./fields/FieldChrome";
 import FileField from "./fields/FileField";
 import MultiSelectField from "./fields/MultiSelectField";
 import PickListField from "./fields/PickListField";
+import SizeField from "./fields/SizeField";
 import ReadOnlyField from "./fields/ReadOnlyField";
 import StatusField from "./fields/StatusField";
 import TextAreaField from "./fields/TextAreaField";
@@ -47,6 +48,8 @@ function renderControl(kind: FieldKind, props: FieldProps): ReactNode {
       return <FileField {...props} />;
     case "currency":
       return <CurrencyField {...props} />;
+    case "size":
+      return <SizeField {...props} />;
     default:
       return <TextField {...props} />;
   }

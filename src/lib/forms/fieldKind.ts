@@ -20,9 +20,12 @@ export type FieldKind =
   | "checkbox"
   | "file"
   | "currency"
+  | "size"
   | "text";
 
 const isDiscountName = (field: FormField) => !!field.name && field.name.toLowerCase().includes("discount");
+/** A single-line "Size" field gets the dimensions + unit control (see `SizeField`). */
+const isSizeField = (field: FormField) => field.type === "SINGLE_LINE" && !!field.name && field.name.toLowerCase().includes("size");
 
 /**
  * Which input a field renders as. Each form supports a different subset of field types; anything
@@ -37,6 +40,7 @@ export function resolveFieldKind(field: FormField, variant: FieldVariant): Field
     if (t === "PICK_LIST" || t === "CATEGORY_PICKER") return "pickList";
     if (t === "MULTI_SELECT") return "multiSelect";
     if (t === "CURRENCY" || isDiscountName(field)) return "currency";
+    if (isSizeField(field)) return "size";
     return "text";
   }
 
@@ -50,6 +54,7 @@ export function resolveFieldKind(field: FormField, variant: FieldVariant): Field
 
   if (variant === "job") {
     if (t === "TIME") return "time";
+    if (isSizeField(field)) return "size";
     if (t === "USER_PICKLIST") return "user";
     if (t === "MULTI_USER_PICKLIST") return "multiUser";
   }

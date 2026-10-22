@@ -14,9 +14,9 @@ export default function EntryAssigneePicker({ value, onChange, hint }: { value: 
 
   return (
     <div className="flex flex-col gap-1.5 md:col-span-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[0.75rem] font-bold text-slate-600 uppercase tracking-[0.5px]">Assigned to</label>
-        {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <label className="whitespace-nowrap text-[0.75rem] font-bold text-slate-600 uppercase tracking-[0.5px]">Assigned to</label>
+        {hint && <span className="text-[11px] leading-snug text-slate-400">{hint}</span>}
       </div>
       <div className="flex min-h-[45px] flex-wrap items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2">
         {selected.map((u) => (
