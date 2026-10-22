@@ -9,7 +9,7 @@ test.describe("access control smoke tests", () => {
 
   test("login page renders", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[name="identifier"]:visible')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
   });
 

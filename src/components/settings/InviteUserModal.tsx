@@ -15,6 +15,7 @@ const noopSubscribe = () => () => {};
 export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("STAFF");
   const [submitting, setSubmitting] = useState(false);
@@ -33,7 +34,7 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim(), role }),
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), username: username.trim(), phone: phone.trim(), role }),
       });
 
       const data = await res.json();
@@ -163,6 +164,25 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
                     placeholder="e.g. arjun@example.com"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                   />
+                </div>
+
+                {/* Username (optional) */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                    Username <span className="normal-case font-medium text-slate-400">(optional, for sign-in)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    placeholder="e.g. arjun"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    pattern="[a-z0-9][a-z0-9._-]{1,30}[a-z0-9]"
+                    title="3–32 letters, numbers, dots, underscores or hyphens"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  />
+                  <p className="mt-1 text-[0.7rem] text-slate-400">They can sign in with this or their email.</p>
                 </div>
 
                 {/* Phone */}

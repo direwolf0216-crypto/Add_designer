@@ -10,6 +10,7 @@ interface User {
   idNumber: number;
   name: string | null;
   email: string | null;
+  username?: string | null;
   phone: string | null;
   role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOM";
   roleKey: string;
@@ -33,6 +34,7 @@ const STATUS_LABELS = {
 export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser }: EditUserModalProps) {
   const [name, setName] = useState(user.name || "");
   const [phone, setPhone] = useState(user.phone || "");
+  const [username, setUsername] = useState(user.username || "");
   const [role, setRole] = useState(user.roleKey);
   const [status, setStatus] = useState(user.status);
   
@@ -58,7 +60,7 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
       const res = await fetch(`/api/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, status, ...(role !== user.roleKey ? { role } : {}) }),
+        body: JSON.stringify({ name, phone, username, status, ...(role !== user.roleKey ? { role } : {}) }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -154,6 +156,23 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
                 disabled
                 className="w-full px-4 py-3 bg-slate-100 border border-gray-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
               />
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Username <span className="normal-case font-medium text-slate-400">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                placeholder="E.g. john"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm"
+              />
+              <p className="mt-1 text-[0.7rem] text-slate-400">Signs in with this or the email address.</p>
             </div>
 
             {/* Phone */}

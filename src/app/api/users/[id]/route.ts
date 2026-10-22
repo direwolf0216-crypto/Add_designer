@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
 import { requireAdmin } from "@/lib/auth/session";
 import { assertKeepsAnAdmin, resolveAssignableRole } from "@/lib/services/userRoles";
+import { optionalUsernameSchema } from "@/lib/auth/username";
+import { conflict } from "@/lib/api/http";
 
 const optionalText = (max: number) =>
   z
@@ -16,6 +18,7 @@ const optionalText = (max: number) =>
 const updateSchema = z
   .object({
     name: optionalText(120).optional(),
+    username: optionalUsernameSchema.optional(),
     phone: optionalText(32).optional(),
     /** "ADMIN" | "MANAGER" | "STAFF" | "custom:<id>" */
     role: z.string().min(1).max(80).optional(),
@@ -38,6 +41,10 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
     if (data.status && data.status !== "ACTIVE") throw badRequest("You cannot deactivate your own account");
   }
   await assertKeepsAnAdmin(target, { role: roleChanged ? role.role : undefined, status: data.status });
+  if (data.username) {
+    const taken = await prisma.user.findUnique({ where: { username: data.username }, select: { id: true } });
+    if (taken && taken.id !== id) throw conflict("That username is already taken");
+  }
 
   const updated = await prisma.user.update({
     where: { id },

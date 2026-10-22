@@ -13,6 +13,7 @@ interface User {
   idNumber: number;
   name: string | null;
   email: string | null;
+  username?: string | null;
   phone: string | null;
   role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOM";
   roleKey: string;
@@ -162,6 +163,11 @@ export default function UserManagement() {
                         {user.email && (
                           <span className="text-[0.7rem] text-slate-500 truncate max-w-full">
                             {user.email}
+                          </span>
+                        )}
+                        {user.username && (
+                          <span className="text-[0.65rem] font-semibold text-indigo-500 whitespace-nowrap">
+                            @{user.username}
                           </span>
                         )}
                         <span className="text-[0.65rem] font-mono text-slate-400 whitespace-nowrap hidden sm:inline">

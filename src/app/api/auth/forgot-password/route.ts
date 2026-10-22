@@ -4,24 +4,27 @@ import prisma from "@/lib/prisma";
 import { parseJson, route } from "@/lib/api/http";
 import { clientIp, enforceRateLimit } from "@/lib/rateLimit";
 import { generateTempPassword } from "@/lib/auth/tempPassword";
+import { identifierLookup } from "@/lib/auth/username";
 
-const bodySchema = z.object({ email: z.string().trim().toLowerCase().email() });
+// `email` may also be a username (the field name is kept for the existing sign-in page).
+const bodySchema = z.object({ email: z.string().trim().toLowerCase().min(3).max(254) });
 
 // Same response whether or not the account exists, so the endpoint can't be used to enumerate users.
 const GENERIC_RESPONSE = {
   success: true,
-  message: "If an account exists for this email, a temporary password has been generated. Please contact your Admin.",
+  message: "If an account exists for this email or username, a temporary password has been generated. Please contact your Admin.",
 };
 
 export const POST = route(async (req) => {
   await enforceRateLimit(`forgot:ip:${clientIp(req.headers)}`, 10, 60 * 60 * 1000);
-  const { email } = await parseJson(req, bodySchema);
-  await enforceRateLimit(`forgot:email:${email}`, 3, 60 * 60 * 1000);
+  const { email: identifier } = await parseJson(req, bodySchema);
+  await enforceRateLimit(`forgot:email:${identifier}`, 3, 60 * 60 * 1000);
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || user.status === "INACTIVE") {
+  const user = await prisma.user.findUnique({ where: identifierLookup(identifier) });
+  if (!user || !user.email || user.status === "INACTIVE") {
     return NextResponse.json(GENERIC_RESPONSE);
   }
+  const email = user.email.toLowerCase();
 
   // Keep a still-valid code (e.g. an admin-issued invite) instead of letting anyone replace it.
   const active = await prisma.passwordResetToken.findFirst({ where: { email, expires: { gt: new Date() } } });

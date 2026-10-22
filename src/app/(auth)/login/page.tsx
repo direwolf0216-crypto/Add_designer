@@ -300,8 +300,12 @@ function LoginForm() {
                   <i className="ph ph-user text-[1.2rem]"></i>
                 </div>
                 <input 
-                  type="email" 
-                  placeholder="Email / Username"
+                  type="text"
+                  name="identifier"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="Email or username"
                   className="w-full h-12 sm:h-[52px] pl-12 pr-4 bg-white border border-slate-200/90 rounded-full text-[0.95rem] text-slate-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all placeholder:text-slate-400"
                   value={data.email}
                   onChange={(e) => setData({ ...data, email: e.target.value })}
@@ -346,7 +350,7 @@ function LoginForm() {
                   onClick={async (e) => {
                     e.preventDefault();
                     if (!data.email) {
-                      setError("Please enter your email address to reset your password.");
+                      setError("Enter your email or username first to reset your password.");
                     } else {
                       try {
                         const res = await fetch('/api/auth/forgot-password', {

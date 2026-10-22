@@ -8,12 +8,15 @@ import { requireAdmin, requireUser } from "@/lib/auth/session";
 import { generateTempPassword } from "@/lib/auth/tempPassword";
 import { hasFullAccess, roleKey, roleLabel } from "@/lib/permissions";
 import { resolveAssignableRole } from "@/lib/services/userRoles";
+import { optionalUsernameSchema } from "@/lib/auth/username";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const inviteSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   email: z.string().trim().toLowerCase().email().max(254),
+  /** Optional sign-in name; people can sign in with either this or the email. */
+  username: optionalUsernameSchema.optional(),
   phone: z.string().trim().max(32).optional(),
   /** "ADMIN" | "STAFF" | "custom:<id>" */
   role: z.string().min(1).max(80),
@@ -43,6 +46,7 @@ export const GET = route(async () => {
         name: true,
         image: true,
         email: true,
+        username: true,
         phone: true,
         role: true,
         status: true,
@@ -77,11 +81,15 @@ export const GET = route(async () => {
 
 export const POST = route(async (req) => {
   const admin = await requireAdmin();
-  const { name, email, phone, role: key } = await parseJson(req, inviteSchema);
+  const { name, email, username = null, phone, role: key } = await parseJson(req, inviteSchema);
   const role = await resolveAssignableRole(admin, key);
 
   const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existingUser) throw conflict("A user with this email already exists");
+  if (username) {
+    const taken = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+    if (taken) throw conflict("That username is already taken");
+  }
 
   const tempPassword = generateTempPassword();
   // The account password is unguessable; the user signs in with the temp code and is forced to set a real one.
@@ -92,6 +100,7 @@ export const POST = route(async (req) => {
       data: {
         name,
         email,
+        username,
         phone: phone || null,
         password: hashedPassword,
         ...role,

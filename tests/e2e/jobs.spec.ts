@@ -12,7 +12,7 @@ test.describe("jobs flow (requires E2E_USER_EMAIL / E2E_USER_PASSWORD)", () => {
     const reminder = page.getByRole("dialog", { name: /coming up/i });
     await page.addLocatorHandler(reminder, () => reminder.getByRole("button", { name: "Dismiss" }).click());
     await page.goto("/login");
-    await page.fill('input[type="email"]', email!);
+    await page.fill('input[name="identifier"]:visible', email!);
     await page.fill('input[type="password"]', password!);
     await page.click('button[type="submit"]');
     await page.waitForURL("**/dashboard/**");
