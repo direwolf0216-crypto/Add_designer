@@ -102,7 +102,7 @@ export const Footer = ({ viewModel }: FooterProps) => {
 
         <View style={styles.midCol}>
           <View style={styles.qrWrapper}>
-            <PdfImage src={REVIEW_QR} style={styles.qrImage} />
+            <PdfImage src={viewModel.print.business.reviewQr || REVIEW_QR} style={styles.qrImage} />
           </View>
           <View style={styles.feedbackTextWrapper}>
             <Text style={styles.feedbackTextBold}>We value your feedback!</Text>

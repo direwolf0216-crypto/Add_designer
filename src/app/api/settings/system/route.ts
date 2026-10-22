@@ -65,6 +65,10 @@ const SETTING_SCHEMAS = {
   business_website: businessText,
   business_tagline: businessText,
   business_logo: businessLogo,
+  // QR images printed on the invoice: Google review (footer) and GPay / UPI (only while a balance is due).
+  business_review_url: businessText,
+  business_review_qr: businessLogo,
+  business_gpay_qr: businessLogo,
   business_bank_name: businessText,
   business_upi_id: businessText,
   // Printed on invoices (each left off the PDF when empty).
@@ -93,6 +97,7 @@ const BUSINESS_KEYS = [
   "business_name", "business_address", "business_phone", "business_phone_2", "business_email", "business_website",
   "business_gstin", "business_gst_rate", "business_bank_name", "business_bank_account_name", "business_bank_account_no",
   "business_bank_ifsc", "business_bank_branch", "business_upi_id", "business_instagram", "business_tagline", "business_logo",
+  "business_review_url", "business_review_qr", "business_gpay_qr",
 ] as const;
 
 export const GET = route(async (req) => {

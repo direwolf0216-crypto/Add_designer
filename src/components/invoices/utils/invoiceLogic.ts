@@ -54,7 +54,9 @@ function buildPrintInvoice(
   payments: { amount: number }[],
   settings: Record<string, string>,
   layout: FormLayout | null | undefined,
-  rules: PricingRules = {}
+  rules: PricingRules = {},
+  /** UPI QR generated from the UPI ID, used when no GPay QR image is uploaded. */
+  generatedUpiQr = ''
 ): PrintInvoice {
   const cd = (job.customData && typeof job.customData === 'object' ? job.customData : {}) as Record<string, unknown>;
   const details = normalizeJob(job as unknown as Record<string, unknown>);
@@ -149,6 +151,9 @@ function buildPrintInvoice(
   ].filter((r) => r.value);
 
   const email = present(job.client.email) || present(cd.fld_b_email);
+  // The payment code is for collecting what is still owed, so a settled invoice prints without it.
+  const payImage = present(settings.business_gpay_qr) || generatedUpiQr;
+  const payQr = due > 0 && payImage ? { image: payImage, caption: `Scan to pay the balance of ${rs(due)}` } : null;
   return {
     business: {
       // Settings win; the shop's own details from lib/constants fill anything not set there.
@@ -161,7 +166,9 @@ function buildPrintInvoice(
       website: present(settings.business_website),
       gstin: present(settings.business_gstin),
       bank,
+      reviewQr: present(settings.business_review_qr),
     },
+    payQr,
     billTo: {
       name: job.client.name,
       lines: [present(job.location)].filter(Boolean),
@@ -384,6 +391,6 @@ export const buildInvoiceViewModel = (
     
     settings,
 
-    print: buildPrintInvoice(invoice, job, payments, settings, layout, rules),
+    print: buildPrintInvoice(invoice, job, payments, settings, layout, rules, qrCodeDataUrl || ''),
   };
 };

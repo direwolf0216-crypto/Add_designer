@@ -33,7 +33,11 @@ export interface PrintInvoice {
     gstin: string;
     /** Only the bank fields that are filled in; empty when no bank details are set. */
     bank: { label: string; value: string }[];
+    /** Uploaded Google review QR as a data URL; empty means the built-in one. */
+    reviewQr: string;
   };
+  /** Payment QR printed only while a balance is due: the uploaded GPay code, else one generated from the UPI ID. */
+  payQr: { image: string; caption: string } | null;
   billTo: {
     name: string;
     lines: string[];

@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { fetcher } from "@/lib/swr";
+import QRCode from "qrcode";
 import { BUSINESS_DETAILS } from "@/lib/constants";
 
 type Values = Record<string, string>;
@@ -42,6 +43,12 @@ const GROUPS: { title: string; icon: string; description: string; fields: Field[
     ],
   },
   {
+    title: "QR codes",
+    icon: "ph-qr-code",
+    description: "Scanned from the printed invoice: a Google review code on every invoice, and a payment code while money is still due.",
+    fields: [],
+  },
+  {
     title: "Bank & UPI",
     icon: "ph-bank",
     description: "Shown under Bank Details on the invoice. Only the filled-in lines are printed.",
@@ -75,8 +82,25 @@ async function fileToLogoDataUrl(file: File): Promise<string> {
   return url;
 }
 
-/** Logo picker with preview; stores the image as a data URL in the business_logo setting. */
-function LogoField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/** Image picker with preview; stores the image as a data URL in a business_* setting. */
+function ImageField({
+  value,
+  onChange,
+  title,
+  hint,
+  emptyLabel,
+  alt,
+  square = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  title: string;
+  hint: string;
+  emptyLabel: string;
+  alt: string;
+  /** QR codes: a square preview box. */
+  square?: boolean;
+}) {
   const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -92,31 +116,79 @@ function LogoField({ value, onChange }: { value: string; onChange: (v: string) =
     }
   };
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-200 bg-white px-4 sm:w-64">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className={`flex items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-200 bg-white px-4 ${square ? "h-28 w-28 shrink-0" : "h-24 w-full sm:w-64"}`}>
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element -- data URL preview
-          <img src={value} alt="Invoice logo" className="max-h-20 max-w-full object-contain" />
+          <img src={value} alt={alt} className={`${square ? "max-h-24" : "max-h-20"} max-w-full object-contain`} />
         ) : (
-          <span className="text-center text-xs font-semibold text-slate-400">Default Add designer logo</span>
+          <span className="text-center text-xs font-semibold text-slate-400">{emptyLabel}</span>
         )}
       </div>
       <div className="flex flex-col gap-1.5">
-        <span className="text-[0.8rem] font-semibold text-slate-700">Invoice logo</span>
+        <span className="text-[0.8rem] font-semibold text-slate-700">{title}</span>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
             <i className="ph-bold ph-upload-simple" aria-hidden="true"></i>
-            {value ? "Replace" : "Upload logo"}
+            {value ? "Replace" : "Upload"}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={pick} />
           </label>
           {value && (
             <button type="button" onClick={() => onChange("")} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">
-              Use default
+              Remove
             </button>
           )}
         </div>
-        <span className="text-[0.7rem] text-slate-400">PNG, JPEG or WebP. Wide logos look best; it is scaled to fit 220 × 60 pt on the invoice.</span>
+        <span className="text-[0.7rem] text-slate-400">{hint}</span>
       </div>
+    </div>
+  );
+}
+
+/** A Google review / Maps link turned into the review QR, so no QR image is needed. */
+function ReviewLinkField({ link, onLink, onQr }: { link: string; onLink: (v: string) => void; onQr: (dataUrl: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const valid = /^https?:\/\/\S+$/i.test(link.trim());
+  const generate = async () => {
+    if (!valid) {
+      toast.error("Paste the full link, starting with https://");
+      return;
+    }
+    setBusy(true);
+    try {
+      onQr(await QRCode.toDataURL(link.trim(), { width: 320, margin: 1, color: { dark: "#0f172a", light: "#ffffff" } }));
+      toast.success("Review QR generated", { description: "Save to print it on new invoices." });
+    } catch {
+      toast.error("Couldn't make a QR from that link");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1.5 sm:pl-[8.25rem]">
+      <span className="text-[0.8rem] font-semibold text-slate-700">…or generate it from your review link</span>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          className={inputClass}
+          placeholder="https://g.page/r/… or a Google Maps link"
+          inputMode="url"
+          value={link}
+          onChange={(e) => onLink(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void generate(); } }}
+          maxLength={500}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={generate}
+          disabled={busy || !link.trim()}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <i className={`ph-bold ${busy ? "ph-circle-notch animate-spin" : "ph-qr-code"}`} aria-hidden="true"></i>
+          Generate QR
+        </button>
+      </div>
+      <span className="text-[0.7rem] text-slate-400">In Google Maps, open your business, choose Share, and copy the link. Google Business Profile also gives a short review link.</span>
     </div>
   );
 }
@@ -197,7 +269,43 @@ export default function BusinessDetails() {
                 </div>
               </div>
               {group.title === "Branding" && (
-                <LogoField value={draft.business_logo ?? ""} onChange={(v) => setDraft({ ...draft, business_logo: v })} />
+                <div className="mb-4">
+                  <ImageField
+                    value={draft.business_logo ?? ""}
+                    onChange={(v) => setDraft({ ...draft, business_logo: v })}
+                    title="Invoice logo"
+                    alt="Invoice logo"
+                    emptyLabel="Default Add designer logo"
+                    hint="PNG, JPEG or WebP. Wide logos look best; it is scaled to fit 220 × 60 pt on the invoice."
+                  />
+                </div>
+              )}
+              {group.title === "QR codes" && (
+                <div className="flex flex-col gap-5">
+                  <ImageField
+                    square
+                    value={draft.business_review_qr ?? ""}
+                    onChange={(v) => setDraft({ ...draft, business_review_qr: v })}
+                    title="Google review QR"
+                    alt="Google review QR"
+                    emptyLabel="Built-in review QR"
+                    hint="Printed in the footer of every invoice next to “We value your feedback”."
+                  />
+                  <ReviewLinkField
+                    link={draft.business_review_url ?? ""}
+                    onLink={(v) => setDraft({ ...draft, business_review_url: v })}
+                    onQr={(dataUrl) => setDraft({ ...draft, business_review_qr: dataUrl })}
+                  />
+                  <ImageField
+                    square
+                    value={draft.business_gpay_qr ?? ""}
+                    onChange={(v) => setDraft({ ...draft, business_gpay_qr: v })}
+                    title="GPay / UPI payment QR"
+                    alt="GPay payment QR"
+                    emptyLabel={draft.business_upi_id ? "Generated from your UPI ID" : "No payment QR"}
+                    hint="Printed under Bank Details only while the invoice has a balance due. Without an upload, a QR is generated from the UPI ID when one is set."
+                  />
+                </div>
               )}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {group.fields.map((f) => (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from '@react-pdf/renderer';
+import { View, Text, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 import { InvoiceViewModel } from '../types/invoiceViewModel';
 import { colors } from '../theme/invoiceTheme';
 
@@ -123,6 +123,30 @@ const styles = StyleSheet.create({
   amountInWords: {
     marginTop: 10,
   },
+  payQrBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 4,
+  },
+  payQrImage: {
+    width: 64,
+    height: 64,
+  },
+  payQrTitle: {
+    fontSize: 8,
+    fontWeight: 700,
+    color: colors.darkBox,
+    marginBottom: 2,
+  },
+  payQrText: {
+    fontSize: 7,
+    color: colors.secondaryText,
+  },
   amountInWordsLabel: {
     fontSize: 8,
     fontWeight: 700,
@@ -165,17 +189,28 @@ export const SummarySection = ({ viewModel }: SummarySectionProps) => {
           </View>
         </View>
 
-        {viewModel.print.business.bank.length > 0 && (
+        {(viewModel.print.business.bank.length > 0 || viewModel.print.payQr) && (
           <View style={styles.bankCol}>
-            <View style={styles.headerBox}>
-              <Text style={styles.headerText}>BANK DETAILS</Text>
-            </View>
+            {viewModel.print.business.bank.length > 0 && (
+              <View style={styles.headerBox}>
+                <Text style={styles.headerText}>BANK DETAILS</Text>
+              </View>
+            )}
             {viewModel.print.business.bank.map((row) => (
               <View key={row.label} style={styles.bankRow}>
                 <Text style={styles.bankLabel}>{row.label}</Text>
                 <Text style={styles.bankValue}>: {row.value}</Text>
               </View>
             ))}
+            {viewModel.print.payQr && (
+              <View style={styles.payQrBox} wrap={false}>
+                <PdfImage src={viewModel.print.payQr.image} style={styles.payQrImage} />
+                <View>
+                  <Text style={styles.payQrTitle}>PAY WITH GPAY / ANY UPI APP</Text>
+                  <Text style={styles.payQrText}>{viewModel.print.payQr.caption}</Text>
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>

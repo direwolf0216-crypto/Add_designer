@@ -30,6 +30,8 @@ const INVOICE_SETTING_KEYS = [
   'business_bank_branch',
   'business_tagline',
   'business_logo',
+  'business_review_qr',
+  'business_gpay_qr',
 ];
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
