@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import useSWR from "swr";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { fetcher } from "@/lib/swr";
+import { useLayoutPreview } from "@/components/providers/LayoutPreviewProvider";
+import { withoutArchivedFields } from "@/lib/forms/archived";
 import type { FormLayout } from "@/lib/forms/types";
 import { isGroupId, type TransactionRecord } from "@/lib/transactions/formMapping";
 
@@ -22,7 +25,10 @@ export function useTransactionFormData() {
   const editTransaction = transactionToEditId ? fetchedTransaction : null;
 
   const { data: driveStatus } = useSWR<{ connected: boolean }>(isOpen ? "/api/integrations/google" : null, fetcher);
-  const { data: layoutRes } = useSWR<{ schema?: FormLayout }>(isOpen ? "/api/settings/layouts/TRANSACTION_FORM" : null, fetcher);
+  const previewLayout: FormLayout | undefined = useLayoutPreview().layouts.TRANSACTION_FORM;
+  const { data: layoutRes } = useSWR<{ schema?: FormLayout }>(isOpen && !previewLayout ? "/api/settings/layouts/TRANSACTION_FORM" : null, fetcher);
 
-  return { editTransaction, isTxLoading, layoutSchema: layoutRes?.schema, driveStatus };
+  const fetched = layoutRes?.schema;
+  const layoutSchema = useMemo(() => withoutArchivedFields(previewLayout ?? fetched), [previewLayout, fetched]);
+  return { editTransaction, isTxLoading, layoutSchema, driveStatus };
 }

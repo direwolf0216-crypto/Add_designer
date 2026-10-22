@@ -16,6 +16,7 @@ interface BuilderCanvasProps {
   onAddField: (sectionId: string) => void;
   onSelectField: (fieldId: string | null) => void;
   onRemoveField: (sectionId: string, fieldId: string) => void;
+  onDuplicateField: (sectionId: string, fieldId: string) => void;
 }
 
 /** Center column: WYSIWYG representation of the form. Clicking the background clears the selection. */
@@ -30,6 +31,7 @@ export default function BuilderCanvas({
   onAddField,
   onSelectField,
   onRemoveField,
+  onDuplicateField,
 }: BuilderCanvasProps) {
   const sections = layout.schema.sections;
 
@@ -60,6 +62,7 @@ export default function BuilderCanvas({
               onAddField={() => onAddField(section.id)}
               onSelectField={onSelectField}
               onRemoveField={(fieldId) => onRemoveField(section.id, fieldId)}
+              onDuplicateField={(fieldId) => onDuplicateField(section.id, fieldId)}
             />
           ))
         )}

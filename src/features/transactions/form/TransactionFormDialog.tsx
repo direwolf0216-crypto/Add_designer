@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
+import { useLayoutPreview } from "@/components/providers/LayoutPreviewProvider";
 import { invalidateFinance } from "@/lib/swr";
 import { uploadFileToDrive } from "@/lib/uploadHelper";
 import { TRANSACTION_FIELD_MAP } from "@/lib/forms/fieldMap";
@@ -30,6 +31,7 @@ function TransactionFormDialogInner() {
   const { isTransactionFormOpen: isOpen, transactionInitialData, closeTransactionForm } = useGlobalForm();
   const searchParams = useSearchParams();
   const { editTransaction, isTxLoading, layoutSchema, driveStatus } = useTransactionFormData();
+  const { preview } = useLayoutPreview();
   const isEditMode = !!editTransaction;
 
   const [form, setForm] = useState<TransactionFormValues>({ type: "INCOME", status: "SETTLED" });
@@ -138,6 +140,11 @@ function TransactionFormDialogInner() {
             </div>
           </div>
 
+          {preview && (
+            <div className="shrink-0 flex items-center gap-2 bg-amber-50 border-b border-amber-200 px-5 py-2 text-[0.8rem] font-semibold text-amber-800">
+              <i className="ph-fill ph-eye"></i> Preview of the unsaved layout. Nothing entered here is saved.
+            </div>
+          )}
           <div className="px-5 sm:px-8 py-5 sm:py-6 overflow-y-auto flex-1 min-h-0">
             {layoutSchema?.sections ? (
               layoutSchema.sections.map((section) => {
@@ -178,11 +185,13 @@ function TransactionFormDialogInner() {
               Cancel
             </button>
             <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
+              onClick={preview ? undefined : handleSubmit}
+              disabled={preview || isSubmitting}
               className="whitespace-nowrap px-5 sm:px-8 py-2.5 rounded-xl font-bold text-sm text-white bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {preview ? (
+                <><i className="ph-bold ph-eye"></i> Preview only</>
+              ) : isSubmitting ? (
                 <><i className="ph ph-circle-notch animate-spin"></i> Saving...</>
               ) : (
                 <><i className={`ph-bold ${isEditMode ? "ph-pencil-simple" : "ph-floppy-disk"}`}></i> {isEditMode ? "Save Changes" : "Save Transaction"}</>

@@ -208,3 +208,73 @@ describe("findOtherRecordDateField", () => {
     expect(findOtherRecordDateField(l, d1)).toBeNull();
   });
 });
+
+describe("history, dirty tracking and field housekeeping", () => {
+  const seeded = () => {
+    const s = reduce(initialLayoutBuilderState, { type: "seed", defaults: [layout("JOB")], fromServer: [] });
+    return reduce(s, { type: "openForm", formKey: "JOB" });
+  };
+
+  it("is clean after loading and dirty after an edit, clean again once saved", async () => {
+    const { isDirty } = await import("../reducer");
+    let s = seeded();
+    expect(isDirty(s)).toBe(false);
+    s = reduce(s, { type: "updateField", sectionId: "s1", fieldId: "a", updates: { name: "Renamed" } });
+    expect(isDirty(s)).toBe(true);
+    s = reduce(s, { type: "markSaved", formKey: "JOB" });
+    expect(isDirty(s)).toBe(false);
+  });
+
+  it("undoes and redoes layout edits but not selection", async () => {
+    const { canUndo, canRedo } = await import("../reducer");
+    let s = seeded();
+    s = reduce(s, { type: "selectField", fieldId: "a" });
+    expect(canUndo(s)).toBe(false);
+    s = reduce(s, { type: "removeField", sectionId: "s1", fieldId: "a" });
+    expect(fieldIds(s, "s1")).toEqual(["b", "c"]);
+    s = reduce(s, { type: "undo" });
+    expect(fieldIds(s, "s1")).toEqual(["a", "b", "c"]);
+    expect(canRedo(s)).toBe(true);
+    s = reduce(s, { type: "redo" });
+    expect(fieldIds(s, "s1")).toEqual(["b", "c"]);
+  });
+
+  it("groups a run of typing into one undo step and a new edit clears redo", () => {
+    let s = seeded();
+    s = reduce(s, { type: "updateField", sectionId: "s1", fieldId: "a", updates: { name: "S" } });
+    s = reduce(s, { type: "updateField", sectionId: "s1", fieldId: "a", updates: { name: "Si" } });
+    s = reduce(s, { type: "updateField", sectionId: "s1", fieldId: "a", updates: { name: "Siz" } });
+    expect(s.past).toHaveLength(1);
+    s = reduce(s, { type: "undo" });
+    expect(getActiveLayout(s)!.schema.sections[0].fields[0].name).toBe("a");
+    s = reduce(s, { type: "updateField", sectionId: "s1", fieldId: "b", updates: { mandatory: true } });
+    expect(s.future).toHaveLength(0);
+  });
+
+  it("clears history when another form is opened", () => {
+    let s = reduce(initialLayoutBuilderState, { type: "seed", defaults: [layout("JOB"), layout("TX")], fromServer: [] });
+    s = reduce(s, { type: "openForm", formKey: "JOB" });
+    s = reduce(s, { type: "removeField", sectionId: "s1", fieldId: "a" });
+    s = reduce(s, { type: "closeForm" });
+    s = reduce(s, { type: "openForm", formKey: "TX" });
+    expect(s.past).toHaveLength(0);
+  });
+
+  it("duplicates a field right after the original with a fresh id and no record-date role", () => {
+    let s = seeded();
+    s = reduce(s, { type: "updateField", sectionId: "s1", fieldId: "a", updates: { isRecordDate: true, options: ["x"], placeholder: "hint" } });
+    s = reduce(s, { type: "duplicateField", sectionId: "s1", fieldId: "a", id: "a2" });
+    expect(fieldIds(s, "s1")).toEqual(["a", "a2", "b", "c"]);
+    const copy = getActiveLayout(s)!.schema.sections[0].fields[1];
+    expect(copy).toMatchObject({ id: "a2", name: "a (copy)", isRecordDate: false, options: ["x"], placeholder: "hint" });
+    expect(s.selectedFieldId).toBe("a2");
+  });
+
+  it("archives and restores a field", () => {
+    let s = seeded();
+    s = reduce(s, { type: "setFieldArchived", sectionId: "s1", fieldId: "b", archived: true });
+    expect(getActiveLayout(s)!.schema.sections[0].fields[1].archived).toBe(true);
+    s = reduce(s, { type: "setFieldArchived", sectionId: "s1", fieldId: "b", archived: false });
+    expect(getActiveLayout(s)!.schema.sections[0].fields[1].archived).toBeUndefined();
+  });
+});

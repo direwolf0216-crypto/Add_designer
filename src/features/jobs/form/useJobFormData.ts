@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { asList, fetcher } from "@/lib/swr";
+import { useLayoutPreview } from "@/components/providers/LayoutPreviewProvider";
+import { withoutArchivedFields } from "@/lib/forms/archived";
 import type { FormLayout } from "@/lib/forms/types";
 import type { JobRecord } from "@/lib/jobs/formMapping";
 import type { AvailabilityJob } from "@/lib/jobs/availability";
@@ -27,7 +29,8 @@ export function useJobFormData({ isOpen, jobToEditId, date }: JobFormDataArgs) {
   const { data: fetchedJob, isLoading: isJobLoading } = useSWR<JobRecord>(jobToEditId ? `/api/jobs/${jobToEditId}` : null, fetcher);
   const job = jobToEditId ? fetchedJob ?? null : null;
 
-  const { data: layoutData } = useSWR<{ schema?: FormLayout }>(isOpen ? "/api/settings/layouts/JOB_FORM" : null, fetcher);
+  const previewLayout: FormLayout | undefined = useLayoutPreview().layouts.JOB_FORM;
+  const { data: layoutData } = useSWR<{ schema?: FormLayout }>(isOpen && !previewLayout ? "/api/settings/layouts/JOB_FORM" : null, fetcher);
   const { data: usersData } = useSWR(isOpen ? "/api/users" : null, fetcher);
   const { data: driveStatus } = useSWR<{ connected: boolean }>(isOpen ? "/api/integrations/google" : null, fetcher);
   const { data: jobsData } = useSWR<{ items?: AvailabilityJob[] }>(
@@ -36,7 +39,9 @@ export function useJobFormData({ isOpen, jobToEditId, date }: JobFormDataArgs) {
   );
 
   // The last loaded values stay on screen while the dialog closes and the SWR keys switch to null.
-  const layoutSchema = useLastLoaded(layoutData?.schema?.sections ? layoutData.schema : undefined) ?? null;
+  const loadedLayout = useLastLoaded(layoutData?.schema?.sections ? layoutData.schema : undefined) ?? null;
+  // Memoised: a fresh object each render would re-run every effect that depends on the layout.
+  const layoutSchema = useMemo(() => withoutArchivedFields<FormLayout | null>(previewLayout ?? loadedLayout), [previewLayout, loadedLayout]);
   const loadedUsers = useLastLoaded(usersData);
   const teamUsers: UserItem[] = loadedUsers
     ? asList<{ id: string; name?: string; image?: string | null; role: string; roleKey?: string; roleName?: string }>(loadedUsers)

@@ -13,6 +13,13 @@ export interface LayoutBuilderState {
   selectedFieldId: string | null;
   /** True once the draft has been seeded from the first successful server load. */
   seeded: boolean;
+  /** Undo / redo snapshots of the active layout (cleared when another form is opened). */
+  past: FormLayout[];
+  future: FormLayout[];
+  /** Identifies a run of small edits (typing in one input) that share a single undo step. */
+  coalesceKey: string | null;
+  /** JSON of each layout as last loaded or saved, keyed by formKey; the draft is dirty when it differs. */
+  baselines: Record<string, string>;
 }
 
 export const initialLayoutBuilderState: LayoutBuilderState = {
@@ -20,7 +27,14 @@ export const initialLayoutBuilderState: LayoutBuilderState = {
   activeFormKey: null,
   selectedFieldId: null,
   seeded: false,
+  past: [],
+  future: [],
+  coalesceKey: null,
+  baselines: {},
 };
+
+/** Most undo steps kept per open form. */
+export const HISTORY_LIMIT = 60;
 
 export type SectionEdits = Partial<Pick<FormSection, "title" | "description" | "isRepeatable">>;
 
@@ -39,7 +53,12 @@ export type LayoutBuilderAction =
   | { type: "moveField"; from: FieldPosition; toSectionId: string; toIndex: number }
   | { type: "updateField"; sectionId: string; fieldId: string; updates: Partial<FormField> }
   | { type: "updateSelectedField"; updates: Partial<FormField> }
-  | { type: "removeField"; sectionId: string; fieldId: string };
+  | { type: "removeField"; sectionId: string; fieldId: string }
+  | { type: "duplicateField"; sectionId: string; fieldId: string; id: string }
+  | { type: "setFieldArchived"; sectionId: string; fieldId: string; archived: boolean }
+  | { type: "undo" }
+  | { type: "redo" }
+  | { type: "markSaved"; formKey: string };
 
 // ---------------------------------------------------------------------------------------------------------
 // Helpers / selectors
@@ -66,6 +85,25 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
 
 export const getActiveLayout = (state: LayoutBuilderState): FormLayout | undefined =>
   state.layouts.find((l) => l.formKey === state.activeFormKey);
+
+const snapshot = (layout: FormLayout) => JSON.stringify(layout);
+
+/** True when the active layout differs from what was last loaded or saved. */
+export const isDirty = (state: LayoutBuilderState): boolean => {
+  const layout = getActiveLayout(state);
+  return !!layout && state.baselines[layout.formKey] !== snapshot(layout);
+};
+
+export const canUndo = (state: LayoutBuilderState) => state.past.length > 0;
+export const canRedo = (state: LayoutBuilderState) => state.future.length > 0;
+
+/** Edits that share one undo step while they continue (typing into the same input). */
+function coalesceKeyFor(action: LayoutBuilderAction, state: LayoutBuilderState): string | null {
+  if (action.type === "updateField") return `field:${action.fieldId}:${Object.keys(action.updates).sort().join(",")}`;
+  if (action.type === "updateSelectedField") return `field:${state.selectedFieldId}:${Object.keys(action.updates).sort().join(",")}`;
+  if (action.type === "updateSection") return `section:${action.sectionId}:${Object.keys(action.updates).sort().join(",")}`;
+  return null;
+}
 
 /** The selected field and the id of the section that contains it, within the active layout. */
 export function findSelectedField(
@@ -99,6 +137,11 @@ export function findOtherRecordDateField(layout: FormLayout, field: FormField): 
     });
   }
   return existing;
+}
+
+/** Deep copy of a field's plain-data settings (options, rules, unit lists). */
+function structuredCloneField(field: FormField): FormField {
+  return JSON.parse(JSON.stringify(field)) as FormField;
 }
 
 export function createField(id: string, fieldType: string): FormField {
@@ -139,17 +182,70 @@ function withSectionsById(state: LayoutBuilderState, layout: FormLayout, section
 const mapSection = (sections: FormSection[], sectionId: string, fn: (s: FormSection) => FormSection) =>
   sections.map((s) => (s.id === sectionId ? fn(s) : s));
 
+/**
+ * History-aware entry point: every change to the active layout becomes an undo step (runs of typing in one
+ * input share a step), undo/redo swap snapshots, and `markSaved` resets the dirty baseline.
+ */
 export function layoutBuilderReducer(state: LayoutBuilderState, action: LayoutBuilderAction): LayoutBuilderState {
+  const current = getActiveLayout(state);
+
+  if (action.type === "undo") {
+    if (!current || state.past.length === 0) return state;
+    const previous = state.past[state.past.length - 1];
+    return {
+      ...state,
+      layouts: state.layouts.map((l) => (l.formKey === previous.formKey ? previous : l)),
+      past: state.past.slice(0, -1),
+      future: [current, ...state.future],
+      coalesceKey: null,
+    };
+  }
+  if (action.type === "redo") {
+    if (!current || state.future.length === 0) return state;
+    const [next, ...rest] = state.future;
+    return {
+      ...state,
+      layouts: state.layouts.map((l) => (l.formKey === next.formKey ? next : l)),
+      past: [...state.past, current],
+      future: rest,
+      coalesceKey: null,
+    };
+  }
+  if (action.type === "markSaved") {
+    const layout = state.layouts.find((l) => l.formKey === action.formKey);
+    return layout ? { ...state, baselines: { ...state.baselines, [action.formKey]: snapshot(layout) } } : state;
+  }
+
+  const next = coreReducer(state, action);
+  const after = getActiveLayout(next);
+  // Only edits to the open layout are undoable; navigation and selection are not.
+  if (!current || !after || after === current || current.formKey !== after.formKey) return next;
+
+  const key = coalesceKeyFor(action, state);
+  if (key && key === state.coalesceKey) return { ...next, coalesceKey: key };
+  return {
+    ...next,
+    past: [...state.past, current].slice(-HISTORY_LIMIT),
+    future: [],
+    coalesceKey: key,
+  };
+}
+
+function coreReducer(state: LayoutBuilderState, action: LayoutBuilderAction): LayoutBuilderState {
   switch (action.type) {
-    case "seed":
+    case "seed": {
       if (state.seeded) return state;
-      return { ...state, seeded: true, layouts: mergeWithDefaults(action.defaults, action.fromServer) };
+      const layouts = mergeWithDefaults(action.defaults, action.fromServer);
+      const baselines: Record<string, string> = {};
+      layouts.forEach((l) => { baselines[l.formKey] = snapshot(l); });
+      return { ...state, seeded: true, layouts, baselines };
+    }
 
     case "openForm":
-      return { ...state, activeFormKey: action.formKey };
+      return { ...state, activeFormKey: action.formKey, past: [], future: [], coalesceKey: null };
 
     case "closeForm":
-      return { ...state, activeFormKey: null, selectedFieldId: null };
+      return { ...state, activeFormKey: null, selectedFieldId: null, past: [], future: [], coalesceKey: null };
 
     case "selectField":
       return { ...state, selectedFieldId: action.fieldId };
@@ -161,7 +257,7 @@ export function layoutBuilderReducer(state: LayoutBuilderState, action: LayoutBu
         description: action.description,
         schema: { sections: [] },
       };
-      return { ...state, layouts: [...state.layouts, newForm], activeFormKey: action.formKey };
+      return { ...state, layouts: [...state.layouts, newForm], activeFormKey: action.formKey, past: [], future: [], coalesceKey: null };
     }
   }
 
@@ -273,6 +369,29 @@ export function layoutBuilderReducer(state: LayoutBuilderState, action: LayoutBu
       );
       return state.selectedFieldId === action.fieldId ? { ...next, selectedFieldId: null } : next;
     }
+
+    case "duplicateField": {
+      const section = sections.find((s) => s.id === action.sectionId);
+      const idx = section?.fields.findIndex((f) => f.id === action.fieldId) ?? -1;
+      if (!section || idx === -1) return state;
+      const source = section.fields[idx];
+      // A copy is a new field: it gets its own id and never inherits the single record-date role.
+      const copy: FormField = { ...structuredCloneField(source), id: action.id, name: `${source.name ?? "Field"} (copy)`, isRecordDate: false };
+      const fields = [...section.fields];
+      fields.splice(idx + 1, 0, copy);
+      const next = withSections(state, layout, mapSection(sections, action.sectionId, (s) => ({ ...s, fields })));
+      return { ...next, selectedFieldId: copy.id };
+    }
+
+    case "setFieldArchived":
+      return withSections(
+        state,
+        layout,
+        mapSection(sections, action.sectionId, (s) => ({
+          ...s,
+          fields: s.fields.map((f) => (f.id === action.fieldId ? { ...f, archived: action.archived || undefined } : f)),
+        })),
+      );
 
     default:
       return state;

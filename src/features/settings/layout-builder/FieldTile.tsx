@@ -21,6 +21,7 @@ interface FieldTileProps {
   onDrop: (e: React.DragEvent) => void;
   onSelect: () => void;
   onRemove: () => void;
+  onDuplicate: () => void;
 }
 
 /** A WYSIWYG preview of one field on the canvas; draggable unless its section is locked. */
@@ -36,6 +37,7 @@ export default function FieldTile({
   onDrop,
   onSelect,
   onRemove,
+  onDuplicate,
 }: FieldTileProps) {
   const typeDef = getFieldTypeDef(field.type);
 
@@ -73,7 +75,7 @@ export default function FieldTile({
           e.stopPropagation();
           onSelect();
         }}
-        className={`relative transition-all group/field rounded-2xl p-3 -m-3 ${isSectionLocked ? '' : 'cursor-grab active:cursor-grabbing'
+        className={`relative transition-all group/field rounded-2xl p-3 -m-3 ${field.archived ? 'opacity-60 saturate-50' : ''} ${isSectionLocked ? '' : 'cursor-grab active:cursor-grabbing'
           } ${isSelected
             ? 'bg-orange-50/50 outline outline-2 outline-orange-500 z-10'
             : isSectionLocked ? '' : 'hover:bg-slate-100/50 hover:outline hover:outline-1 hover:outline-gray-200'
@@ -81,8 +83,11 @@ export default function FieldTile({
       >
         {/* Realistic Label */}
         {field.type !== 'CHECKBOX' && (
-          <label className="text-[0.7rem] font-bold text-slate-600 uppercase tracking-wider mb-2 block truncate cursor-grab active:cursor-grabbing">
-            {field.name || 'Untitled Field'} {field.mandatory && <span className="text-red-500">*</span>}
+          <label className="text-[0.7rem] font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2 truncate cursor-grab active:cursor-grabbing">
+            <span className="truncate">{field.name || 'Untitled Field'} {field.mandatory && <span className="text-red-500">*</span>}</span>
+            {field.archived && (
+              <span className="shrink-0 normal-case tracking-normal rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-700">Archived · hidden from form</span>
+            )}
           </label>
         )}
 
@@ -105,9 +110,20 @@ export default function FieldTile({
           </div>
         )}
 
-        {/* Floating Action Menu (Delete) */}
+        {/* Floating Action Menu (Duplicate, Delete) */}
         {!isSectionLocked && (
           <div className={`absolute -right-2 -top-2 bg-white border border-gray-200 rounded-full shadow-sm flex items-center transition-opacity z-20 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/field:opacity-100'}`}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate();
+              }}
+              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-orange-600 rounded-full hover:bg-slate-50"
+              title="Duplicate Field"
+              aria-label={`Duplicate ${field.name || 'field'}`}
+            >
+              <i className="ph-bold ph-copy"></i>
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -115,6 +131,7 @@ export default function FieldTile({
               }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-600 rounded-full hover:bg-slate-50"
               title="Delete Field"
+              aria-label={`Delete ${field.name || 'field'}`}
             >
               <i className="ph-bold ph-trash"></i>
             </button>

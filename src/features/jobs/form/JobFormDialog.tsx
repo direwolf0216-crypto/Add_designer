@@ -14,6 +14,7 @@ import JobFormSection from "./JobFormSection";
 import { useJobFormState } from "./useJobFormState";
 import { useJobFormSubmit } from "./useJobFormSubmit";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useLayoutPreview } from "@/components/providers/LayoutPreviewProvider";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
 
 /** Create/edit job dialog driven by the JOB_FORM layout; opened through useGlobalForm().openJobForm. */
@@ -21,6 +22,7 @@ function JobFormDialogInner() {
   const { isJobFormOpen, jobToEditId, jobInitialDate, closeJobForm } = useGlobalForm();
   const loaded = useJobFormState({ isOpen: isJobFormOpen, jobToEditId, initialDate: jobInitialDate });
   const { checkPermission } = usePermissions();
+  const { preview } = useLayoutPreview();
   // Roles without "See amounts" get the form without its Financials section; the server keeps
   // the stored price and payments when they save.
   const canSeeAmounts = checkPermission("view_amounts");
@@ -71,6 +73,11 @@ function JobFormDialogInner() {
               </div>
             </div>
           </DialogHeader>
+          {preview && (
+            <div className="shrink-0 flex items-center gap-2 bg-amber-50 border-b border-amber-200 px-5 py-2 text-[0.8rem] font-semibold text-amber-800">
+              <i className="ph-fill ph-eye"></i> Preview of the unsaved layout. Nothing entered here is saved.
+            </div>
+          )}
           <div className="bg-slate-50 px-5 py-6 sm:px-10 sm:py-8 flex-1 overflow-y-auto">
             <form id="job-form" onSubmit={handleSubmit(onSubmit, onError)} className="hidden">
               <input type="hidden" {...register("installments")} value={JSON.stringify(installments)} />
@@ -93,8 +100,8 @@ function JobFormDialogInner() {
             <button type="button" className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[12px] font-bold text-[0.9rem] bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer flex items-center gap-2" onClick={() => closeJobForm()}>
               <i className="ph-bold ph-x text-[1rem]"></i> Cancel
             </button>
-            <button type="button" className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-[12px] font-bold text-[0.9rem] bg-blue-600 text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-[1px] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50" disabled={isSubmitting || isSubmittingLocal} onClick={handleSubmit(onSubmit, onError)}>
-              <i className="ph-bold ph-check-circle text-[1rem]"></i> {(isSubmitting || isSubmittingLocal) ? "Saving..." : job ? "Save Changes" : jobCount > 1 ? `Create ${jobCount} Jobs` : "Create Job"}
+            <button type="button" className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-[12px] font-bold text-[0.9rem] bg-blue-600 text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-[1px] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50" disabled={preview || isSubmitting || isSubmittingLocal} onClick={preview ? undefined : handleSubmit(onSubmit, onError)}>
+              <i className={`ph-bold ${preview ? "ph-eye" : "ph-check-circle"} text-[1rem]`}></i> {preview ? "Preview only" : (isSubmitting || isSubmittingLocal) ? "Saving..." : job ? "Save Changes" : jobCount > 1 ? `Create ${jobCount} Jobs` : "Create Job"}
             </button>
           </div>
         </motion.div>

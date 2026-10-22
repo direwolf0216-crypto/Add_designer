@@ -30,6 +30,17 @@ interface GlobalFormContextType {
 
 const GlobalFormContext = createContext<GlobalFormContextType | undefined>(undefined);
 
+/**
+ * Re-provides the global form state with some values replaced, for a dialog mounted on purpose inside
+ * another screen (the layout builder's live preview opens the real job form this way).
+ */
+export function GlobalFormOverrideProvider({ value, children }: { value: Partial<GlobalFormContextType>; children: ReactNode }) {
+  const parent = useContext(GlobalFormContext);
+  if (!parent) throw new Error("GlobalFormOverrideProvider must be used within GlobalFormProvider");
+  const merged = useMemo(() => ({ ...parent, ...value }), [parent, value]);
+  return <GlobalFormContext.Provider value={merged}>{children}</GlobalFormContext.Provider>;
+}
+
 // Ids are cleared after the close animation; a modal reopened within that window must keep its new id.
 const CLOSE_ANIMATION_MS = 300;
 

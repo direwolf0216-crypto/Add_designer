@@ -38,6 +38,8 @@ export interface FormField {
   /** SIZE fields: units offered by the picker (defaults to ft, in, cm, mm, m) and the one preselected. */
   sizeUnits?: string[];
   defaultUnit?: string;
+  /** Hidden from new forms; values already saved under it stay readable in details, exports and reports. */
+  archived?: boolean;
   visibilityRule?: VisibilityRule;
   futureDateRestriction?: FutureDateRestriction;
   restrictFutureDate?: boolean;

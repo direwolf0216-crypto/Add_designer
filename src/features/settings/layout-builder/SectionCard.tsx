@@ -17,6 +17,7 @@ interface SectionCardProps {
   onAddField: () => void;
   onSelectField: (fieldId: string) => void;
   onRemoveField: (fieldId: string) => void;
+  onDuplicateField: (fieldId: string) => void;
 }
 
 /** One section on the canvas: draggable header + field grid + drop zone. */
@@ -30,6 +31,7 @@ export default function SectionCard({
   onAddField,
   onSelectField,
   onRemoveField,
+  onDuplicateField,
 }: SectionCardProps) {
   const {
     draggedSectionId,
@@ -109,6 +111,7 @@ export default function SectionCard({
             onDrop={(e) => handleDrop(e, section.id, idx)}
             onSelect={() => onSelectField(field.id)}
             onRemove={() => onRemoveField(field.id)}
+            onDuplicate={() => onDuplicateField(field.id)}
           />
         ))}
       </div>

@@ -7,9 +7,12 @@ import { asList, fetcher } from "@/lib/swr";
 import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
 import { FIXED_OPTIONS_FIELD_ID } from "@/lib/layout-builder/fieldTypes";
 import {
+  canRedo,
+  canUndo,
   findSelectedField,
   getActiveLayout,
   initialLayoutBuilderState,
+  isDirty,
   layoutBuilderReducer,
   type SectionEdits,
 } from "@/lib/layout-builder/reducer";
@@ -26,6 +29,14 @@ export interface UsageModalData {
   inUseCount: number;
 }
 
+/** A field whose removal is awaiting the admin's choice because records hold values for it. */
+export interface RemoveFieldPrompt {
+  sectionId: string;
+  fieldId: string;
+  fieldName: string;
+  count: number;
+}
+
 export interface BuilderUser {
   id: string;
   name: string;
@@ -36,6 +47,8 @@ export interface BuilderUser {
 export function useLayoutBuilder() {
   const [state, dispatch] = useReducer(layoutBuilderReducer, initialLayoutBuilderState);
   const [saving, setSaving] = useState(false);
+  const [removePrompt, setRemovePrompt] = useState<RemoveFieldPrompt | null>(null);
+  const [checkingField, setCheckingField] = useState<string | null>(null);
 
   const { data: usersData } = useSWR("/api/users", fetcher);
   const allUsers = asList<BuilderUser>(usersData);
@@ -73,14 +86,17 @@ export function useLayoutBuilder() {
         body: JSON.stringify(activeLayout),
       });
       if (!res.ok) throw new Error("Failed to save layout");
+      dispatch({ type: "markSaved", formKey: activeLayout.formKey });
       toast.success(`${activeLayout.name} saved successfully!`);
       globalMutate(`/api/settings/layouts/${activeLayout.formKey}`);
       globalMutate(`/api/settings/layouts`);
     } catch {
       toast.error("Failed to save layout");
+      return false;
     } finally {
       setSaving(false);
     }
+    return true;
   };
 
   // --- Navigation / selection ---
@@ -107,6 +123,41 @@ export function useLayoutBuilder() {
     dispatch({ type: "moveField", from, toSectionId, toIndex });
   const removeField = (sectionId: string, fieldId: string) => dispatch({ type: "removeField", sectionId, fieldId });
   const updateSelectedField = (updates: Partial<FormField>) => dispatch({ type: "updateSelectedField", updates });
+  const duplicateField = (sectionId: string, fieldId: string) =>
+    dispatch({ type: "duplicateField", sectionId, fieldId, id: newLayoutId("field") });
+  const setFieldArchived = (sectionId: string, fieldId: string, archived: boolean) =>
+    dispatch({ type: "setFieldArchived", sectionId, fieldId, archived });
+  const undo = () => dispatch({ type: "undo" });
+  const redo = () => dispatch({ type: "redo" });
+
+  /**
+   * Delete protection: a field that records still hold values for is not removed outright. The admin is
+   * shown how many and offered to archive it (hidden from the form, values stay readable) instead.
+   */
+  const requestRemoveField = async (sectionId: string, fieldId: string) => {
+    if (!activeLayout) return;
+    const field = activeLayout.schema.sections.find((s) => s.id === sectionId)?.fields.find((f) => f.id === fieldId);
+    if (!field) return;
+    if (field.archived) { removeField(sectionId, fieldId); return; }
+    // Unsaved fields have no records yet.
+    const saved = state.baselines[activeLayout.formKey]?.includes(`"id":"${fieldId}"`);
+    if (!saved) { removeField(sectionId, fieldId); return; }
+    setCheckingField(fieldId);
+    try {
+      const res = await fetch("/api/settings/layouts/field-usage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formKey: activeLayout.formKey, fieldId }),
+      });
+      const data = res.ok ? await res.json() : { count: 0 };
+      if (data.count > 0) setRemovePrompt({ sectionId, fieldId, fieldName: field.name ?? "Field", count: data.count });
+      else removeField(sectionId, fieldId);
+    } catch {
+      toast.error("Couldn't check whether the field is in use");
+    } finally {
+      setCheckingField(null);
+    }
+  };
 
   // --- Option removal with usage check / migration ---
   const handleRemoveOption = async (idx: number) => {
@@ -183,6 +234,17 @@ export function useLayoutBuilder() {
     selectedField,
     selectedSectionId,
     handleSave,
+    dirty: isDirty(state),
+    canUndo: canUndo(state),
+    canRedo: canRedo(state),
+    undo,
+    redo,
+    duplicateField,
+    setFieldArchived,
+    requestRemoveField,
+    removePrompt,
+    setRemovePrompt,
+    checkingField,
     openForm,
     closeForm,
     selectField,
