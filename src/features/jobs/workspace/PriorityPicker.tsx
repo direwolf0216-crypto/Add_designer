@@ -13,12 +13,14 @@ export default function PriorityPicker({ value, onChange, compact = false, disab
       <PopoverTrigger
         disabled={disabled}
         aria-label={`Priority: ${style.label}`}
-        className={`inline-flex items-center gap-1.5 rounded-xl font-bold ring-1 transition-colors disabled:opacity-60 ${compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm"}`}
-        style={{ color: style.hex, backgroundColor: `${style.hex}12`, ["--tw-ring-color" as string]: `${style.hex}33` }}
+        title="Change priority"
+        className={`inline-flex cursor-pointer items-center gap-1.5 rounded-xl border bg-white font-bold shadow-sm transition-[background-color,box-shadow] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:cursor-not-allowed disabled:opacity-60 ${compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm"} ${value === "NORMAL" ? "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50" : ""}`}
+        // Urgent / High / Low keep their own colour; Normal is a plain white chip so it still reads as a control.
+        style={value === "NORMAL" ? undefined : { color: style.hex, backgroundColor: `${style.hex}12`, borderColor: `${style.hex}55` }}
       >
-        <i className={`ph-bold ${style.icon}`} aria-hidden="true"></i>
+        <i className={`ph-bold ${style.icon}`} style={value === "NORMAL" ? { color: "#94a3b8" } : undefined} aria-hidden="true"></i>
         {style.label}
-        <i className="ph-bold ph-caret-down text-[0.6rem] opacity-70" aria-hidden="true"></i>
+        <i className="ph-bold ph-caret-down text-[0.65rem]" aria-hidden="true"></i>
       </PopoverTrigger>
       <PopoverContent align="end" className="!w-44 !rounded-2xl !p-1.5">
         <p className="px-2 pb-1 pt-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Priority</p>
