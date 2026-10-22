@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+
 interface NewFormDialogProps {
   name: string;
   description: string;
@@ -10,7 +12,8 @@ interface NewFormDialogProps {
 }
 
 export default function NewFormDialog({ name, description, onNameChange, onDescriptionChange, onCancel, onCreate }: NewFormDialogProps) {
-  return (
+  // Portalled to <body>: the settings page area is its own stacking layer under the top bar.
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel}></div>
       <div className="relative bg-white rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] border border-gray-100 w-full max-w-[450px] mx-4 overflow-hidden animate-fade-in p-7">
@@ -44,5 +47,5 @@ export default function NewFormDialog({ name, description, onNameChange, onDescr
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }

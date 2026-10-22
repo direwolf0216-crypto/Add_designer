@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -172,9 +173,9 @@ function SettingsPage() {
         </button>
       </aside>
 
-      {/* Mobile Bottom Sheet Overlay */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end" style={{ animation: "fadeIn 0.2s ease-out forwards" }}>
+      {/* Mobile bottom sheet, portalled to <body> so it stacks above the top bar (the page area is its own z-10 layer). */}
+      {isMobileMenuOpen && typeof document !== "undefined" && createPortal(
+        <div className="md:hidden fixed inset-0 z-[140] flex flex-col justify-end" style={{ animation: "fadeIn 0.2s ease-out forwards" }}>
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeMobileMenu}></div>
           <div 
             className="relative w-full bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden" 
@@ -198,7 +199,7 @@ function SettingsPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Content Area */}
       <div className="flex-1 min-w-0">

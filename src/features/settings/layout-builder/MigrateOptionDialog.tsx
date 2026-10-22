@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { UsageModalData } from "./useLayoutBuilder";
 
@@ -14,7 +16,8 @@ interface MigrateOptionDialogProps {
 
 /** Shown when a pick-list option being removed is still used by records: pick a replacement to migrate to. */
 export default function MigrateOptionDialog({ data: usageModalData, value: migrationValue, onValueChange, migrating, onCancel, onConfirm }: MigrateOptionDialogProps) {
-  return (
+  // Portalled to <body>: the settings page area is its own stacking layer under the top bar.
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !migrating && onCancel()}></div>
       <div className="relative bg-white rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] border border-gray-100 w-full max-w-[450px] mx-4 overflow-hidden animate-fade-in p-7">
@@ -59,5 +62,5 @@ export default function MigrateOptionDialog({ data: usageModalData, value: migra
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }
