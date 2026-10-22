@@ -7,6 +7,7 @@ import prisma, { type TxClient } from "@/lib/prisma";
 import { badRequest, conflict, notFound } from "@/lib/api/http";
 import { recordJobActivity } from "@/lib/services/activity";
 import { createNotification, jobLabel } from "@/lib/notifications";
+import { whatsappAfterHandoff } from "@/lib/whatsapp/events";
 
 export type TeamSummary = {
   id: string;
@@ -149,6 +150,7 @@ function notifyTeam(team: TeamSummary, job: HandoffJob, clientName: string | und
   after(async () => {
     const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { name: true, email: true } });
     const who = actor?.name?.trim() || actor?.email?.trim() || "Someone";
+    whatsappAfterHandoff(job.id, team.name, recipients, who);
     await Promise.all(
       recipients.map((userId) =>
         createNotification({

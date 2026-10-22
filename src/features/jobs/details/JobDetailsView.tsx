@@ -27,6 +27,7 @@ import { useJob } from "./useJob";
 import { usePricingRules } from "@/hooks/usePricingRules";
 import { useJobMutations } from "./useJobMutations";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
+import SendWhatsAppDialog from "./SendWhatsAppDialog";
 
 export type { JobDetailsTab } from "./JobTabs";
 
@@ -58,6 +59,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [activeTabId, setActiveTabId] = useState(DETAILS_TAB.id);
   const [isExporting, setIsExporting] = useState(false);
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
   const mutations = useJobMutations({
     job,
     layout: layoutSchema,
@@ -195,6 +197,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 onDelete={() => setIsDeleteConfirmOpen(true)}
                 onExport={exportPdf}
                 onInvoice={mutations.generateInvoice}
+                onWhatsApp={canEditJobs && job.client?.phone ? () => setWhatsAppOpen(true) : undefined}
                 assigneesSlot={<JobAssignees job={job} teamUsers={teamUsers} />}
               />
             </div>
@@ -208,6 +211,16 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
         </div>
       )}
 
+      {job?.client?.phone && (
+        <SendWhatsAppDialog
+          open={whatsAppOpen}
+          jobId={job.id}
+          customerName={job.client.name || job.title || "the customer"}
+          customerPhone={job.client.phone}
+          balanceDue={resolveFinancials(job).dueAmount}
+          onClose={() => setWhatsAppOpen(false)}
+        />
+      )}
       <DeleteJobDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen} onConfirm={mutations.deleteJob} isDeleting={mutations.isDeleting} />
     </div>
   );

@@ -4,6 +4,7 @@ import { badRequest } from "@/lib/api/http";
 import { recordJobActivity } from "@/lib/services/activity";
 import { after } from "next/server";
 import { createNotification } from "@/lib/notifications";
+import { whatsappAfterAssigned } from "@/lib/whatsapp/events";
 
 export const MAX_ASSIGNEES = 20;
 
@@ -73,6 +74,7 @@ export function notifyAssigned(job: { id: string; jobNumber: string | null; clie
   after(async () => {
     const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { name: true, email: true } });
     const who = actor?.name?.trim() || actor?.email?.trim() || "Someone";
+    whatsappAfterAssigned(job.id, recipients, who);
     await Promise.all(
       recipients.map((userId) =>
         createNotification({

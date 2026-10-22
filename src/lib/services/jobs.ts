@@ -11,6 +11,7 @@ import { type SessionUser, userCan } from "@/lib/auth/session";
 import { jobScope } from "@/lib/jobs/scope";
 import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
+import { whatsappAfterJobSaved } from "@/lib/whatsapp/events";
 import { syncAssignments } from "@/lib/services/assignments";
 import { deriveJobTracking, statusIsStage, syncStatusWithStage, stageOptions } from "@/lib/jobs/tracking";
 import { notifyHandoff, recordHandoff } from "@/lib/services/teams";
@@ -350,7 +351,7 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
       });
 
       const handoff = await recordHandoff(tx, existing?.stage, job, userId);
-      return { job, client, order, installments, created: !existing, assignmentChanges, handoff };
+      return { job, client, order, installments, created: !existing, assignmentChanges, handoff, stageBefore: existing?.stage ?? null };
     },
     { timeout: 20000 }
   );
@@ -466,5 +467,6 @@ export async function updateJob(
     return { before: existing, job, assignmentChanges, handoff };
   });
   notifyHandoff(result.handoff, result.job, result.before.client?.name, actor.id);
+  whatsappAfterJobSaved(result.job.id, { created: false, stageBefore: result.before.stage, stageAfter: result.job.stage });
   return result;
 }

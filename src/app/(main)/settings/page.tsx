@@ -17,6 +17,7 @@ const TeamsSettings = dynamic(() => import("@/components/settings/TeamsSettings"
 const BusinessDetails = dynamic(() => import("@/components/settings/BusinessDetails"), { loading: tabLoading });
 const PricingRules = dynamic(() => import("@/components/settings/PricingRules"), { loading: tabLoading });
 const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
+const WhatsAppIntegration = dynamic(() => import("@/components/settings/integrations/WhatsAppIntegration"), { loading: tabLoading });
 
 const GROUPS = [
   {
@@ -39,6 +40,7 @@ const GROUPS = [
     label: "Integrations",
     items: [
       { id: "google-drive", label: "Google Drive", icon: "ph-google-logo" },
+      { id: "whatsapp", label: "WhatsApp", icon: "ph-whatsapp-logo" },
     ]
   },
   {
@@ -214,6 +216,7 @@ function SettingsPage() {
           {displayedSection === "layouts" && <LayoutsFieldsBuilder />}
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
+          {displayedSection === "whatsapp" && <WhatsAppIntegration />}
           {displayedSection === "business" && <BusinessDetails />}
           {displayedSection === "pricing" && <PricingRules />}
           {displayedSection === "teams" && <TeamsSettings />}

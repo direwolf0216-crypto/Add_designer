@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, FileDown, Receipt, Trash2 } from "lucide-react";
+import { Edit3, FileDown, MessageCircle, Receipt, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
 
@@ -17,6 +17,7 @@ export default function JobHeaderActions({
   onDelete,
   onExport,
   onInvoice,
+  onWhatsApp,
   assigneesSlot,
 }: {
   job: DetailsJob;
@@ -31,6 +32,8 @@ export default function JobHeaderActions({
   onDelete: () => void;
   onExport: () => void;
   onInvoice: () => void;
+  /** Opens the Send on WhatsApp dialog; absent when the customer has no phone or the user may not edit. */
+  onWhatsApp?: () => void;
   /** Rendered first in the row (assignees avatar stack). */
   assigneesSlot?: ReactNode;
 }) {
@@ -53,6 +56,11 @@ export default function JobHeaderActions({
         {canDeleteJobs && (
           <button onClick={onDelete} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete job" aria-label="Delete job">
             <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+        {onWhatsApp && (
+          <button onClick={onWhatsApp} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Send on WhatsApp" aria-label="Send on WhatsApp">
+            <MessageCircle className="w-4 h-4" />
           </button>
         )}
         <button onClick={onExport} disabled={isExporting} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors disabled:opacity-50" title="Download PDF summary" aria-label="Download PDF summary">

@@ -12,6 +12,10 @@ import { getSessionUser, type SessionUser, userCan } from "@/lib/auth/session";
 import type { Permission } from "@/lib/permissions";
 import { isProductionDone, saveJob, softDeleteJob, updateJob, type InstallmentInput } from "@/lib/services/jobs";
 import { notifyAssigned } from "@/lib/services/assignments";
+import { whatsappAfterInvoice, whatsappAfterJobSaved, whatsappPaymentDue, jobTemplateVars } from "@/lib/whatsapp/events";
+import { sendWhatsApp } from "@/lib/whatsapp/send";
+import { getWhatsAppConfig, isWhatsAppConfigured } from "@/lib/whatsapp/config";
+import { renderTemplate } from "@/lib/whatsapp/templates";
 import { recordJobActivity } from "@/lib/services/activity";
 import { assertJobVisible } from "@/lib/jobs/scope";
 import { parseAmount } from "@/lib/money";
@@ -113,6 +117,7 @@ export async function saveJobAction(formData: FormData) {
       result.assignmentChanges.added,
       user.id
     );
+    whatsappAfterJobSaved(result.job.id, { created: result.created, stageBefore: result.stageBefore, stageAfter: result.job.stage });
 
     broadcastLater(
       result.created
@@ -353,9 +358,37 @@ export async function generateInvoiceAction(jobId: string) {
       });
     });
 
+    whatsappAfterInvoice(jobId);
     return { success: true, invoiceId: invoice.id };
   } catch (e) {
     console.error("[generateInvoiceAction]", e);
     return { success: false, error: "Failed to generate invoice" };
+  }
+}
+
+/** Job details → Send on WhatsApp: one of the saved templates, or a custom text, to the customer. */
+export async function sendJobWhatsAppAction(jobId: string, input: { kind: "jobCreated" | "stageChanged" | "paymentDue" | "custom"; text?: string }) {
+  const user = await authorize(["edit_jobs", "create_jobs"]);
+  if (isError(user)) return user;
+  try {
+    await assertJobVisible(jobId, user);
+    const cfg = await getWhatsAppConfig();
+    if (!isWhatsAppConfigured(cfg)) return { success: false, error: "WhatsApp is not set up in Settings" };
+    if (input.kind === "paymentDue") {
+      const r = await whatsappPaymentDue(jobId, cfg);
+      return r.ok ? { success: true } : { success: false, error: r.error ?? "Couldn't send" };
+    }
+    const ctx = await jobTemplateVars(jobId);
+    if (!ctx?.job.client?.phone) return { success: false, error: "The customer has no phone number" };
+    const body =
+      input.kind === "custom"
+        ? String(input.text ?? "").trim().slice(0, 4000)
+        : renderTemplate(cfg.rules.templates[input.kind], ctx.vars);
+    if (!body) return { success: false, error: "Type a message first" };
+    const r = await sendWhatsApp({ kind: input.kind === "custom" ? "manual" : input.kind === "jobCreated" ? "job_created" : "stage_changed", to: ctx.job.client.phone, body, jobId }, cfg);
+    return r.ok ? { success: true } : { success: false, error: r.error ?? "Couldn't send" };
+  } catch (e) {
+    console.error("[sendJobWhatsAppAction]", e);
+    return { success: false, error: e instanceof HttpError ? e.message : "Couldn't send the message" };
   }
 }
