@@ -1,9 +1,15 @@
-export type VisibilityOperator = "EQUALS" | "NOT_EQUALS" | "CONTAINS";
+import type { FieldRole, FieldValidation, VisibilityCondition, VisibilityOperator } from "@/lib/forms/types";
+
+export type { FieldRole, FieldValidation, VisibilityCondition, VisibilityOperator };
 
 export interface VisibilityRule {
-  fieldId: string;
-  operator: VisibilityOperator;
+  /** Legacy single condition. */
+  fieldId?: string;
+  operator?: VisibilityOperator;
   values?: string[];
+  /** Newer rules: several conditions joined by `match` (default "all"). */
+  match?: "all" | "any";
+  conditions?: VisibilityCondition[];
 }
 
 export interface StatusOption {
@@ -41,6 +47,10 @@ export interface FormField {
   /** Hidden from new forms; values already saved under it stay readable in details, exports and reports. */
   archived?: boolean;
   visibilityRule?: VisibilityRule;
+  /** Required only while this rule holds (in addition to `mandatory`). */
+  mandatoryRule?: VisibilityRule;
+  role?: FieldRole;
+  validation?: FieldValidation;
   futureDateRestriction?: FutureDateRestriction;
   restrictFutureDate?: boolean;
   isRecordDate?: boolean;

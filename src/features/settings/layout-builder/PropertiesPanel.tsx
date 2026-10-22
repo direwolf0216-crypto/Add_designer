@@ -12,6 +12,12 @@ import StatusRestrictionEditor from "./properties/StatusRestrictionEditor";
 import UserPicklistConfigEditor from "./properties/UserPicklistConfigEditor";
 import VisibilityRuleEditor from "./properties/VisibilityRuleEditor";
 import SizeUnitsEditor from "./properties/SizeUnitsEditor";
+import RequiredRuleEditor from "./properties/RequiredRuleEditor";
+import ValidationEditor from "./properties/ValidationEditor";
+import RolesChecklist from "./RolesChecklist";
+import { hasConditions } from "@/lib/forms/visibility";
+import { hasValidation } from "@/lib/forms/validation";
+import type { FieldRole } from "@/lib/layout-builder/types";
 
 interface PropertiesPanelProps {
   layout: FormLayout;
@@ -21,6 +27,8 @@ interface PropertiesPanelProps {
   onChange: (updates: Partial<FormField>) => void;
   onRemoveOption: (idx: number) => void;
   checkingUsage: boolean;
+  onRoleChange: (role: FieldRole | null) => void;
+  onSelectField: (fieldId: string) => void;
   /** Field actions (Advanced tab). */
   onDuplicate: () => void;
   onArchive: (archived: boolean) => void;
@@ -33,10 +41,11 @@ interface PropertiesPanelProps {
 type Tab = "basics" | "rules" | "advanced";
 
 /** Right column: properties of the selected field in three tabs: what it is, when it shows, and housekeeping. */
-export default function PropertiesPanel({ layout, field: selectedField, sectionId, users, onChange, onRemoveOption, checkingUsage, onDuplicate, onArchive, onRemove, removing, onClose }: PropertiesPanelProps) {
+export default function PropertiesPanel({ layout, field: selectedField, sectionId, users, onChange, onRemoveOption, checkingUsage, onRoleChange, onSelectField, onDuplicate, onArchive, onRemove, removing, onClose }: PropertiesPanelProps) {
   const [tab, setTab] = useState<Tab>("basics");
   const typeDef = getFieldTypeDef(selectedField?.type);
-  const hasRule = !!selectedField?.visibilityRule?.fieldId || !!selectedField?.restrictFutureDate || !!selectedField?.futureDateRestriction?.enabled;
+  const hasRule =
+    hasConditions(selectedField?.visibilityRule) || hasConditions(selectedField?.mandatoryRule) || !!selectedField?.restrictFutureDate || !!selectedField?.futureDateRestriction?.enabled || (!!selectedField && hasValidation(selectedField));
 
   const tabs: { id: Tab; label: string; dot?: boolean }[] = [
     { id: "basics", label: "Basics" },
@@ -95,7 +104,7 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
             {tab === "basics" && (
               <>
-                <FieldBasicsEditor field={selectedField} layout={layout} sectionId={sectionId} onChange={onChange} />
+                <FieldBasicsEditor field={selectedField} layout={layout} sectionId={sectionId} onChange={onChange} onRoleChange={onRoleChange} />
                 {(selectedField.type === "PICK_LIST" || selectedField.type === "MULTI_SELECT") && (
                   <OptionsEditor field={selectedField} onChange={onChange} onRemoveOption={onRemoveOption} removing={checkingUsage} />
                 )}
@@ -107,13 +116,10 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
             {tab === "rules" && (
               <>
                 <VisibilityRuleEditor field={selectedField} layout={layout} onChange={onChange} />
+                <RequiredRuleEditor field={selectedField} layout={layout} onChange={onChange} />
+                <ValidationEditor field={selectedField} layout={layout} onChange={onChange} />
                 {selectedField.type === "DATE" && <DateRestrictionEditor field={selectedField} onChange={onChange} />}
                 {selectedField.type === "STATUS_PICKER" && <StatusRestrictionEditor field={selectedField} layout={layout} onChange={onChange} />}
-                {selectedField.type !== "DATE" && selectedField.type !== "STATUS_PICKER" && (
-                  <p className="text-[0.75rem] text-slate-500 leading-relaxed border-t border-gray-100 pt-4">
-                    Date fields can restrict past or future dates, and status pickers can hide stages until a linked date arrives. Select one of those fields to see those rules.
-                  </p>
-                )}
               </>
             )}
 
@@ -184,6 +190,8 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
             )}
           </div>
         </>
+      ) : layout.formKey === "JOB_FORM" ? (
+        <RolesChecklist layout={layout} onSelectField={onSelectField} />
       ) : (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center text-slate-400">
           <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-gray-100 shadow-sm">

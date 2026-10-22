@@ -2,10 +2,16 @@
 import type { FieldMap, FormLayout, FormSection, RepeatableData, RepeatableEntry } from "@/lib/forms/types";
 import { fieldNameFor } from "@/lib/forms/fieldMap";
 import { computeLineItemsPackage, parseCurrency, rateKey, type FinancialRates, type Installment, type PricingRules } from "./pricing";
+import { findRoleField } from "@/lib/forms/roles";
+import { validateFieldValue } from "@/lib/forms/validation";
 
 /** The repeatable "Job Details" section, whose entries become separate jobs. */
 export function jobDetailsSection(layout: FormLayout | null | undefined): FormSection | undefined {
-  return layout?.sections?.find((s) => s.isRepeatable && /job (details|information)/i.test(s.title || ""));
+  const byTitle = layout?.sections?.find((s) => s.isRepeatable && /job (details|information)/i.test(s.title || ""));
+  if (byTitle) return byTitle;
+  // Any name works once the section holds the field with the Job category role.
+  const categoryId = findRoleField(layout, "category")?.id;
+  return categoryId ? layout?.sections?.find((s) => s.isRepeatable && s.fields.some((f) => f.id === categoryId)) : undefined;
 }
 
 /** Fields of a repeatable section that appear once per job (dates, status) rather than per item. */
@@ -125,10 +131,33 @@ export function missingEntryFields(
   const out: { index: number; fieldName: string; message: string }[] = [];
   entries.forEach((entry, index) => {
     for (const f of section.fields) {
-      if (!f.mandatory || f.type === "STATUS_PICKER" || !isVisible(f.visibilityRule, entry)) continue;
+      const required = !!f.mandatory || (!!f.mandatoryRule && isVisible(f.mandatoryRule, entry));
+      if (!required || f.type === "STATUS_PICKER" || !isVisible(f.visibilityRule, entry)) continue;
       const name = fieldNameFor(fieldMap, f.id);
       const v = entry?.[name];
       if (!v || (Array.isArray(v) && v.length === 0)) out.push({ index, fieldName: name, message: `${f.name} is required` });
+    }
+  });
+  return out;
+}
+
+/** Validation errors (bounds, length, format) inside each Job Details entry. */
+export function entryValidationErrors(
+  layout: FormLayout | null | undefined,
+  fieldMap: FieldMap,
+  repeatableData: RepeatableData,
+  isVisible: (rule: FormSection["visibilityRule"], entry?: RepeatableEntry) => boolean = () => true
+): { index: number; fieldName: string; message: string }[] {
+  const section = jobDetailsSection(layout);
+  if (!section) return [];
+  const entries = repeatableData[`rep_${section.id}`] ?? [];
+  const out: { index: number; fieldName: string; message: string }[] = [];
+  entries.forEach((entry, index) => {
+    for (const f of section.fields) {
+      if (!isVisible(f.visibilityRule, entry)) continue;
+      const name = fieldNameFor(fieldMap, f.id);
+      const message = validateFieldValue(f, entry?.[name]);
+      if (message) out.push({ index, fieldName: name, message });
     }
   });
   return out;

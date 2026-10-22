@@ -2,6 +2,7 @@
 
 import { defaultUnitFor } from '@/lib/jobs/size';
 import { getFieldTypeDef } from "@/lib/layout-builder/fieldTypes";
+import { roleDef } from "@/lib/forms/roles";
 import type { FormField } from "@/lib/layout-builder/types";
 
 /** Types whose control is a picker, so the preview reads "Select ..." like the real form. */
@@ -83,8 +84,11 @@ export default function FieldTile({
       >
         {/* Realistic Label */}
         {field.type !== 'CHECKBOX' && (
-          <label className="text-[0.7rem] font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2 truncate cursor-grab active:cursor-grabbing">
+          <label className={`text-[0.7rem] font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2 truncate cursor-grab active:cursor-grabbing ${isSectionLocked ? "" : "pr-14"}`}>
             <span className="truncate">{field.name || 'Untitled Field'} {field.mandatory && <span className="text-red-500">*</span>}</span>
+            {field.role && !field.archived && (
+              <span className="shrink-0 max-w-[7rem] truncate normal-case tracking-normal rounded-md bg-violet-50 border border-violet-200 px-1.5 py-0.5 text-[0.65rem] font-bold text-violet-700" title="Field role">{roleDef(field.role).label}</span>
+            )}
             {field.archived && (
               <span className="shrink-0 normal-case tracking-normal rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-700">Archived · hidden from form</span>
             )}

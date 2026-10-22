@@ -8,6 +8,7 @@
 import { allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FieldMap, FormLayout, FormSection, RepeatableData, RepeatableEntry } from "@/lib/forms/types";
 import { isSizeLayoutField, looksLikeSize } from "./size";
+import { findRoleField } from "@/lib/forms/roles";
 
 export interface Installment {
   amount: string;
@@ -139,7 +140,8 @@ export function findDiscountKey(
 ): string | undefined {
   let key = Object.keys(values).find((k) => k.toLowerCase().includes("discount"));
   if (layout && layout.sections) {
-    const discF = allFields(layout).find((f) => (f.name || "").toLowerCase().includes("discount"));
+    // The Discount role wins; older layouts are matched by label.
+    const discF = findRoleField(layout, "discount") ?? allFields(layout).find((f) => (f.name || "").toLowerCase().includes("discount"));
     if (discF) key = fieldNameFor(fieldMap, discF.id);
   }
   return key;
@@ -239,12 +241,21 @@ function lineItemKeys(entry: RepeatableEntry, repSection: FormSection | undefine
 
   if (repSection && repSection.fields) {
     const fieldFor = (k: string) => repSection.fields.find((field) => fieldNameFor(fieldMap, field.id) === k);
-    catFieldKey = Object.keys(entry).find((k) => {
+    // Field roles first (explicit or inferred for this section), then the older label matching.
+    const keyOfRole = (role: "category" | "size" | "quantity") => {
+      const f = findRoleField({ sections: [repSection] }, role);
+      const k = f ? fieldNameFor(fieldMap, f.id) : undefined;
+      return k && k in entry ? k : undefined;
+    };
+    catFieldKey = keyOfRole("category");
+    sizeFieldKey = keyOfRole("size");
+    qtyFieldKey = keyOfRole("quantity");
+    if (!catFieldKey) catFieldKey = Object.keys(entry).find((k) => {
       const f = fieldFor(k);
       return f && isCategoryName(f.name);
     });
-    sizeFieldKey = Object.keys(entry).find((k) => isSizeLayoutField(fieldFor(k)));
-    qtyFieldKey = Object.keys(entry).find((k) => {
+    if (!sizeFieldKey) sizeFieldKey = Object.keys(entry).find((k) => isSizeLayoutField(fieldFor(k)));
+    if (!qtyFieldKey) qtyFieldKey = Object.keys(entry).find((k) => {
       const f = fieldFor(k);
       return f && isQtyName(f.name);
     });

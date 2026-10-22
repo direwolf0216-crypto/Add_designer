@@ -9,6 +9,8 @@ import { collapseFileArray, isUploadableFile } from "@/lib/forms/files";
 import { defaultsToFirstOption, firstOptionDefault } from "@/lib/forms/options";
 import type { FieldMap, FormField, FormLayout, FormSection, RepeatableData, RepeatableEntry, VisibilityRule } from "@/lib/forms/types";
 import { payableInstallments, rateKey, type FinancialRates, type Installment } from "./pricing";
+import { resolveDefaultValue, type DefaultContext } from "@/lib/forms/defaults";
+import { validateFieldValue } from "@/lib/forms/validation";
 
 /** Visibility predicate bound to the form's current values. */
 export type IsVisible = (rule: VisibilityRule | null | undefined) => boolean;
@@ -136,12 +138,13 @@ export function jobToFormState(job: JobRecord, today: string = toLocalISODate())
 }
 
 /** A new entry of a repeatable section: pick-lists start at their first option, others at their default. */
-export function newRepeatableEntry(section: FormSection, fieldMap: FieldMap): RepeatableEntry {
+export function newRepeatableEntry(section: FormSection, fieldMap: FieldMap, ctx: DefaultContext = { today: toLocalISODate() }): RepeatableEntry {
   const entry: RepeatableEntry = {};
   section.fields.forEach((f) => {
     const fname = fieldNameFor(fieldMap, f.id);
-    if (defaultsToFirstOption(f)) entry[fname] = firstOptionDefault(f);
-    else if (f.defaultValue) entry[fname] = f.defaultValue;
+    const preset = resolveDefaultValue(f, ctx);
+    if (preset !== undefined) entry[fname] = preset;
+    else if (defaultsToFirstOption(f)) entry[fname] = firstOptionDefault(f);
   });
   return entry;
 }
@@ -150,8 +153,10 @@ export function newRepeatableEntry(section: FormSection, fieldMap: FieldMap): Re
 export function layoutDefaults(
   layout: FormLayout | null | undefined,
   fieldMap: FieldMap,
-  defaultDate: string
+  defaultDate: string,
+  ctx: Partial<DefaultContext> = {}
 ): { values: Record<string, any>; repeatableData: RepeatableData } {
+  const defaultCtx: DefaultContext = { today: defaultDate, ...ctx };
   const values: Record<string, any> = {
     title: "", category: "", date: defaultDate, time: "10:00 AM",
     location: "", phone: "", email: "", package: "", advance: "", due: "", status: "Confirmed",
@@ -164,7 +169,7 @@ export function layoutDefaults(
 
   layout.sections.forEach((sec) => {
     if (sec.isRepeatable) {
-      repeatableData[`rep_${sec.id}`] = [newRepeatableEntry(sec, fieldMap)];
+      repeatableData[`rep_${sec.id}`] = [newRepeatableEntry(sec, fieldMap, defaultCtx)];
       // The job's status picker may sit inside the repeatable section; its first option is still the default status.
       const statusF = sec.fields.find((f) => f.id === statusFieldId && f.type === "STATUS_PICKER");
       if (statusF?.statusOptions?.length) values.status = statusF.statusOptions[0].label;
@@ -177,7 +182,8 @@ export function layoutDefaults(
       } else if (defaultsToFirstOption(f)) {
         values[fname] = firstOptionDefault(f);
       }
-      if (f.defaultValue) values[fname] = f.defaultValue;
+      const preset = resolveDefaultValue(f, defaultCtx);
+      if (preset !== undefined) values[fname] = preset;
     });
   });
 
@@ -190,6 +196,9 @@ export function layoutDefaults(
  */
 export function sortFinancialFields<F extends FormField>(fields: F[], fieldMap: FieldMap, paymentAfterAdvance: boolean): F[] {
   const order = (field: F) => {
+    if (field.role === "total") return 0;
+    if (field.role === "discount") return 1;
+    if (field.role === "advance") return 2;
     const nameStr = (fieldNameFor(fieldMap, field.id) + " " + (field.name || "")).toLowerCase();
     if (nameStr.includes("package") || nameStr.includes("total")) return 0;
     if (nameStr.includes("discount")) return 1;
@@ -244,12 +253,37 @@ export function missingMandatoryFields(
     section.fields.forEach((field) => {
       if (!isVisible(field.visibilityRule)) return;
       const fieldName = fieldNameFor(fieldMap, field.id);
-      if (field.mandatory && isEmptyValue(data[fieldName])) {
+      if (isRequiredNow(field, isVisible) && isEmptyValue(data[fieldName])) {
         missing.push({ fieldName, message: `${field.name} is required` });
       }
     });
   });
   return missing;
+}
+
+/** Required outright, or required while its "required when" rule holds. */
+export function isRequiredNow(field: Pick<FormField, "mandatory" | "mandatoryRule">, isVisible: IsVisible): boolean {
+  return !!field.mandatory || (!!field.mandatoryRule && isVisible(field.mandatoryRule));
+}
+
+/** Validation errors (bounds, length, format) of the visible flat fields. */
+export function fieldValidationErrors(
+  layout: FormLayout | null | undefined,
+  data: Record<string, unknown>,
+  isVisible: IsVisible,
+  fieldMap: FieldMap
+): { fieldName: string; message: string }[] {
+  const errors: { fieldName: string; message: string }[] = [];
+  layout?.sections?.forEach((section) => {
+    if (section.isRepeatable || !isVisible(section.visibilityRule)) return;
+    section.fields.forEach((field) => {
+      if (!isVisible(field.visibilityRule)) return;
+      const fieldName = fieldNameFor(fieldMap, field.id);
+      const message = validateFieldValue(field, data[fieldName]);
+      if (message) errors.push({ fieldName, message });
+    });
+  });
+  return errors;
 }
 
 /** Values without the fields hidden by visibility rules (hidden fields are not submitted). */

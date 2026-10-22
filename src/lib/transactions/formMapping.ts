@@ -1,9 +1,13 @@
 // Transaction form ⇄ API mapping: record → form state, layout → defaults, validation, and the
 // request (single, bulk create, bulk/group edit) the form sends. Pure: no React, no network.
 
+import { toLocalISODate } from "@/lib/dates";
 import { allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import { splitMultiValue } from "@/lib/forms/options";
 import type { FieldMap, FormLayout } from "@/lib/forms/types";
+import { resolveDefaultValue, type DefaultContext } from "@/lib/forms/defaults";
+import { validateFieldValue } from "@/lib/forms/validation";
+import { isVisibleIn } from "@/lib/forms/visibility";
 
 /** Flat form state: mapped standard keys, custom field ids and `amount_<category>` split amounts. */
 export type TransactionFormValues = Record<string, any>;
@@ -55,7 +59,7 @@ export function transactionToForm(tx: TransactionRecord): TransactionFormValues 
 export function transactionLayoutDefaults(
   layout: FormLayout,
   fieldMap: FieldMap,
-  preset: { type?: string | null; category?: string | null },
+  preset: { type?: string | null; category?: string | null; userId?: string | null },
   now: Date = new Date()
 ): TransactionFormValues {
   const form: TransactionFormValues = { type: "INCOME", status: "SETTLED", date: now.toISOString() };
@@ -71,6 +75,14 @@ export function transactionLayoutDefaults(
       }
     });
   });
+  // Admin-set defaults (a literal, or @today / @now / @me) win over the first option.
+  const ctx: DefaultContext = { today: toLocalISODate(now), now, userId: preset.userId ?? null };
+  layout.sections.forEach((sec) =>
+    sec.fields.forEach((f) => {
+      const v = resolveDefaultValue(f, ctx);
+      if (v !== undefined) form[fieldNameFor(fieldMap, f.id)] = v as string;
+    })
+  );
   if (preset.type) form.type = preset.type;
   if (preset.category) form.category = preset.category;
   return form;
@@ -80,12 +92,18 @@ export function transactionLayoutDefaults(
 export function validateTransactionForm(form: TransactionFormValues, layout: FormLayout | null | undefined, fieldMap: FieldMap): Record<string, string> {
   const errs: Record<string, string> = {};
   layout?.sections?.forEach((sec) => {
+    if (!isVisibleIn(sec.visibilityRule, form, fieldMap)) return;
     sec.fields.forEach((f) => {
+      if (!isVisibleIn(f.visibilityRule, form, fieldMap)) return;
       const fname = fieldNameFor(fieldMap, f.id);
-      if (f.mandatory) {
-        const val = form[fname];
-        if (val === undefined || val === null || val === "") errs[fname] = `${f.name} is required.`;
+      const val = form[fname];
+      const required = !!f.mandatory || (!!f.mandatoryRule && isVisibleIn(f.mandatoryRule, form, fieldMap));
+      if (required && (val === undefined || val === null || val === "")) {
+        errs[fname] = `${f.name} is required.`;
+        return;
       }
+      const invalid = validateFieldValue(f, val);
+      if (invalid) errs[fname] = invalid;
     });
   });
 

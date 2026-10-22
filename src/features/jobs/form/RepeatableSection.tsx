@@ -72,6 +72,8 @@ export default function RepeatableSection({ section }: { section: FormSection })
   const formValues = form.watch() as Record<string, unknown>;
   const visibleInEntry = (field: FormField, entry: Record<string, unknown>) =>
     !field.visibilityRule || isVisibleIn(field.visibilityRule, { ...formValues, ...(entry ?? {}) }, JOB_FORM_FIELD_MAP);
+  const requiredInEntry = (field: FormField, entry: Record<string, unknown>) =>
+    !!field.mandatory || (!!field.mandatoryRule && isVisibleIn(field.mandatoryRule, { ...formValues, ...(entry ?? {}) }, JOB_FORM_FIELD_MAP));
 
   const renderField = (field: FormField, index: number, entry: Record<string, unknown>, isGlobal: boolean) => {
     if (!visibleInEntry(field, entry)) return null;
@@ -80,7 +82,7 @@ export default function RepeatableSection({ section }: { section: FormSection })
     return (
       <div key={field.id} id={`field-container-${name}-${index}`} className="flex flex-col gap-1.5 relative">
         <label className="text-[0.75rem] font-bold text-slate-600 uppercase tracking-[0.5px]">
-          {field.name} {field.mandatory && <span className="text-red-500 ml-0.5">*</span>}
+          {field.name} {requiredInEntry(field, entry) && <span className="text-red-500 ml-0.5">*</span>}
         </label>
         <div className="relative mt-1">
           <FieldRenderer

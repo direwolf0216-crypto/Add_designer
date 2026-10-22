@@ -68,9 +68,9 @@ export function composeSize(dims: string, unit: string): string {
 }
 
 /** Layout field that holds the size: the Size type, or an older text field named "Size". */
-export function isSizeLayoutField(field: { type?: string; name?: string } | null | undefined): boolean {
+export function isSizeLayoutField(field: { type?: string; name?: string; role?: string } | null | undefined): boolean {
   if (!field) return false;
-  return field.type === "SIZE" || !!field.name?.toLowerCase().includes("size");
+  return field.type === "SIZE" || field.role === "size" || !!field.name?.toLowerCase().includes("size");
 }
 
 /** "3 x 6", "120×60 cm", "4*6 ft": two numbers joined by x / × / *. Used to find a size saved under a field that no longer exists. */

@@ -5,6 +5,8 @@
  * layout is open. Ids and form keys are passed in by the caller so the reducer stays deterministic.
  */
 import { getFieldTypeDef, LOCKED_SECTION_ID } from "./fieldTypes";
+import { withInferredRoles } from "@/lib/forms/roles";
+import type { FieldRole } from "@/lib/forms/types";
 import type { FieldPosition, FormField, FormLayout, FormSection } from "./types";
 
 export interface LayoutBuilderState {
@@ -56,6 +58,7 @@ export type LayoutBuilderAction =
   | { type: "removeField"; sectionId: string; fieldId: string }
   | { type: "duplicateField"; sectionId: string; fieldId: string; id: string }
   | { type: "setFieldArchived"; sectionId: string; fieldId: string; archived: boolean }
+  | { type: "setFieldRole"; fieldId: string; role: FieldRole | null }
   | { type: "undo" }
   | { type: "redo" }
   | { type: "markSaved"; formKey: string };
@@ -235,7 +238,11 @@ function coreReducer(state: LayoutBuilderState, action: LayoutBuilderAction): La
   switch (action.type) {
     case "seed": {
       if (state.seeded) return state;
-      const layouts = mergeWithDefaults(action.defaults, action.fromServer);
+      // Layouts saved before field roles existed get the roles the label heuristics imply, as the
+      // starting point the admin can correct; the baseline includes them so the draft starts clean.
+      const layouts = mergeWithDefaults(action.defaults, action.fromServer).map((l) =>
+        l.formKey === "JOB_FORM" ? withInferredRoles(l as unknown as Parameters<typeof withInferredRoles>[0]) as unknown as FormLayout : l
+      );
       const baselines: Record<string, string> = {};
       layouts.forEach((l) => { baselines[l.formKey] = snapshot(l); });
       return { ...state, seeded: true, layouts, baselines };
@@ -382,6 +389,21 @@ function coreReducer(state: LayoutBuilderState, action: LayoutBuilderAction): La
       const next = withSections(state, layout, mapSection(sections, action.sectionId, (s) => ({ ...s, fields })));
       return { ...next, selectedFieldId: copy.id };
     }
+
+    case "setFieldRole":
+      // A role belongs to one field: assigning it here takes it away from any other field.
+      return withSections(
+        state,
+        layout,
+        sections.map((s) => ({
+          ...s,
+          fields: s.fields.map((f) => {
+            if (f.id === action.fieldId) return { ...f, role: action.role ?? undefined };
+            if (action.role && f.role === action.role) return { ...f, role: undefined };
+            return f;
+          }),
+        })),
+      );
 
     case "setFieldArchived":
       return withSections(

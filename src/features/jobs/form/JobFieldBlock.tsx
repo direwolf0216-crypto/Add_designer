@@ -18,14 +18,15 @@ export default function JobFieldBlock({
   className: string;
   children: ReactNode;
 }) {
-  const { form } = useJobFormContext();
+  const { form, isVisible } = useJobFormContext();
   const isError = form.formState.errors[fieldName];
+  const required = !!field.mandatory || (!!field.mandatoryRule && isVisible(field.mandatoryRule));
 
   return (
     <div id={`field-container-${fieldName}`} className={`flex flex-col gap-1.5 ${className}`}>
       <div className="flex justify-between items-center">
         <label className="text-[0.75rem] font-bold text-slate-600 uppercase tracking-[0.5px]">
-          {field.name} {field.mandatory && <span className="text-red-500 ml-0.5">*</span>}
+          {field.name} {required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
       </div>
       {children}

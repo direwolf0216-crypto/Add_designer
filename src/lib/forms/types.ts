@@ -2,11 +2,60 @@
 // TRANSACTION_FORM, ...). Layouts are user-edited JSON, so every property except `id` is optional
 // in practice; the types document what the renderers read, not what the builder guarantees.
 
-export type VisibilityOperator = "EQUALS" | "NOT_EQUALS" | "CONTAINS";
+export type VisibilityOperator =
+  | "EQUALS"
+  | "NOT_EQUALS"
+  | "CONTAINS"
+  | "IS_EMPTY"
+  | "IS_NOT_EMPTY"
+  | "GREATER_THAN"
+  | "LESS_THAN"
+  | "BEFORE"
+  | "AFTER";
+
+/** One test inside a rule: the value of `fieldId` compared with `values`. */
+export interface VisibilityCondition {
+  fieldId: string;
+  operator: VisibilityOperator | string;
+  values?: string[];
+}
+
+/**
+ * What a field means to the rest of the app (pricing, the board, exports). Roles replace guessing from
+ * labels, so a field can be called anything.
+ */
+export type FieldRole =
+  | "customer"
+  | "phone"
+  | "email"
+  | "orderDate"
+  | "dueDate"
+  | "category"
+  | "size"
+  | "quantity"
+  | "status"
+  | "total"
+  | "advance"
+  | "discount";
+
+/** Input checks beyond "required"; `message` overrides the default wording. */
+export interface FieldValidation {
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: "phone" | "email" | "pincode" | "gstin" | "custom";
+  regex?: string;
+  message?: string;
+}
 
 /**
  * Show a section/field only when another field has (or lacks) a value.
  * Two historical formats exist: `{ fieldId, operator, value }` and `{ dependsOn, values }`.
+ */
+/**
+ * When a field or section shows (or, as `mandatoryRule`, when it is required). Newer rules hold
+ * `conditions` joined by `match`; older ones are a single `fieldId` / `operator` / `values`.
  */
 export interface VisibilityRule {
   dependsOn?: string;
@@ -14,6 +63,8 @@ export interface VisibilityRule {
   operator?: VisibilityOperator | string;
   values?: string[];
   value?: string;
+  match?: "all" | "any";
+  conditions?: VisibilityCondition[];
 }
 
 /** Pick-list options are plain strings in older layouts and `{ label, value }` objects in newer ones. */
@@ -70,6 +121,10 @@ export interface FormField {
   statusOptions?: StatusOption[];
   defaultValue?: unknown;
   visibilityRule?: VisibilityRule | null;
+  /** Required only while this rule holds (in addition to `mandatory`). */
+  mandatoryRule?: VisibilityRule | null;
+  role?: FieldRole;
+  validation?: FieldValidation;
   /** Inside a repeatable section: `false` marks a field shown once for the whole section. */
   isRepeatableField?: boolean;
   /** The field whose value is sent as the record's `recordDate`. */

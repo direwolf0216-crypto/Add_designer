@@ -24,7 +24,7 @@ export default function JobField({ field }: { field: FormField }) {
   const fieldName = toFieldName(field.id) as any;
   const isError = !!errors[fieldName as string];
   const setValidated = (val: unknown) => setValue(fieldName, val as any, { shouldValidate: true });
-  const icon = getFieldIcon(field.name, field.type);
+  const icon = getFieldIcon(field.name, field.type, field.role);
 
   if (field.id === "fld_b_client") {
     return (

@@ -2,14 +2,19 @@
 
 import { findOtherRecordDateField } from "@/lib/layout-builder/reducer";
 import type { FieldEditorProps } from "./types";
+import type { FieldRole } from "@/lib/layout-builder/types";
+import RolePicker from "./RolePicker";
+import DefaultValueEditor from "./DefaultValueEditor";
 
 interface FieldBasicsEditorProps extends FieldEditorProps {
   /** Id of the section that contains the field (drives the "Add Entry block" toggle for repeatable sections). */
   sectionId: string | null;
+  /** Assigns a role (exclusive per layout); only the job form has roles. */
+  onRoleChange?: (role: FieldRole | null) => void;
 }
 
 /** Label, mandatory, repeatable-entry and record-date settings. */
-export default function FieldBasicsEditor({ field: selectedField, layout: activeLayout, sectionId: selectedSectionId, onChange: updateSelectedField }: FieldBasicsEditorProps) {
+export default function FieldBasicsEditor({ field: selectedField, layout: activeLayout, sectionId: selectedSectionId, onChange: updateSelectedField, onRoleChange }: FieldBasicsEditorProps) {
   const parentSection = activeLayout?.schema.sections.find(s => s.id === selectedSectionId);
   const existingRecordDateField = selectedField.type === "DATE" ? findOtherRecordDateField(activeLayout, selectedField) : null;
 
@@ -27,6 +32,12 @@ export default function FieldBasicsEditor({ field: selectedField, layout: active
           className="w-full text-sm font-semibold text-slate-800 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
         />
       </div>
+
+      {activeLayout.formKey === "JOB_FORM" && onRoleChange && (
+        <RolePicker field={selectedField} layout={activeLayout} onChange={onRoleChange} />
+      )}
+
+      <DefaultValueEditor field={selectedField} layout={activeLayout} onChange={updateSelectedField} />
 
       {/* Older layouts have Size as a plain text field: switching the type keeps the id, so saved jobs keep their sizes. */}
       {selectedField.type === "SINGLE_LINE" && (selectedField.name ?? "").toLowerCase().includes("size") && (

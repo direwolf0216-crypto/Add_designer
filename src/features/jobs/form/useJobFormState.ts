@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useSession } from "next-auth/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { jobSchema, type JobFormData } from "@/lib/validations/job";
 import { toLocalISODate } from "@/lib/dates";
@@ -28,6 +29,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
   const { reset, setValue, watch, clearErrors } = form;
 
   const data = useJobFormData({ isOpen, jobToEditId, date: watch("date") });
+  const userId = useSession().data?.user?.id ?? null;
   const { job, isJobLoading, layoutSchema } = data;
 
   const [isMultiInstallment, setIsMultiInstallment] = useState(false);
@@ -54,7 +56,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
   // Add mode default initialization
   useEffect(() => {
     if (isOpen && !isJobLoading && !jobToEditId) {
-      const defaults = layoutDefaults(layoutSchema, JOB_FORM_FIELD_MAP, initialDate || toLocalISODate());
+      const defaults = layoutDefaults(layoutSchema, JOB_FORM_FIELD_MAP, initialDate || toLocalISODate(), { userId });
       setRepeatableData(defaults.repeatableData);
       // Start clean: nothing may carry over from a job edited earlier (e.g. installment transaction ids).
       setFinancialRates({});
@@ -64,7 +66,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
       reset(defaults.values);
       clearErrors();
     }
-  }, [isOpen, jobToEditId, isJobLoading, initialDate, reset, clearErrors, layoutSchema]);
+  }, [isOpen, jobToEditId, isJobLoading, initialDate, reset, clearErrors, layoutSchema, userId]);
 
   // Advance follows the installments, package follows line-item rates, due = package − advance.
   const packageValue = watch("package");

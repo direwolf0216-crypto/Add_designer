@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
@@ -32,6 +33,7 @@ function TransactionFormDialogInner() {
   const searchParams = useSearchParams();
   const { editTransaction, isTxLoading, layoutSchema, driveStatus } = useTransactionFormData();
   const { preview } = useLayoutPreview();
+  const userId = useSession().data?.user?.id ?? null;
   const isEditMode = !!editTransaction;
 
   const [form, setForm] = useState<TransactionFormValues>({ type: "INCOME", status: "SETTLED" });
@@ -51,6 +53,7 @@ function TransactionFormDialogInner() {
           transactionLayoutDefaults(layoutSchema, TRANSACTION_FIELD_MAP, {
             type: searchParams.get("type") || transactionInitialData?.type,
             category: searchParams.get("category") || transactionInitialData?.category,
+            userId,
           })
         );
       }

@@ -16,7 +16,7 @@ import {
   layoutBuilderReducer,
   type SectionEdits,
 } from "@/lib/layout-builder/reducer";
-import type { FieldPosition, FormField, FormLayout } from "@/lib/layout-builder/types";
+import type { FieldPosition, FieldRole, FormField, FormLayout } from "@/lib/layout-builder/types";
 
 /** Timestamp-based id for new sections/fields; only called from event handlers. */
 const newLayoutId = (prefix: string) => `${prefix}_${Date.now()}`;
@@ -127,6 +127,7 @@ export function useLayoutBuilder() {
     dispatch({ type: "duplicateField", sectionId, fieldId, id: newLayoutId("field") });
   const setFieldArchived = (sectionId: string, fieldId: string, archived: boolean) =>
     dispatch({ type: "setFieldArchived", sectionId, fieldId, archived });
+  const setFieldRole = (fieldId: string, role: FieldRole | null) => dispatch({ type: "setFieldRole", fieldId, role });
   const undo = () => dispatch({ type: "undo" });
   const redo = () => dispatch({ type: "redo" });
 
@@ -241,6 +242,7 @@ export function useLayoutBuilder() {
     redo,
     duplicateField,
     setFieldArchived,
+    setFieldRole,
     requestRemoveField,
     removePrompt,
     setRemovePrompt,

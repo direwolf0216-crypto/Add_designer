@@ -200,6 +200,8 @@ export default function LayoutBuilder() {
           onChange={builder.updateSelectedField}
           onRemoveOption={builder.handleRemoveOption}
           checkingUsage={builder.checkingUsage}
+          onRoleChange={(role) => selectedField && builder.setFieldRole(selectedField.id, role)}
+          onSelectField={builder.selectField}
           onDuplicate={() =>
             selectedField &&
             builder.selectedSectionId &&

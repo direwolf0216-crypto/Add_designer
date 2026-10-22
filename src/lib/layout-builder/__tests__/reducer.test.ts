@@ -278,3 +278,25 @@ describe("history, dirty tracking and field housekeeping", () => {
     expect(getActiveLayout(s)!.schema.sections[0].fields[1].archived).toBeUndefined();
   });
 });
+
+describe("field roles in the builder", () => {
+  it("fills roles from labels when seeding the job form and keeps the draft clean", async () => {
+    const { isDirty } = await import("../reducer");
+    const job = layout("JOB_FORM", { schema: { sections: [{ id: "s", title: "S", fields: [field("f1", { name: "Due date", type: "DATE" }), field("f2", { name: "Quantity", type: "NUMBER" })] }] } });
+    let s = reduce(initialLayoutBuilderState, { type: "seed", defaults: [], fromServer: [job] });
+    s = reduce(s, { type: "openForm", formKey: "JOB_FORM" });
+    expect(getActiveLayout(s)!.schema.sections[0].fields.map((f) => f.role)).toEqual(["dueDate", "quantity"]);
+    expect(isDirty(s)).toBe(false);
+  });
+
+  it("moves a role to the field it is assigned to", () => {
+    let s = reduce(initialLayoutBuilderState, { type: "seed", defaults: [layout("JOB_FORM")], fromServer: [] });
+    s = reduce(s, { type: "openForm", formKey: "JOB_FORM" });
+    s = reduce(s, { type: "setFieldRole", fieldId: "a", role: "quantity" });
+    s = reduce(s, { type: "setFieldRole", fieldId: "b", role: "quantity" });
+    const roles = Object.fromEntries(getActiveLayout(s)!.schema.sections.flatMap((x) => x.fields).map((f) => [f.id, f.role]));
+    expect(roles).toMatchObject({ a: undefined, b: "quantity" });
+    s = reduce(s, { type: "setFieldRole", fieldId: "b", role: null });
+    expect(getActiveLayout(s)!.schema.sections[0].fields[1].role).toBeUndefined();
+  });
+});

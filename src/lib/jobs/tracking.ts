@@ -5,8 +5,9 @@
 // the job's own values. Board stage changes write customData.fld_b_status at the top level, which wins.
 
 import { calendarDateToUtc } from "@/lib/dates";
+import { findRoleField } from "@/lib/forms/roles";
 
-type LayoutField = { id: string; name?: string; label?: string; type?: string; isRecordDate?: boolean };
+type LayoutField = { id: string; name?: string; label?: string; type?: string; isRecordDate?: boolean; role?: string };
 type Layout = { sections?: { id?: string; isRepeatable?: boolean; fields?: LayoutField[] }[] } | null | undefined;
 
 export const DEFAULT_STAGES = [
@@ -66,6 +67,8 @@ export function syncStatusWithStage(
 
 /** Layout id of the due/delivery date field, if the layout has one. */
 export function dueDateFieldId(layout: Layout): string | null {
+  const byRole = findRoleField(layout, "dueDate");
+  if (byRole) return byRole.id;
   const f = fieldsOf(layout).find((x) => x.type === "DATE" && !x.isRecordDate && /due|deliver/.test(nameOf(x)));
   return f?.id ?? null;
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { categoryFromCustomData } from "@/lib/jobs/category";
+import { roleFieldId } from "@/lib/forms/roles";
 import { Prisma } from "@prisma/client";
 import prisma, { type TxClient } from "@/lib/prisma";
 import { computeBalance, parseAmount, round2 } from "@/lib/money";
@@ -267,7 +268,7 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
       const common = {
         // Board stage + due date as real columns (filterable, indexed), derived from the form data.
         ...deriveJobTracking(customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]),
-        category: input.category || categoryFromCustomData(customData),
+        category: input.category || categoryFromCustomData(customData, roleFieldId(layout?.schema as FormLayout | null, "category")),
         time: input.time ?? "",
         location: input.location ?? "",
         status,

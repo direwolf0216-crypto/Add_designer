@@ -6,6 +6,7 @@ import type { ValueLookup } from "@/lib/forms/visibility";
 import { lineMultiplier, pricingRuleFor, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
 import type { FieldMap, FormField, FormLayout, FormSection } from "@/lib/forms/types";
 import { isSizeLayoutField, looksLikeSize } from "./size";
+import { findRoleField } from "@/lib/forms/roles";
 
 /** A job as returned by /api/jobs/[id], with customData/inclusions parsed. */
 export interface DetailsJob {
@@ -96,19 +97,20 @@ export function resolveJobSummary(job: DetailsJob, layout: FormLayout | null | u
     const fields = layout.sections.flatMap((s) => s.fields || []);
     const lookup = (f: FormField) => getDynamicFieldValue(cd, f.id, fieldMap[f.id]);
 
-    const catField = fields.find((f) => (f.name || "").toLowerCase().includes("category"));
+    // Field roles first; the label matching below covers layouts saved before roles existed.
+    const catField = findRoleField(layout, "category") ?? fields.find((f) => (f.name || "").toLowerCase().includes("category"));
     if (catField) categoryVal = lookup(catField) || categoryVal;
 
     if (!sizeVal) {
-      const sizeField = fields.find((f) => isSizeLayoutField(f));
+      const sizeField = findRoleField(layout, "size") ?? fields.find((f) => isSizeLayoutField(f));
       if (sizeField) sizeVal = lookup(sizeField);
     }
     if (!qtyVal) {
-      const qtyField = fields.find((f) => f.name?.toLowerCase() === "qty" || f.name?.toLowerCase() === "quantity");
+      const qtyField = findRoleField(layout, "quantity") ?? fields.find((f) => f.name?.toLowerCase() === "qty" || f.name?.toLowerCase() === "quantity");
       if (qtyField) qtyVal = lookup(qtyField);
     }
     if (!dueDateVal) {
-      const dueDateField = fields.find((f) => f.name?.toLowerCase().includes("due date") || f.name?.toLowerCase().includes("delivery date"));
+      const dueDateField = findRoleField(layout, "dueDate") ?? fields.find((f) => f.name?.toLowerCase().includes("due date") || f.name?.toLowerCase().includes("delivery date"));
       if (dueDateField) dueDateVal = lookup(dueDateField);
     }
   }
@@ -135,7 +137,7 @@ export function resolveJobSummary(job: DetailsJob, layout: FormLayout | null | u
     let repData = cd?.["rep_" + jdSec.id];
     if (typeof repData === "string") repData = parseJson(repData, []);
     if (Array.isArray(repData)) {
-      const catField = jdSec.fields?.find((f) => (f.name || "").toLowerCase().includes("category") || (f.name || "").toLowerCase().includes("type"));
+      const catField = findRoleField({ sections: [jdSec] }, "category") ?? jdSec.fields?.find((f) => (f.name || "").toLowerCase().includes("category") || (f.name || "").toLowerCase().includes("type"));
       if (catField) {
         const categories = repData.map((item: any) => item[catField.id] || item[fieldMap[catField.id]]).filter((c: unknown) => c);
         if (categories.length > 0) displayCategory = Array.from(new Set(categories)).join(", ");
@@ -206,14 +208,15 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
     if (jdSec) {
       const allF = jdSec.fields || [];
       const valueOf = (f: FormField) => entry?.[f.id] || entry?.[fieldMap[f.id]];
+      const roleF = (role: "size" | "quantity" | "category") => findRoleField({ sections: [jdSec] }, role);
       if (!sVal) {
-        const sF = allF.find((f) => isSizeLayoutField(f));
+        const sF = roleF("size") ?? allF.find((f) => isSizeLayoutField(f));
         if (sF) sVal = valueOf(sF);
         // Older entries keep their size under a field id the layout no longer has.
         if (!sVal) sVal = Object.values(entry ?? {}).find(looksLikeSize);
       }
       if (!qVal) {
-        const qF = allF.find((f) => f.name?.toLowerCase() === "qty" || f.name?.toLowerCase() === "quantity");
+        const qF = roleF("quantity") ?? allF.find((f) => f.name?.toLowerCase() === "qty" || f.name?.toLowerCase() === "quantity");
         if (qF) qVal = valueOf(qF);
       }
       if (!rVal) {
@@ -221,7 +224,7 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
         if (rF) rVal = valueOf(rF);
       }
       if (!cVal) {
-        const cF = allF.find((f) => f.name?.toLowerCase().includes("category") || f.name?.toLowerCase().includes("type"));
+        const cF = roleF("category") ?? allF.find((f) => f.name?.toLowerCase().includes("category") || f.name?.toLowerCase().includes("type"));
         if (cF) cVal = valueOf(cF);
       }
     }

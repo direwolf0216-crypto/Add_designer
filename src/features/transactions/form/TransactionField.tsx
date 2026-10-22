@@ -6,6 +6,7 @@ import MultiSelectField from "@/components/forms/fields/MultiSelectField";
 import { TRANSACTION_FIELD_MAP, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FormField } from "@/lib/forms/types";
 import { selectedCategories, type TransactionFormValues } from "@/lib/transactions/formMapping";
+import { isVisibleIn } from "@/lib/forms/visibility";
 import CategoryAmountsEditor from "./CategoryAmountsEditor";
 
 export interface TransactionFieldProps {
@@ -20,9 +21,12 @@ export interface TransactionFieldProps {
  * One transaction-form field. Amount, type and category have bespoke inputs (amount is replaced by
  * per-category amounts when several categories are picked); the rest go through FieldRenderer.
  */
-export default function TransactionField({ field, form, errors, set, driveStatus }: TransactionFieldProps) {
-  const fieldName = fieldNameFor(TRANSACTION_FIELD_MAP, field.id);
+export default function TransactionField({ field: rawField, form, errors, set, driveStatus }: TransactionFieldProps) {
+  const fieldName = fieldNameFor(TRANSACTION_FIELD_MAP, rawField.id);
   const isError = !!errors[fieldName];
+  // "Required when" rules show the asterisk only while they hold.
+  const mandatory = !!rawField.mandatory || (!!rawField.mandatoryRule && isVisibleIn(rawField.mandatoryRule, form, TRANSACTION_FIELD_MAP));
+  const field: FormField = mandatory === !!rawField.mandatory ? rawField : { ...rawField, mandatory };
 
   if (fieldName === "amount") {
     if (selectedCategories(form.category).length > 1) return null;

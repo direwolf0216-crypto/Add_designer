@@ -13,13 +13,15 @@ import type { JobFormData } from "@/lib/validations/job";
 import {
   buildJobFormData,
   emptyRepeatableSections,
+  fieldValidationErrors,
   missingMandatoryFields,
   prepareFileValues,
   withoutHiddenFields,
   type IsVisible,
 } from "@/lib/jobs/formMapping";
 import { findDiscountKey, parseCurrency } from "@/lib/jobs/pricing";
-import { globalFieldsOf, jobDetailsSection, missingEntryFields, splitIntoJobs, withFirstEntryDefaults } from "@/lib/jobs/multiJob";
+import { entryValidationErrors, globalFieldsOf, jobDetailsSection, missingEntryFields, splitIntoJobs, withFirstEntryDefaults } from "@/lib/jobs/multiJob";
+import { findRoleField } from "@/lib/forms/roles";
 import { fieldNameFor } from "@/lib/forms/fieldMap";
 import type { JobFormState } from "./useJobFormState";
 
@@ -66,6 +68,15 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       setIsSubmittingLocal(false);
       return;
     }
+    // Bounds, length and format rules set in the layout builder.
+    const invalid = fieldValidationErrors(layoutSchema, data, isVisible, JOB_FORM_FIELD_MAP);
+    invalid.forEach(({ fieldName, message }) => setError(fieldName, { type: "manual", message }));
+    if (invalid.length > 0) {
+      toast.error(invalid[0].message);
+      flashField(invalid[0].fieldName);
+      setIsSubmittingLocal(false);
+      return;
+    }
     // Each job entry needs its own mandatory fields (dates, size, quantity …).
     const jdSection = jobDetailsSection(layoutSchema);
     const perJob = !!jdSection && (!job || (repeatableData[`rep_${jdSection.id}`] ?? []).length <= 1);
@@ -76,6 +87,16 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       );
       if (missingInEntries.length > 0) {
         const first = missingInEntries[0];
+        toast.error(`Job ${first.index + 1}: ${first.message}`);
+        flashField(first.fieldName, first.index);
+        setIsSubmittingLocal(false);
+        return;
+      }
+      const invalidInEntries = entryValidationErrors(layoutSchema, JOB_FORM_FIELD_MAP, entriesData, (rule, entry) =>
+        isVisibleIn(rule, { ...(data as Record<string, unknown>), ...(entry ?? {}) }, JOB_FORM_FIELD_MAP)
+      );
+      if (invalidInEntries.length > 0) {
+        const first = invalidInEntries[0];
         toast.error(`Job ${first.index + 1}: ${first.message}`);
         flashField(first.fieldName, first.index);
         setIsSubmittingLocal(false);
@@ -118,9 +139,12 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       });
       const groupId = jobs.length > 1 ? (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now())) : undefined;
       const globalNames = globalFieldsOf(jdSection).map((f) => fieldNameFor(JOB_FORM_FIELD_MAP, f.id));
+      // The job's category column follows the field with the Job category role (the built-in id maps to "category").
+      const categoryField = findRoleField(layoutSchema, "category");
+      const categoryKey = categoryField ? fieldNameFor(JOB_FORM_FIELD_MAP, categoryField.id) : "category";
       let created = 0;
       for (const j of jobs) {
-        const data: Record<string, unknown> = { ...values, ...j.globals, package: String(j.packageAmount), category: (j.entry.category as string | undefined) || (values.category as string | undefined) || "" };
+        const data: Record<string, unknown> = { ...values, ...j.globals, package: String(j.packageAmount), category: (j.entry[categoryKey] as string | undefined) || (j.entry.category as string | undefined) || (values[categoryKey as keyof typeof values] as string | undefined) || (values.category as string | undefined) || "" };
         if (discountKey && jobs.length > 1) data[discountKey] = String(Math.max(0, j.lineTotal - j.packageAmount));
         // Only the first job keeps the form's own id (edit mode has exactly one job).
         if (j.index > 0) delete data.id;
