@@ -123,22 +123,30 @@ const styles = StyleSheet.create({
   amountInWords: {
     marginTop: 10,
   },
+  // Kept inside the bank column: the text block shrinks and wraps instead of running under the totals.
   payQrBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     marginTop: 8,
     padding: 6,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 4,
+    maxWidth: '100%',
   },
   payQrImage: {
-    width: 64,
-    height: 64,
+    width: 54,
+    height: 54,
+    flexShrink: 0,
+  },
+  payQrTextCol: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   payQrTitle: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: 700,
     color: colors.darkBox,
     marginBottom: 2,
@@ -205,8 +213,8 @@ export const SummarySection = ({ viewModel }: SummarySectionProps) => {
             {viewModel.print.payQr && (
               <View style={styles.payQrBox} wrap={false}>
                 <PdfImage src={viewModel.print.payQr.image} style={styles.payQrImage} />
-                <View>
-                  <Text style={styles.payQrTitle}>PAY WITH GPAY / ANY UPI APP</Text>
+                <View style={styles.payQrTextCol}>
+                  <Text style={styles.payQrTitle}>PAY WITH GPAY / UPI</Text>
                   <Text style={styles.payQrText}>{viewModel.print.payQr.caption}</Text>
                 </View>
               </View>
