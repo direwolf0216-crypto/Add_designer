@@ -6,6 +6,8 @@ import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { fetcher } from "@/lib/swr";
 import { useLayoutPreview } from "@/components/providers/LayoutPreviewProvider";
 import { withoutArchivedFields } from "@/lib/forms/archived";
+import { layoutForViewer } from "@/lib/forms/audience";
+import { useViewer } from "@/hooks/useViewer";
 import type { FormLayout } from "@/lib/forms/types";
 import { isGroupId, type TransactionRecord } from "@/lib/transactions/formMapping";
 
@@ -29,6 +31,7 @@ export function useTransactionFormData() {
   const { data: layoutRes } = useSWR<{ schema?: FormLayout }>(isOpen && !previewLayout ? "/api/settings/layouts/TRANSACTION_FORM" : null, fetcher);
 
   const fetched = layoutRes?.schema;
-  const layoutSchema = useMemo(() => withoutArchivedFields(previewLayout ?? fetched), [previewLayout, fetched]);
+  const viewer = useViewer();
+  const layoutSchema = useMemo(() => layoutForViewer(withoutArchivedFields(previewLayout ?? fetched), previewLayout ? null : viewer), [previewLayout, fetched, viewer]);
   return { editTransaction, isTxLoading, layoutSchema, driveStatus };
 }

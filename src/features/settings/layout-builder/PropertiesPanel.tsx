@@ -17,6 +17,8 @@ import ValidationEditor from "./properties/ValidationEditor";
 import RolesChecklist from "./RolesChecklist";
 import CategoryPricingCard from "./properties/CategoryPricingCard";
 import StatusStagesCard from "./properties/StatusStagesCard";
+import AudienceEditor from "./properties/AudienceEditor";
+import { hasAudience } from "@/lib/forms/audience";
 import { effectiveRole } from "@/lib/forms/roles";
 import { hasConditions } from "@/lib/forms/visibility";
 import { hasValidation } from "@/lib/forms/validation";
@@ -53,7 +55,7 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
   const tabs: { id: Tab; label: string; dot?: boolean }[] = [
     { id: "basics", label: "Basics" },
     { id: "rules", label: "Rules", dot: hasRule },
-    { id: "advanced", label: "Advanced" },
+    { id: "advanced", label: "Advanced", dot: !!selectedField && hasAudience(selectedField.audience) },
   ];
 
   return (
@@ -135,7 +137,9 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
                   <UserPicklistConfigEditor field={selectedField} users={users} onChange={onChange} />
                 )}
 
-                <div>
+                <AudienceEditor field={selectedField} layout={layout} onChange={onChange} />
+
+                <div className="border-t border-gray-100 pt-4">
                   <label className="text-[0.75rem] font-bold text-slate-600 mb-1.5 block">Field id</label>
                   <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-slate-50 px-3 py-2">
                     <code className="flex-1 truncate text-[0.75rem] text-slate-600">{selectedField.id}</code>

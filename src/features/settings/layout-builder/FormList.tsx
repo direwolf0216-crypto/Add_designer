@@ -6,13 +6,11 @@ import type { FormLayout } from "@/lib/layout-builder/types";
 interface FormListProps {
   layouts: FormLayout[];
   onOpen: (formKey: string) => void;
-  onCreateClick: () => void;
-  /** Rendered inside the card (the "Create New Form" dialog). */
   children?: ReactNode;
 }
 
 /** View 1: grid of all form layouts. */
-export default function FormList({ layouts, onOpen, onCreateClick, children }: FormListProps) {
+export default function FormList({ layouts, onOpen, children }: FormListProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden md:h-[750px] flex flex-col">
       <div className="px-5 py-5 md:px-8 md:py-6 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-white shrink-0">
@@ -20,12 +18,8 @@ export default function FormList({ layouts, onOpen, onCreateClick, children }: F
           <h2 className="text-xl font-extrabold text-slate-900">Form Layouts</h2>
           <p className="text-slate-500 text-sm mt-0.5">Manage and customize your data entry forms.</p>
         </div>
-        <button
-          onClick={onCreateClick}
-          className="shrink-0 whitespace-nowrap px-5 py-2.5 bg-orange-500 text-white font-semibold text-sm rounded-xl hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2"
-        >
-          <i className="ph-bold ph-plus"></i> Create Form
-        </button>
+        {/* Custom forms have nowhere to be used yet, so new forms are not offered; open a form to import, export or start from a template. */}
+        <p className="shrink-0 text-[0.75rem] text-slate-500">Open a form to edit, preview, import or export it.</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 md:p-8 bg-slate-50">

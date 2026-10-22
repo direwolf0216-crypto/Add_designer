@@ -38,6 +38,15 @@ export type FieldRole =
   | "advance"
   | "discount";
 
+/**
+ * Who a field is hidden from or locked for. Entries are audience tokens: `role:MANAGER`, `role:STAFF`,
+ * `custom:<customRoleId>` or `team:<teamId>`. Admins always see and edit everything.
+ */
+export interface FieldAudience {
+  hideFor?: string[];
+  readOnlyFor?: string[];
+}
+
 /** Input checks beyond "required"; `message` overrides the default wording. */
 export interface FieldValidation {
   min?: number;
@@ -125,6 +134,9 @@ export interface FormField {
   mandatoryRule?: VisibilityRule | null;
   role?: FieldRole;
   validation?: FieldValidation;
+  audience?: FieldAudience;
+  /** Set per viewer by the form data hooks: shown but not editable for this user. */
+  lockedForViewer?: boolean;
   /** Inside a repeatable section: `false` marks a field shown once for the whole section. */
   isRepeatableField?: boolean;
   /** The field whose value is sent as the record's `recordDate`. */

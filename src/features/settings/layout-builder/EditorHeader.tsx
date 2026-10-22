@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { SaveAction } from "./useLayoutBuilder";
 
 export type EditorStatus = "unsaved" | "draft" | "live";
@@ -20,6 +21,8 @@ interface EditorHeaderProps {
   onUndo: () => void;
   onRedo: () => void;
   onPreview: () => void;
+  /** Overflow menu (export, import, templates). */
+  menu?: ReactNode;
 }
 
 const iconButton =
@@ -33,7 +36,7 @@ const STATUS: Record<EditorStatus, { label: string; cls: string; dot?: boolean; 
   live: { label: "Live", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: "ph-check" },
 };
 
-export default function EditorHeader({ title, version, status, saving, canUndo, canRedo, canPreview, canPublish, onBack, onSaveDraft, onPublish, onHistory, onUndo, onRedo, onPreview }: EditorHeaderProps) {
+export default function EditorHeader({ title, version, status, saving, canUndo, canRedo, canPreview, canPublish, onBack, onSaveDraft, onPublish, onHistory, onUndo, onRedo, onPreview, menu }: EditorHeaderProps) {
   const s = STATUS[status];
   return (
     <div className="min-h-[4rem] border-b border-gray-200 bg-white flex flex-wrap items-center justify-between px-3 py-2 sm:px-5 shrink-0 gap-x-4 gap-y-2">
@@ -92,6 +95,7 @@ export default function EditorHeader({ title, version, status, saving, canUndo, 
           {saving === "publish" ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <i className="ph-bold ph-rocket-launch"></i>}
           Publish
         </button>
+        {menu}
       </div>
     </div>
   );

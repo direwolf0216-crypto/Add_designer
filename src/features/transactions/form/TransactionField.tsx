@@ -8,6 +8,7 @@ import type { FormField } from "@/lib/forms/types";
 import { selectedCategories, type TransactionFormValues } from "@/lib/transactions/formMapping";
 import { isVisibleIn } from "@/lib/forms/visibility";
 import CategoryAmountsEditor from "./CategoryAmountsEditor";
+import LockedField from "@/components/forms/fields/LockedField";
 
 export interface TransactionFieldProps {
   field: FormField;
@@ -27,6 +28,13 @@ export default function TransactionField({ field: rawField, form, errors, set, d
   // "Required when" rules show the asterisk only while they hold.
   const mandatory = !!rawField.mandatory || (!!rawField.mandatoryRule && isVisibleIn(rawField.mandatoryRule, form, TRANSACTION_FIELD_MAP));
   const field: FormField = mandatory === !!rawField.mandatory ? rawField : { ...rawField, mandatory };
+  if (field.lockedForViewer) {
+    return (
+      <FieldShell label={field.name} mandatory={field.mandatory} errorMessage={errors[fieldName]}>
+        <LockedField field={field} value={form[fieldName]} variant="transaction" />
+      </FieldShell>
+    );
+  }
 
   if (fieldName === "amount") {
     if (selectedCategories(form.category).length > 1) return null;

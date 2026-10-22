@@ -127,6 +127,11 @@ export function useLayoutBuilder() {
   // Publish history, loaded when the panel opens.
   const versionsKey = historyOpen && activeLayout ? `/api/settings/layouts/${activeLayout.formKey}/versions` : null;
   const { data: versionsData, isLoading: versionsLoading } = useSWR<{ versions: LayoutVersion[] }>(versionsKey, fetcher, { revalidateOnFocus: false });
+  /** Replaces the draft's schema (templates, import, reset); undo brings the previous draft back. */
+  const applySchema = (schema: FormLayout["schema"], title: string, description?: string) => {
+    dispatch({ type: "replaceSchema", schema });
+    toast.success(title, { description: description ?? "Review the draft, then publish to make it live. Undo reverts." });
+  };
   const restoreVersion = (v: LayoutVersion) => {
     dispatch({ type: "replaceSchema", schema: v.schema });
     setHistoryOpen(false);
@@ -276,6 +281,7 @@ export function useLayoutBuilder() {
     versions: versionsData?.versions ?? [],
     versionsLoading,
     restoreVersion,
+    applySchema,
     dirty: isDirty(state),
     canUndo: canUndo(state),
     canRedo: canRedo(state),

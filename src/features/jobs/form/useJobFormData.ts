@@ -5,6 +5,8 @@ import useSWR from "swr";
 import { asList, fetcher } from "@/lib/swr";
 import { useLayoutPreview } from "@/components/providers/LayoutPreviewProvider";
 import { withoutArchivedFields } from "@/lib/forms/archived";
+import { layoutForViewer } from "@/lib/forms/audience";
+import { useViewer } from "@/hooks/useViewer";
 import type { FormLayout } from "@/lib/forms/types";
 import type { JobRecord } from "@/lib/jobs/formMapping";
 import type { AvailabilityJob } from "@/lib/jobs/availability";
@@ -40,8 +42,13 @@ export function useJobFormData({ isOpen, jobToEditId, date }: JobFormDataArgs) {
 
   // The last loaded values stay on screen while the dialog closes and the SWR keys switch to null.
   const loadedLayout = useLastLoaded(layoutData?.schema?.sections ? layoutData.schema : undefined) ?? null;
-  // Memoised: a fresh object each render would re-run every effect that depends on the layout.
-  const layoutSchema = useMemo(() => withoutArchivedFields<FormLayout | null>(previewLayout ?? loadedLayout), [previewLayout, loadedLayout]);
+  // Memoised: a fresh object each render would re-run every effect that depends on the layout. The preview
+  // shows the layout as the admin built it; real forms drop fields hidden from this viewer and lock read-only ones.
+  const viewer = useViewer();
+  const layoutSchema = useMemo(
+    () => layoutForViewer(withoutArchivedFields<FormLayout | null>(previewLayout ?? loadedLayout), previewLayout ? null : viewer),
+    [previewLayout, loadedLayout, viewer]
+  );
   const loadedUsers = useLastLoaded(usersData);
   const teamUsers: UserItem[] = loadedUsers
     ? asList<{ id: string; name?: string; image?: string | null; role: string; roleKey?: string; roleName?: string }>(loadedUsers)

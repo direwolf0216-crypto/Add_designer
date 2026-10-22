@@ -26,7 +26,7 @@ export default function PublishDialog({ open, formName, nextVersion, changes, pu
   const risky = changes.filter((c) => c.affectsData);
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
-      <DialogContent className="max-w-[520px] rounded-2xl p-0 overflow-hidden border-0">
+      <DialogContent className="max-w-[520px] sm:max-w-[520px] rounded-2xl p-0 overflow-hidden border-0">
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">

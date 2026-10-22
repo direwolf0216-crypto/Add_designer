@@ -92,6 +92,9 @@ export default function FieldTile({
             {field.archived && (
               <span className="shrink-0 normal-case tracking-normal rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-700">Archived · hidden from form</span>
             )}
+            {!field.archived && (field.audience?.hideFor?.length || field.audience?.readOnlyFor?.length) ? (
+              <i className={`ph-bold ${field.audience?.hideFor?.length ? "ph-eye-slash text-red-400" : "ph-lock-simple text-amber-500"} shrink-0 text-[0.8rem]`} title="Limited to some roles or teams"></i>
+            ) : null}
           </label>
         )}
 

@@ -24,7 +24,7 @@ export default function HistoryDialog({ open, versions, loading, liveVersion, dr
   const [expanded, setExpanded] = useState<number | null>(null);
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-[620px] rounded-2xl p-0 overflow-hidden border-0">
+      <DialogContent className="max-w-[620px] sm:max-w-[620px] rounded-2xl p-0 overflow-hidden border-0">
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
           <DialogTitle className="text-lg font-extrabold text-slate-900">Version history</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-slate-600">Every publish, newest first. Restoring loads a version into the draft; publish it to make it live again.</DialogDescription>

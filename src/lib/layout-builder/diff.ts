@@ -47,6 +47,7 @@ const SETTING_LABELS: Record<string, string> = {
   userPicklistConfig: "user picker settings",
   restrictFutureDate: "date restriction",
   futureDateRestriction: "stage restriction",
+  audience: "who sees it",
 };
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);

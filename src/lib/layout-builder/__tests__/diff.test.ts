@@ -52,5 +52,7 @@ describe("diffLayouts", () => {
   it("words required and archive changes plainly", () => {
     const next: FormLayout = { sections: [{ id: "s1", title: "Client", fields: [{ id: "a", name: "Client", type: "SINGLE_LINE" }, { id: "b", name: "Phone", type: "PHONE", archived: true }] }, base.sections[1]] };
     expect(diffLayouts(base, next).map((c) => c.text)).toEqual(["Client: no longer required", "Phone archived (hidden from the form)"]);
+    const limited: FormLayout = { sections: [{ id: "s1", title: "Client", fields: [{ ...base.sections[0].fields[0], audience: { hideFor: ["role:STAFF"] } }, base.sections[0].fields[1]] }, base.sections[1]] };
+    expect(diffLayouts(base, limited).map((c) => c.text)).toEqual(["Client: who sees it changed"]);
   });
 });

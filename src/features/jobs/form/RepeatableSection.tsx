@@ -2,6 +2,7 @@
 
 import FieldRenderer from "@/components/forms/FieldRenderer";
 import { isVisibleIn } from "@/lib/forms/visibility";
+import LockedField from "@/components/forms/fields/LockedField";
 import { JOB_FORM_FIELD_MAP, allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FormField, FormSection } from "@/lib/forms/types";
 import { newRepeatableEntry, removeRepeatableEntry, shiftRatesAfterRemoval, sortFinancialFields } from "@/lib/jobs/formMapping";
@@ -85,13 +86,17 @@ export default function RepeatableSection({ section }: { section: FormSection })
           {field.name} {requiredInEntry(field, entry) && <span className="text-red-500 ml-0.5">*</span>}
         </label>
         <div className="relative mt-1">
-          <FieldRenderer
-            field={field}
-            name={name}
-            value={isGlobal ? globalValue(entry, index, name) : entry ? entry[name] : ""}
-            onChange={(val) => updateEntryField(index, name, val)}
-            variant="jobRepeatable"
-          />
+          {field.lockedForViewer ? (
+            <LockedField field={field} value={isGlobal ? globalValue(entry, index, name) : entry ? entry[name] : ""} variant="jobRepeatable" />
+          ) : (
+            <FieldRenderer
+              field={field}
+              name={name}
+              value={isGlobal ? globalValue(entry, index, name) : entry ? entry[name] : ""}
+              onChange={(val) => updateEntryField(index, name, val)}
+              variant="jobRepeatable"
+            />
+          )}
         </div>
       </div>
     );

@@ -5,6 +5,7 @@ import FieldRenderer from "@/components/forms/FieldRenderer";
 import { IconWrap } from "@/components/forms/fields/FieldChrome";
 import TextField from "@/components/forms/fields/TextField";
 import { getFieldIcon } from "@/lib/forms/fieldIcon";
+import LockedField from "@/components/forms/fields/LockedField";
 import { resolveFieldKind } from "@/lib/forms/fieldKind";
 import { JOB_FORM_FIELD_MAP, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FormField } from "@/lib/forms/types";
@@ -25,6 +26,7 @@ export default function JobField({ field }: { field: FormField }) {
   const isError = !!errors[fieldName as string];
   const setValidated = (val: unknown) => setValue(fieldName, val as any, { shouldValidate: true });
   const icon = getFieldIcon(field.name, field.type, field.role);
+  if (field.lockedForViewer) return <LockedField field={field} value={watch(fieldName)} variant="job" />;
 
   if (field.id === "fld_b_client") {
     return (

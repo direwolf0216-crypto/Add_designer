@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLayoutBuilder } from "./useLayoutBuilder";
 import { useBuilderDrag } from "./useBuilderDrag";
 import FormList from "./FormList";
-import NewFormDialog from "./NewFormDialog";
 import EditorHeader from "./EditorHeader";
 import FieldPalette from "./FieldPalette";
 import BuilderCanvas from "./BuilderCanvas";
@@ -17,6 +16,12 @@ import LayoutPreviewDialog, { PREVIEWABLE_FORMS } from "./LayoutPreviewDialog";
 import PublishDialog from "./PublishDialog";
 import HistoryDialog from "./HistoryDialog";
 import { diffLayouts } from "@/lib/layout-builder/diff";
+import MoreMenu from "./MoreMenu";
+import TemplatesDialog from "./TemplatesDialog";
+import { exportFileName, parseLayoutFile, serializeLayout } from "@/lib/layout-builder/transfer";
+import { templatesFor } from "@/lib/layout-builder/templates";
+import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
+import type { FormSchema } from "@/lib/layout-builder/types";
 
 const isTypingTarget = (el: EventTarget | null) => {
   const node = el as HTMLElement | null;
@@ -46,19 +51,30 @@ export default function LayoutBuilder() {
     onMoveSection: builder.moveSection,
   });
 
-  const [showNewFormModal, setShowNewFormModal] = useState(false);
-  const [newFormName, setNewFormName] = useState("");
-  const [newFormDescription, setNewFormDescription] = useState("");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [leavePrompt, setLeavePrompt] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const closePreview = useCallback(() => setPreviewOpen(false), []);
 
-  const handleCreateForm = () => {
-    if (!newFormName) return;
-    builder.createForm(newFormName, newFormDescription);
-    setShowNewFormModal(false);
-    setNewFormName("");
-    setNewFormDescription("");
+  // Export / import the draft as a JSON file.
+  const exportLayout = () => {
+    if (!activeLayout) return;
+    const blob = new Blob([serializeLayout(activeLayout)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = exportFileName(activeLayout);
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importLayout = async (file: File) => {
+    const parsed = parseLayoutFile(await file.text());
+    if (!parsed.ok) { toast.error(parsed.error); return; }
+    if (activeLayout && parsed.formKey && parsed.formKey !== activeLayout.formKey) {
+      toast.warning(`This file was exported from ${parsed.formKey}`, { description: "Imported anyway; check the fields and roles before publishing." });
+    }
+    builder.applySchema(parsed.schema, `Imported ${file.name}`);
   };
 
   // Leaving the editor with unsaved edits asks first; closing the tab gets the browser's own prompt.
@@ -116,24 +132,7 @@ export default function LayoutBuilder() {
 
   // --- View 1: List of Forms ---
   if (!activeLayout) {
-    return (
-      <FormList
-        layouts={builder.layouts}
-        onOpen={builder.openForm}
-        onCreateClick={() => setShowNewFormModal(true)}
-      >
-        {showNewFormModal && (
-          <NewFormDialog
-            name={newFormName}
-            description={newFormDescription}
-            onNameChange={setNewFormName}
-            onDescriptionChange={setNewFormDescription}
-            onCancel={() => setShowNewFormModal(false)}
-            onCreate={handleCreateForm}
-          />
-        )}
-      </FormList>
-    );
+    return <FormList layouts={builder.layouts} onOpen={builder.openForm} />;
   }
 
   const canPreview = PREVIEWABLE_FORMS.has(activeLayout.formKey);
@@ -158,6 +157,18 @@ export default function LayoutBuilder() {
         onHistory={() => builder.setHistoryOpen(true)}
         onUndo={builder.undo}
         onRedo={builder.redo}
+        menu={
+          <MoreMenu
+            items={[
+              { label: "Start from a template", hint: templatesFor(activeLayout.formKey).length ? "Ready-made print-shop layouts" : "No templates for this form", icon: "ph-layout", onSelect: () => setTemplatesOpen(true) },
+              { label: "Export as JSON", hint: "Download the draft to back it up or copy it to another shop", icon: "ph-download-simple", onSelect: exportLayout },
+              { label: "Import JSON", hint: "Replace the draft with an exported file", icon: "ph-upload-simple", onSelect: () => fileInput.current?.click() },
+              ...(DEFAULT_LAYOUTS.some((l) => l.formKey === activeLayout.formKey)
+                ? [{ label: "Reset to built-in default", hint: "Replace the draft with the form the app ships with", icon: "ph-arrow-counter-clockwise", tone: "danger" as const, onSelect: () => builder.applySchema(DEFAULT_LAYOUTS.find((l) => l.formKey === activeLayout.formKey)!.schema as unknown as FormSchema, "Draft reset to the built-in layout") }]
+                : []),
+            ]}
+          />
+        }
         onPreview={() =>
           canPreview
             ? setPreviewOpen(true)
@@ -308,6 +319,20 @@ export default function LayoutBuilder() {
           if (ok) setPublishOpen(false);
         }}
         onCancel={() => setPublishOpen(false)}
+      />
+
+      <TemplatesDialog
+        open={templatesOpen}
+        formKey={activeLayout.formKey}
+        onPick={(t) => { setTemplatesOpen(false); builder.applySchema(t.schema, `Template “${t.name}” applied`); }}
+        onClose={() => setTemplatesOpen(false)}
+      />
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void importLayout(f); e.target.value = ""; }}
       />
 
       <HistoryDialog

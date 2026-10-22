@@ -1,6 +1,6 @@
-import type { FieldRole, FieldValidation, VisibilityCondition, VisibilityOperator } from "@/lib/forms/types";
+import type { FieldAudience, FieldRole, FieldValidation, VisibilityCondition, VisibilityOperator } from "@/lib/forms/types";
 
-export type { FieldRole, FieldValidation, VisibilityCondition, VisibilityOperator };
+export type { FieldAudience, FieldRole, FieldValidation, VisibilityCondition, VisibilityOperator };
 
 export interface VisibilityRule {
   /** Legacy single condition. */
@@ -51,6 +51,7 @@ export interface FormField {
   mandatoryRule?: VisibilityRule;
   role?: FieldRole;
   validation?: FieldValidation;
+  audience?: FieldAudience;
   futureDateRestriction?: FutureDateRestriction;
   restrictFutureDate?: boolean;
   isRecordDate?: boolean;
