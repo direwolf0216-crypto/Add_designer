@@ -20,7 +20,7 @@ export default function MainLayout({
           <GlobalFormProvider>
           <ConfirmDialogProvider>
             <Sidebar />
-            <main className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-transparent relative">
+            <main className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden bg-transparent relative">
               {/* Colorful Background Patterns */}
               <div
                 className="absolute inset-0 z-0 pointer-events-none"

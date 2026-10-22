@@ -70,6 +70,7 @@ export const GET = route(async (req) => {
     transactions,
     dailyRows,
     typeAgg,
+    modeAgg,
     jobsForChart,
     upcomingAllJobs,
     jobLayout,
@@ -119,6 +120,7 @@ export const GET = route(async (req) => {
         AND ("date" AT TIME ZONE 'UTC') <= ${end}::timestamptz
       GROUP BY 1, 2`,
     prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where: txWhere }),
+    prisma.transaction.groupBy({ by: ["type", "paymentMode"], _sum: { amount: true }, where: txWhere }),
     // Candidate finishing jobs, filtered in the database; only a handful are shown.
     prisma.job.findMany({
       where: {
@@ -166,6 +168,14 @@ export const GET = route(async (req) => {
 
   const periodIncome = round2(typeAgg.find((t) => t.type === "INCOME")?._sum.amount ?? 0);
   const periodExpense = round2(typeAgg.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
+  // Cash / UPI / other split of the same period, for the KPI tiles (matches the ledger's Net today card).
+  const byMode = { cash: { income: 0, expense: 0 }, upi: { income: 0, expense: 0 }, other: { income: 0, expense: 0 } };
+  for (const row of modeAgg) {
+    const mode = (row.paymentMode || "").toLowerCase();
+    const bucket = mode === "cash" ? byMode.cash : mode === "upi" ? byMode.upi : byMode.other;
+    bucket[row.type === "INCOME" ? "income" : "expense"] += row._sum.amount ?? 0;
+  }
+  const periodByMode = Object.fromEntries(Object.entries(byMode).map(([k, v]) => [k, { income: round2(v.income), expense: round2(v.expense), net: round2(v.income - v.expense) }]));
 
   const dailyDataMap: Record<string, { date: string; income: number; expense: number }> = {};
   for (let t = jobFrom.getTime(), n = 0; t < jobToExclusive.getTime() && n < MAX_CHART_DAYS; t += DAY_MS, n++) {
@@ -213,6 +223,7 @@ export const GET = route(async (req) => {
     periodIncome,
     periodExpense,
     periodNet: round2(periodIncome - periodExpense),
+    periodByMode,
     hotDatesCount,
     revenueChartData,
     jobBreakdownData,

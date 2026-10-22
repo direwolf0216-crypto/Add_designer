@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import Amount from "@/components/data/Amount";
 
 /** Gradient fills for icon tiles, shared across the dashboard (the brand's original palette). */
 export const TONES = {
@@ -55,22 +56,27 @@ export function GlassCard({
 }
 
 /** A KPI tile: gradient icon, small label, big bold value and a caption. */
-export function KpiTile({ icon, tone, label, value, caption, valueClass }: {
+export function KpiTile({ icon, tone, label, value, caption, valueClass, extra }: {
   icon: string;
   tone: Tone;
   label: string;
   value: ReactNode;
   caption?: ReactNode;
   valueClass?: string;
+  /** Rendered under the caption across the tile's full width, e.g. the Cash / UPI split chips. */
+  extra?: ReactNode;
 }) {
   return (
-    <div className="dashboard-card group flex min-w-0 items-center gap-4 p-4 transition-transform duration-200 hover:-translate-y-0.5 2xl:p-5">
-      <IconTile icon={icon} tone={tone} size="lg" />
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-        <p className={cn("num whitespace-nowrap text-[1.3rem] font-black leading-tight tracking-tight text-slate-900 2xl:text-[1.6rem]", valueClass)}>{value}</p>
-        {caption && <p className="num truncate text-xs font-medium text-slate-500">{caption}</p>}
+    <div className="dashboard-card group flex min-w-0 flex-col gap-3 p-4 transition-transform duration-200 hover:-translate-y-0.5 2xl:p-5">
+      <div className="flex min-w-0 items-center gap-4">
+        <IconTile icon={icon} tone={tone} size="lg" />
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+          <p className={cn("num whitespace-nowrap text-[1.3rem] font-black leading-tight tracking-tight text-slate-900 2xl:text-[1.6rem]", valueClass)}>{value}</p>
+          {caption && <p className="num truncate text-xs font-medium text-slate-500">{caption}</p>}
+        </div>
       </div>
+      {extra}
     </div>
   );
 }
@@ -83,5 +89,21 @@ export function HeaderLink({ href, children, tone = "orange" }: { href: string; 
       {children}
       <i className="ph-bold ph-arrow-right text-[11px]" aria-hidden="true"></i>
     </Link>
+  );
+}
+
+/** Small "Cash ₹x" style figure used under the KPI tiles (same look as the ledger's Net today card). */
+export function ModeChip({ icon, iconClass, label, value, signed = false }: { icon: string; iconClass: string; label: string; value: number; /** Prefix positive values with "+" (net figures). */ signed?: boolean }) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-slate-50/90 px-2.5 py-1.5 ring-1 ring-slate-100">
+      <i className={`${icon} ${iconClass} text-base`} aria-hidden="true"></i>
+      <div className="min-w-0">
+        <p className="text-[0.55rem] font-extrabold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className={cn("num flex items-baseline truncate text-[0.8rem] font-bold", signed && value < 0 ? "text-rose-600" : "text-slate-800")}>
+          {signed && value > 0 && <span>+</span>}
+          <Amount value={value} maxChars={signed ? 8 : 9} />
+        </p>
+      </div>
+    </div>
   );
 }

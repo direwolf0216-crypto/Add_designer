@@ -12,7 +12,7 @@ import QuickActions from "@/components/dashboard/QuickActions";
 import TaskAlerts from "@/components/dashboard/TaskAlerts";
 import StatCards from "@/components/dashboard/StatCards";
 import PressPipeline from "@/components/dashboard/PressPipeline";
-import { GlassCard, HeaderLink, KpiTile, type Tone } from "@/components/dashboard/vibrant";
+import { GlassCard, HeaderLink, KpiTile, ModeChip, type Tone } from "@/components/dashboard/vibrant";
 import { usePermissions } from "@/hooks/usePermissions";
 import PageReveal from "@/components/motion/PageReveal";
 import { formatINR } from "@/lib/money";
@@ -91,16 +91,25 @@ function DashboardMetrics({
     revenueChartData,
     jobBreakdownData,
     unconfirmedJobsCount,
-    pipeline
+    pipeline,
+    periodByMode,
   } = data;
+  type ModeTotals = { income: number; expense: number; net: number };
+  const mode = (m: "cash" | "upi"): ModeTotals => periodByMode?.[m] ?? { income: 0, expense: 0, net: 0 };
+  const split = (pick: (t: ModeTotals) => number, signed = false) => (
+    <div className="flex gap-2">
+      <ModeChip icon="ph-fill ph-money" iconClass="text-emerald-600" label="Cash" value={pick(mode("cash"))} signed={signed} />
+      <ModeChip icon="ph-bold ph-qr-code" iconClass="text-indigo-600" label="UPI" value={pick(mode("upi"))} signed={signed} />
+    </div>
+  );
 
   const net = typeof periodNet === 'number' ? periodNet : (periodIncome ?? 0) - (periodExpense ?? 0);
-  const kpis: { label: string; value: ReactNode; caption?: ReactNode; icon: string; tone: Tone; valueClass?: string }[] = [
+  const kpis: { label: string; value: ReactNode; caption?: ReactNode; icon: string; tone: Tone; valueClass?: string; extra?: ReactNode }[] = [
     ...(canViewAnalytics
       ? [
-          { label: 'Income', value: formatINR(periodIncome ?? 0), caption: `Received ${periodLabel}`, icon: 'ph-trend-up', tone: 'emerald' as Tone },
-          { label: 'Expenses', value: formatINR(periodExpense ?? 0), caption: `Paid ${periodLabel}`, icon: 'ph-trend-down', tone: 'rose' as Tone },
-          { label: 'Net', value: `${net > 0 ? '+' : ''}${formatINR(net)}`, caption: 'Income less expenses', icon: 'ph-wallet', tone: 'orange' as Tone, valueClass: net >= 0 ? 'text-emerald-600' : 'text-rose-600' },
+          { label: 'Income', value: formatINR(periodIncome ?? 0), caption: `Received ${periodLabel}`, icon: 'ph-trend-up', tone: 'emerald' as Tone, extra: split((t) => t.income) },
+          { label: 'Expenses', value: formatINR(periodExpense ?? 0), caption: `Paid ${periodLabel}`, icon: 'ph-trend-down', tone: 'rose' as Tone, extra: split((t) => t.expense) },
+          { label: 'Net', value: `${net > 0 ? '+' : ''}${formatINR(net)}`, caption: 'Income less expenses', icon: 'ph-wallet', tone: 'orange' as Tone, valueClass: net >= 0 ? 'text-emerald-600' : 'text-rose-600', extra: split((t) => t.net, true) },
         ]
       : []),
     {
