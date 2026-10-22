@@ -10,6 +10,10 @@ import { timingSafeEqual } from "crypto";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { isRole } from "@/lib/permissions";
 import { loadUserPermissions } from "@/lib/auth/session";
+import { getGoogleCredentials } from "@/lib/google/credentials";
+import { identifierLookup } from "@/lib/auth/username";
+
+export type GoogleOAuthClient = { clientId: string; clientSecret: string };
 
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
 const RECHECK_INTERVAL_MS = 60 * 1000; // re-read role/status from the DB at most once a minute
@@ -42,7 +46,9 @@ function emailFromIdToken(idToken: string): string | null {
   }
 }
 
-export const authOptions: NextAuthOptions = {
+/** Auth options; `google` adds the Drive-linking provider (see getAuthOptions). */
+export function buildAuthOptions(google?: GoogleOAuthClient | null): NextAuthOptions {
+  return {
   adapter: PrismaAdapter(prismaBase),
   secret: process.env.NEXTAUTH_SECRET as string,
   session: {
@@ -55,13 +61,13 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development" && process.env.NEXTAUTH_DEBUG === "true",
   providers: [
     // Google is only used to link a Drive account to an already signed-in user, never to sign in.
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(google?.clientId && google.clientSecret
       ? [
         GoogleProvider({
           id: "google-drive",
           name: "Google Drive",
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          clientId: google.clientId,
+          clientSecret: google.clientSecret,
           checks: ["pkce", "state"],
           authorization: {
             params: {
@@ -77,25 +83,28 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        // Email address or username; the field keeps its historical name for existing clients.
+        email: { label: "Email or username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
-        const email = credentials?.email?.trim().toLowerCase();
+        const identifier = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password ?? "";
-        if (!email || !password) {
+        if (!identifier || !password) {
           throw new Error("Invalid credentials");
         }
 
         const ip = clientIp(req?.headers as Record<string, string> | undefined);
         const allowed =
-          (await rateLimit(`login:email:${email}`, 10, 15 * 60 * 1000)) &&
+          (await rateLimit(`login:email:${identifier}`, 10, 15 * 60 * 1000)) &&
           (await rateLimit(`login:ip:${ip}`, 50, 15 * 60 * 1000));
         if (!allowed) {
           throw new Error("Too many attempts. Please wait a few minutes and try again.");
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({ where: identifierLookup(identifier) });
+        // Temporary passwords are keyed by email, so resolve the username to the account's email.
+        const email = user?.email?.toLowerCase() ?? (identifier.includes("@") ? identifier : "");
         const isCorrectPassword = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
 
         if (!user || !user.password) {
@@ -231,4 +240,14 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-};
+  };
+}
+
+/** Static options (no Drive provider): enough for getServerSession, which only needs the secret and callbacks. */
+export const authOptions: NextAuthOptions = buildAuthOptions(null);
+
+/** Options for the NextAuth route: includes the Google Drive provider when the shop has credentials saved or in env. */
+export async function getAuthOptions(): Promise<NextAuthOptions> {
+  const c = await getGoogleCredentials();
+  return buildAuthOptions(c.source === "none" ? null : { clientId: c.clientId, clientSecret: c.clientSecret });
+}

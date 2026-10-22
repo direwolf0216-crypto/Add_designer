@@ -3,17 +3,19 @@ import prisma from "@/lib/prisma";
 import { HttpError, route } from "@/lib/api/http";
 import { requireUser } from "@/lib/auth/session";
 import { getGoogleDriveAccess } from "@/lib/googleDriveAuth";
+import { getGoogleCredentials } from "@/lib/google/credentials";
 
 export const GET = route(async () => {
   const user = await requireUser();
+  const configured = (await getGoogleCredentials()).source !== "none";
 
   let accessToken: string;
   try {
     ({ accessToken } = await getGoogleDriveAccess(user));
   } catch (error) {
-    if (error instanceof HttpError && error.status === 404) return NextResponse.json({ connected: false });
+    if (error instanceof HttpError && error.status === 404) return NextResponse.json({ connected: false, configured });
     if (error instanceof HttpError && error.status === 401) {
-      return NextResponse.json({ connected: false, reauthRequired: true });
+      return NextResponse.json({ connected: false, configured, reauthRequired: true });
     }
     throw error;
   }
@@ -40,7 +42,7 @@ export const GET = route(async () => {
     }
   }
 
-  return NextResponse.json({ connected: true, email });
+  return NextResponse.json({ connected: true, configured, email });
 });
 
 export const DELETE = route(async () => {

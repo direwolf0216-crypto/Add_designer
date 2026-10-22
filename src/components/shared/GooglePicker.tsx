@@ -19,9 +19,8 @@ export default function GooglePicker({ onPick, className = "" }: GooglePickerPro
   const [token, setToken] = useState<{ value: string; expiresAt: number } | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   
-  // Developer key from env
-  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
-  const APP_ID = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || "";
+  // Browser key and app id come from Settings → Google Drive (saved on the server), with the env as fallback.
+  const [keys, setKeys] = useState({ apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "", appId: process.env.NEXT_PUBLIC_GOOGLE_APP_ID || "" });
 
   useEffect(() => {
     // Check if gapi is loaded
@@ -40,6 +39,7 @@ export default function GooglePicker({ onPick, className = "" }: GooglePickerPro
       // Unknown expiry: assume Google's default 1h lifetime.
       const expiresAt = data.expiresAt ? new Date(data.expiresAt).getTime() : Date.now() + 55 * 60 * 1000;
       setToken({ value: data.accessToken, expiresAt });
+      if (data.apiKey || data.appId) setKeys({ apiKey: data.apiKey || "", appId: data.appId || "" });
       return data.accessToken as string;
     } catch {
       toast.error("Please connect Google Drive in Settings first.");
@@ -67,11 +67,11 @@ export default function GooglePicker({ onPick, className = "" }: GooglePickerPro
     const picker = new window.google.picker.PickerBuilder()
       .enableFeature(window.google.picker.Feature.NAV_HIDDEN)
       .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-      .setAppId(APP_ID)
+      .setAppId(keys.appId)
       .setOAuthToken(accessToken)
       .addView(view)
       .addView(new window.google.picker.DocsUploadView())
-      .setDeveloperKey(API_KEY)
+      .setDeveloperKey(keys.apiKey)
       .setCallback(async (data: any) => {
         if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
           const doc = data[window.google.picker.Response.DOCUMENTS][0];

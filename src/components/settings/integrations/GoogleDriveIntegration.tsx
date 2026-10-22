@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr";
-import { signIn, useSession, getProviders } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import GoogleCloudSetup from "./GoogleCloudSetup";
 import { toast } from "sonner";
 import { useSearchParams, useRouter } from "next/navigation";
 import { hasFullAccess } from "@/lib/permissions";
@@ -12,7 +13,7 @@ export default function GoogleDriveIntegration() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: status, isLoading, mutate: mutateStatus } = useSWR<{ connected?: boolean; email?: string | null; reauthRequired?: boolean }>(
+  const { data: status, isLoading, mutate: mutateStatus } = useSWR<{ connected?: boolean; configured?: boolean; email?: string | null; reauthRequired?: boolean }>(
     "/api/integrations/google",
     fetcher
   );
@@ -37,14 +38,15 @@ export default function GoogleDriveIntegration() {
     }
   }, [searchParams, router]);
 
+  const isAdmin = hasFullAccess(session?.user?.role);
+
   const handleConnect = async () => {
     try {
-      const providers = await getProviders();
-      if (!providers || !providers['google-drive']) {
-        toast.error("Google Drive integration is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.");
+      if (status && status.configured === false) {
+        toast.error(isAdmin ? "Add the shop's Google Cloud credentials below first." : "Ask an admin to set up Google Drive in Settings first.");
         return;
       }
-      
+
       signIn("google-drive", {
         callbackUrl: "/settings",
         login_hint: session?.user?.email ?? "",
@@ -74,9 +76,8 @@ export default function GoogleDriveIntegration() {
     }
   };
 
-  const isAdmin = hasFullAccess(session?.user?.role);
-
   return (
+    <div className="flex flex-col gap-6">
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 overflow-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
@@ -167,18 +168,29 @@ export default function GoogleDriveIntegration() {
               )}
             </>
           ) : !isLoading ? (
-            <button
-              onClick={handleConnect}
-              className="w-full px-4 py-2 bg-white border border-gray-300 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 mt-2"
-            >
-              <i className="ph-bold ph-plugs"></i>
-              {needsReauth ? "Reconnect Google Drive" : "Connect Google Drive"}
-            </button>
+            <>
+              <button
+                onClick={handleConnect}
+                className="w-full px-4 py-2 bg-white border border-gray-300 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 mt-2 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={status?.configured === false}
+              >
+                <i className="ph-bold ph-plugs"></i>
+                {needsReauth ? "Reconnect Google Drive" : "Connect Google Drive"}
+              </button>
+              {status?.configured === false && (
+                <p className="mt-2 text-center text-xs font-semibold text-amber-600">
+                  {isAdmin ? "Set up the shop's Google Cloud credentials below to enable this." : "Not set up yet. Ask an admin to add the Google Cloud credentials in Settings."}
+                </p>
+              )}
+            </>
           ) : (
             <div className="h-9"></div>
           )}
         </div>
       </div>
+    </div>
+
+      {isAdmin && <GoogleCloudSetup onSaved={() => mutateStatus()} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { HttpError } from "@/lib/api/http";
+import { getGoogleCredentials } from "@/lib/google/credentials";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
@@ -46,10 +47,9 @@ export async function getGoogleDriveAccess(owner: DriveOwner): Promise<DriveToke
 
   if (!account.refresh_token) throw new HttpError(401, REAUTH_REQUIRED);
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const { clientId, clientSecret } = await getGoogleCredentials();
   if (!clientId || !clientSecret) {
-    console.error("[google-drive] GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not configured");
+    console.error("[google-drive] Google Cloud credentials are not configured (Settings → Google Drive)");
     throw new HttpError(503, "Google Drive is not configured");
   }
 
