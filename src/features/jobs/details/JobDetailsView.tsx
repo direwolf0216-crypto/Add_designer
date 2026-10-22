@@ -59,6 +59,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const [isExporting, setIsExporting] = useState(false);
   const mutations = useJobMutations({
     job,
+    layout: layoutSchema,
     refreshJob,
     onDeleted: () => {
       setIsDeleteConfirmOpen(false);

@@ -7,12 +7,12 @@ import { deleteJobAction, generateInvoiceAction, updateJobStatusAction, updateJo
 import { invalidateJobs } from "@/lib/swr";
 import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
 import { CANCELLATION_KEY } from "@/lib/jobs/cancellation";
+import { stageOptions } from "@/lib/jobs/tracking";
+import type { FormLayout } from "@/lib/forms/types";
 
-/** Statuses that are written through the tracking action (also mirrored into customData). */
-const TRACKING_STATUSES = ["designing", "designing completed", "printing", "ready for delivery", "delivered"];
 
 /** Actions available from the job details view: status changes, delete and invoice. */
-export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJob | null; refreshJob: () => void; onDeleted: () => void }) {
+export function useJobMutations({ job, layout, refreshJob, onDeleted }: { job: DetailsJob | null; layout?: FormLayout | null; refreshJob: () => void; onDeleted: () => void }) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -30,9 +30,10 @@ export function useJobMutations({ job, refreshJob, onDeleted }: { job: DetailsJo
     if (!job) return;
     setIsUpdatingStatus(true);
 
-    const res = TRACKING_STATUSES.includes(newStatus.toLowerCase())
-      ? // fld_b_status is the board stage: the card moves to the column of the chosen status.
-        await updateJobTrackingAction(job.id, { customData: { fld_b_job_status: newStatus, fld_b_status: newStatus }, status: newStatus })
+    // A board stage moves the card and sets the status together; any other status only sets the status.
+    const isStage = stageOptions(layout as Parameters<typeof stageOptions>[0]).some((s) => s.label.toLowerCase() === newStatus.toLowerCase());
+    const res = isStage
+      ? await updateJobTrackingAction(job.id, { customData: { fld_b_status: newStatus }, status: newStatus })
       : await updateJobStatusAction(job.id, newStatus);
 
     setIsUpdatingStatus(false);

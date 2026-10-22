@@ -32,6 +32,37 @@ export function stageOptions(layout: Layout): StageOption[] {
   return opts && opts.length ? opts : DEFAULT_STAGES;
 }
 
+/**
+ * Whether the job's status column is the board stage itself: true when the layout's first STATUS_PICKER
+ * is the stage picker (`fld_b_status`), as in the default form. Then status and stage are kept equal.
+ */
+export function statusIsStage(layout: Layout): boolean {
+  const first = fieldsOf(layout).find((f) => f.type === "STATUS_PICKER");
+  return !first || first.id === "fld_b_status";
+}
+
+/**
+ * Keep `status` and the stage field (`fld_b_status`) in step when they are the same picker. A caller
+ * that changed only one of them gets the other filled in; an explicit pair is left alone.
+ */
+export function syncStatusWithStage(
+  layout: Layout,
+  previous: { status: string | null; stage: string | null },
+  next: { status?: string; customData: Record<string, unknown> }
+): { status?: string; customData: Record<string, unknown> } {
+  if (!statusIsStage(layout)) return next;
+  const customData = { ...next.customData };
+  const stage = str(customData.fld_b_status);
+  const stageChanged = stage !== null && stage !== (previous.stage ?? null);
+  const statusChanged = next.status !== undefined && next.status !== (previous.status ?? null);
+  if (stageChanged && !statusChanged) return { status: stage, customData };
+  if (statusChanged && !stageChanged && next.status) {
+    customData.fld_b_status = next.status;
+    return { status: next.status, customData };
+  }
+  return { status: next.status, customData };
+}
+
 /** Layout id of the due/delivery date field, if the layout has one. */
 export function dueDateFieldId(layout: Layout): string | null {
   const f = fieldsOf(layout).find((x) => x.type === "DATE" && !x.isRecordDate && /due|deliver/.test(nameOf(x)));

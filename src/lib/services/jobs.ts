@@ -10,7 +10,7 @@ import { jobScope } from "@/lib/jobs/scope";
 import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 import { syncAssignments } from "@/lib/services/assignments";
-import { deriveJobTracking } from "@/lib/jobs/tracking";
+import { deriveJobTracking, statusIsStage, syncStatusWithStage } from "@/lib/jobs/tracking";
 import { notifyHandoff, recordHandoff } from "@/lib/services/teams";
 import { keepStoredMoney, moneyKeys } from "@/lib/jobs/amounts";
 import type { FormLayout } from "@/lib/forms/types";
@@ -252,6 +252,9 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         delete customData.fld_b_finishing_status;
       }
 
+      if (statusIsStage(layout?.schema as Parameters<typeof statusIsStage>[0]) && input.status && !customData.fld_b_status) {
+        customData.fld_b_status = input.status;
+      }
       const common = {
         // Board stage + due date as real columns (filterable, indexed), derived from the form data.
         ...deriveJobTracking(customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]),
@@ -412,6 +415,17 @@ export async function updateJob(
     if (data.customData && typeof data.customData === "object" && !seesAmounts) {
       const stored = (existing.customData as Record<string, unknown> | null) ?? {};
       data.customData = keepStoredMoney(data.customData as Record<string, unknown>, stored, moneyKeys(layout?.schema as FormLayout | null)) as Prisma.InputJsonValue;
+    }
+    // Status and board stage stay equal when they are one picker (the board card and the details page agree).
+    if (typeof data.status === "string" || (data.customData && typeof data.customData === "object")) {
+      const merged = (data.customData && typeof data.customData === "object" ? data.customData : existing.customData) as Record<string, unknown> | null;
+      const synced = syncStatusWithStage(
+        layout?.schema as Parameters<typeof syncStatusWithStage>[0],
+        { status: existing.status, stage: existing.stage },
+        { status: typeof data.status === "string" ? data.status : undefined, customData: { ...(merged ?? {}) } }
+      );
+      if (synced.status !== undefined) data.status = synced.status;
+      data.customData = synced.customData as Prisma.InputJsonValue;
     }
     const tracking = deriveJobTracking(data.customData ?? existing.customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]);
     // A job that changes stage joins the end of its new queue.
