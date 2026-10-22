@@ -14,6 +14,8 @@ const fieldSchema = z.looseObject({
   label: z.string().max(200).optional(),
   type: z.string().min(1).max(50),
   placeholder: z.string().max(200).optional(),
+  sizeUnits: z.array(z.string().trim().min(1).max(8)).max(12).optional(),
+  defaultUnit: z.string().trim().max(8).optional(),
 });
 
 const sectionSchema = z.looseObject({

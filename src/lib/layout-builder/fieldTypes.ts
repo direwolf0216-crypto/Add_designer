@@ -17,6 +17,7 @@ export const FIELD_TYPES: FieldTypeDef[] = [
   { value: "PERCENTAGE", label: "% Percentage", icon: "ph-percent" },
   { value: "NUMBER", label: "Number", icon: "ph-hash" },
   { value: "DECIMAL", label: ".00 Decimal", icon: "ph-math-operations" },
+  { value: "SIZE", label: "Size", icon: "ph-ruler" },
   { value: "EMAIL", label: "Email", icon: "ph-envelope-simple" },
   { value: "PHONE", label: "Phone", icon: "ph-phone" },
   { value: "FILE", label: "Attachment", icon: "ph-paperclip" },

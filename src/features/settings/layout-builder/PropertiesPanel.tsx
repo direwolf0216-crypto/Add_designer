@@ -10,6 +10,7 @@ import DateRestrictionEditor from "./properties/DateRestrictionEditor";
 import StatusRestrictionEditor from "./properties/StatusRestrictionEditor";
 import UserPicklistConfigEditor from "./properties/UserPicklistConfigEditor";
 import VisibilityRuleEditor from "./properties/VisibilityRuleEditor";
+import SizeUnitsEditor from "./properties/SizeUnitsEditor";
 
 interface PropertiesPanelProps {
   layout: FormLayout;
@@ -61,6 +62,7 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
             {selectedField.type === "STATUS_PICKER" && <StatusOptionsEditor field={selectedField} onChange={onChange} />}
 
             {selectedField.type === "DATE" && <DateRestrictionEditor field={selectedField} onChange={onChange} />}
+            {selectedField.type === "SIZE" && <SizeUnitsEditor field={selectedField} layout={layout} onChange={onChange} />}
 
             {selectedField.type === "STATUS_PICKER" && <StatusRestrictionEditor field={selectedField} layout={layout} onChange={onChange} />}
 

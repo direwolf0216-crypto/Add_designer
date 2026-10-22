@@ -1,5 +1,6 @@
 "use client";
 
+import { defaultUnitFor } from '@/lib/jobs/size';
 import { getFieldTypeDef } from "@/lib/layout-builder/fieldTypes";
 import type { FormField } from "@/lib/layout-builder/types";
 
@@ -94,9 +95,13 @@ export default function FieldTile({
         ) : (
           <div className="w-full h-[52px] bg-white border border-gray-200 rounded-xl flex items-center justify-between px-4 shadow-sm pointer-events-none">
             <span className="text-[0.95rem] text-slate-400 truncate">
-              {field.placeholder || (PICK_STYLE_TYPES.has(field.type) ? `Select ${(field.name ?? '').toLowerCase()}...` : `e.g. Enter ${(field.name ?? '').toLowerCase()}...`)}
+              {field.placeholder || (field.type === 'SIZE' ? 'e.g. 3 x 6' : PICK_STYLE_TYPES.has(field.type) ? `Select ${(field.name ?? '').toLowerCase()}...` : `e.g. Enter ${(field.name ?? '').toLowerCase()}...`)}
             </span>
-            <i className={`ph ${typeDef?.icon || 'ph-text-t'} text-slate-400 text-lg`}></i>
+            {field.type === 'SIZE' ? (
+              <span className="shrink-0 rounded-lg border border-violet-200 bg-violet-50 px-2 py-0.5 text-[0.75rem] font-bold text-violet-700">{defaultUnitFor(field)}</span>
+            ) : (
+              <i className={`ph ${typeDef?.icon || 'ph-text-t'} text-slate-400 text-lg`}></i>
+            )}
           </div>
         )}
 

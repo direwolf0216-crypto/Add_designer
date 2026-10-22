@@ -8,6 +8,7 @@ import { saveJobAction } from "@/app/actions";
 import { invalidateAll } from "@/lib/swr";
 import { uploadFileToDrive } from "@/lib/uploadHelper";
 import { JOB_FORM_FIELD_MAP } from "@/lib/forms/fieldMap";
+import { isVisibleIn } from "@/lib/forms/visibility";
 import type { JobFormData } from "@/lib/validations/job";
 import {
   buildJobFormData,
@@ -70,7 +71,9 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
     const perJob = !!jdSection && (!job || (repeatableData[`rep_${jdSection.id}`] ?? []).length <= 1);
     const entriesData = perJob ? withFirstEntryDefaults(layoutSchema, JOB_FORM_FIELD_MAP, repeatableData, data as Record<string, unknown>) : repeatableData;
     if (perJob) {
-      const missingInEntries = missingEntryFields(layoutSchema, JOB_FORM_FIELD_MAP, entriesData, isVisible);
+      const missingInEntries = missingEntryFields(layoutSchema, JOB_FORM_FIELD_MAP, entriesData, (rule, entry) =>
+        isVisibleIn(rule, { ...(data as Record<string, unknown>), ...(entry ?? {}) }, JOB_FORM_FIELD_MAP)
+      );
       if (missingInEntries.length > 0) {
         const first = missingInEntries[0];
         toast.error(`Job ${first.index + 1}: ${first.message}`);

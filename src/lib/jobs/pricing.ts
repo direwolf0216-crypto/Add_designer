@@ -7,6 +7,7 @@
 
 import { allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FieldMap, FormLayout, FormSection, RepeatableData, RepeatableEntry } from "@/lib/forms/types";
+import { isSizeLayoutField, looksLikeSize } from "./size";
 
 export interface Installment {
   amount: string;
@@ -24,7 +25,7 @@ export type PricingUnit = "piece" | "sqft";
 export type PricingRule = { unit: PricingUnit; defaultRate?: number };
 export type PricingRules = Record<string, PricingRule>;
 
-const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 1 / 144, inch: 1 / 144, inches: 1 / 144, '"': 1 / 144, cm: 1 / 929.0304, mm: 1 / 92903.04, m: 10.7639, mtr: 10.7639, meter: 10.7639, metre: 10.7639 };
+const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 1 / 144, inch: 1 / 144, inches: 1 / 144, '"': 1 / 144, cm: 1 / 929.0304, mm: 1 / 92903.04, m: 10.7639, mtr: 10.7639, meter: 10.7639, metre: 10.7639, yd: 9, yard: 9, yards: 9 };
 
 /**
  * Area in square feet from a size like "10 x 10", "4*6 ft", "3.5 x 2 in" or "120 x 60 cm". Feet when no unit
@@ -33,9 +34,10 @@ const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 
 export function parseAreaSqFt(size: unknown): number | null {
   if (size === null || size === undefined) return null;
   const text = String(size).trim().toLowerCase().replace(/×/g, "x");
-  const m = text.match(/^(\d+(?:\.\d+)?)\s*(ft|feet|foot|in|inch|inches|cm|mm|m|mtr|meter|metre|'|")?\s*[x*]\s*(\d+(?:\.\d+)?)\s*(ft|feet|foot|in|inch|inches|cm|mm|m|mtr|meter|metre|'|")?\s*(?:sq\.?\s*ft)?$/);
+  const m = text.match(/^(\d+(?:\.\d+)?)\s*([a-z'"]+)?\s*[x*]\s*(\d+(?:\.\d+)?)\s*([a-z'"]+)?\s*(?:sq\.?\s*ft)?$/);
   if (!m) return null;
   const unit = m[4] || m[2] || "ft";
+  // A unit the shop defined itself (e.g. "pcs") has no square-foot conversion: the line prices per piece.
   const factor = SQFT_PER[unit];
   if (!factor) return null;
   const area = parseFloat(m[1]) * parseFloat(m[3]) * factor;
@@ -232,10 +234,7 @@ function lineItemKeys(entry: RepeatableEntry, repSection: FormSection | undefine
       const f = fieldFor(k);
       return f && isCategoryName(f.name);
     });
-    sizeFieldKey = Object.keys(entry).find((k) => {
-      const f = fieldFor(k);
-      return f && f.name.toLowerCase().includes("size");
-    });
+    sizeFieldKey = Object.keys(entry).find((k) => isSizeLayoutField(fieldFor(k)));
     qtyFieldKey = Object.keys(entry).find((k) => {
       const f = fieldFor(k);
       return f && isQtyName(f.name);
@@ -244,6 +243,8 @@ function lineItemKeys(entry: RepeatableEntry, repSection: FormSection | undefine
 
   if (!catFieldKey) catFieldKey = Object.keys(entry).find(isCategoryName);
   if (!sizeFieldKey) sizeFieldKey = Object.keys(entry).find((k) => k.toLowerCase().includes("size"));
+  // A size entered before the layout's Size field was replaced still lives under the old field id.
+  if (!sizeFieldKey) sizeFieldKey = Object.keys(entry).find((k) => looksLikeSize(entry[k]));
   if (!qtyFieldKey) qtyFieldKey = Object.keys(entry).find(isQtyName);
 
   return { catFieldKey, sizeFieldKey, qtyFieldKey };

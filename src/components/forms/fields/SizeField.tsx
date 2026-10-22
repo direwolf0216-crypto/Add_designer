@@ -1,10 +1,21 @@
+import { useState } from "react";
 import CustomDropdown from "@/components/ui/CustomDropdown";
-import { SIZE_UNITS, composeSize, splitSize } from "@/lib/jobs/size";
+import { composeSize, splitSize, unitsFor } from "@/lib/jobs/size";
 import type { FieldProps } from "./types";
 
-/** Size input with a unit picker (ft / in / cm / mm / m); the value is stored as "3 x 6 ft". */
+/** Size input with a unit picker (units come from the layout field); the value is stored as "3 x 6 ft". */
 export default function SizeField({ field, value, onChange, error, variant }: FieldProps) {
-  const { dims, unit } = splitSize(value);
+  const units = unitsFor(field);
+  const parsed = splitSize(value, field);
+  // A unit picked before any dimensions are typed has nothing to attach to yet, so it waits here.
+  const [pendingUnit, setPendingUnit] = useState<string | null>(null);
+  const dims = parsed.dims;
+  const unit = dims ? parsed.unit : pendingUnit ?? parsed.unit;
+  const options = units.includes(unit) ? units : [unit, ...units];
+  const pickUnit = (u: string) => {
+    setPendingUnit(u);
+    onChange(composeSize(dims, u));
+  };
   const transaction = variant === "transaction";
 
   return (
@@ -23,10 +34,10 @@ export default function SizeField({ field, value, onChange, error, variant }: Fi
       />
       <div className="absolute inset-y-0 right-1.5 flex items-center">
         <CustomDropdown
-          options={SIZE_UNITS.map((u) => ({ label: u.label, value: u.value }))}
+          options={options}
           value={unit}
-          onChange={(u) => onChange(composeSize(dims, u as typeof unit))}
-          className="h-8 w-[4.25rem] gap-1 rounded-lg border-violet-200 bg-violet-50 px-2.5 py-0 text-[0.8rem] font-bold text-violet-700 hover:border-violet-300 focus:ring-violet-400"
+          onChange={pickUnit}
+          className="h-8 w-auto min-w-[4.25rem] gap-1 rounded-lg border-violet-200 bg-violet-50 px-2.5 py-0 text-[0.8rem] font-bold text-violet-700 hover:border-violet-300 focus:ring-violet-400"
         />
       </div>
     </div>

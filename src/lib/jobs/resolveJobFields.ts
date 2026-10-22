@@ -5,6 +5,7 @@
 import type { ValueLookup } from "@/lib/forms/visibility";
 import { lineMultiplier, pricingRuleFor, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
 import type { FieldMap, FormField, FormLayout, FormSection } from "@/lib/forms/types";
+import { isSizeLayoutField, looksLikeSize } from "./size";
 
 /** A job as returned by /api/jobs/[id], with customData/inclusions parsed. */
 export interface DetailsJob {
@@ -99,7 +100,7 @@ export function resolveJobSummary(job: DetailsJob, layout: FormLayout | null | u
     if (catField) categoryVal = lookup(catField) || categoryVal;
 
     if (!sizeVal) {
-      const sizeField = fields.find((f) => f.name?.toLowerCase().includes("size"));
+      const sizeField = fields.find((f) => isSizeLayoutField(f));
       if (sizeField) sizeVal = lookup(sizeField);
     }
     if (!qtyVal) {
@@ -206,8 +207,10 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
       const allF = jdSec.fields || [];
       const valueOf = (f: FormField) => entry?.[f.id] || entry?.[fieldMap[f.id]];
       if (!sVal) {
-        const sF = allF.find((f) => f.name?.toLowerCase().includes("size"));
+        const sF = allF.find((f) => isSizeLayoutField(f));
         if (sF) sVal = valueOf(sF);
+        // Older entries keep their size under a field id the layout no longer has.
+        if (!sVal) sVal = Object.values(entry ?? {}).find(looksLikeSize);
       }
       if (!qVal) {
         const qF = allF.find((f) => f.name?.toLowerCase() === "qty" || f.name?.toLowerCase() === "quantity");

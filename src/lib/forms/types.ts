@@ -45,6 +45,7 @@ export type FieldType =
   | "EMAIL"
   | "PHONE"
   | "NUMBER"
+  | "SIZE"
   | "CURRENCY"
   | "DATE"
   | "TIME"
@@ -76,6 +77,9 @@ export interface FormField {
   restrictFutureDate?: boolean;
   futureDateRestriction?: FutureDateRestriction;
   userPicklistConfig?: UserPicklistConfig;
+  /** SIZE fields: units offered by the picker (defaults to ft, in, cm, mm, m) and the one preselected. */
+  sizeUnits?: string[];
+  defaultUnit?: string;
 }
 
 export interface FormSection {

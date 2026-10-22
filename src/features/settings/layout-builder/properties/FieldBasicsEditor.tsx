@@ -28,6 +28,21 @@ export default function FieldBasicsEditor({ field: selectedField, layout: active
         />
       </div>
 
+      {/* Older layouts have Size as a plain text field: switching the type keeps the id, so saved jobs keep their sizes. */}
+      {selectedField.type === "SINGLE_LINE" && (selectedField.name ?? "").toLowerCase().includes("size") && (
+        <button
+          type="button"
+          onClick={() => updateSelectedField({ type: "SIZE" })}
+          className="w-full flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-left transition-colors hover:border-violet-300 hover:bg-violet-100/70"
+        >
+          <i className="ph-bold ph-ruler text-violet-600 text-lg"></i>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-violet-800">Convert to Size field</span>
+            <span className="block text-[0.7rem] leading-snug text-violet-600">Adds the ft / in / cm / mm / m picker. Existing jobs keep their sizes.</span>
+          </span>
+        </button>
+      )}
+
       {/* Sample text shown inside the empty control */}
       {selectedField.type !== "CHECKBOX" && (
         <div>
@@ -134,6 +149,7 @@ function defaultSampleText(field: FieldEditorProps["field"]): string {
     case "MULTI_USER_PICKLIST":
       return `Select ${name}...`;
     case "STATUS_PICKER": return "Select Status...";
+    case "SIZE": return "e.g. 3 x 6";
     default: return `e.g. Enter ${name}...`;
   }
 }

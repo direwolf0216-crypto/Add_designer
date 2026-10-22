@@ -116,7 +116,8 @@ export function missingEntryFields(
   layout: FormLayout | null | undefined,
   fieldMap: FieldMap,
   repeatableData: RepeatableData,
-  isVisible: (rule: FormSection["visibilityRule"]) => boolean
+  /** Visibility of a rule; for item fields the entry is passed so rules can depend on the entry's own values. */
+  isVisible: (rule: FormSection["visibilityRule"], entry?: RepeatableEntry) => boolean
 ): { index: number; fieldName: string; message: string }[] {
   const section = jobDetailsSection(layout);
   if (!section || !isVisible(section.visibilityRule)) return [];
@@ -124,7 +125,7 @@ export function missingEntryFields(
   const out: { index: number; fieldName: string; message: string }[] = [];
   entries.forEach((entry, index) => {
     for (const f of section.fields) {
-      if (!f.mandatory || f.type === "STATUS_PICKER" || !isVisible(f.visibilityRule)) continue;
+      if (!f.mandatory || f.type === "STATUS_PICKER" || !isVisible(f.visibilityRule, entry)) continue;
       const name = fieldNameFor(fieldMap, f.id);
       const v = entry?.[name];
       if (!v || (Array.isArray(v) && v.length === 0)) out.push({ index, fieldName: name, message: `${f.name} is required` });

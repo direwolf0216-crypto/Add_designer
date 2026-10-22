@@ -35,6 +35,9 @@ export interface FormField {
   placeholder?: string;
   defaultValue?: string;
   userPicklistConfig?: UserPicklistConfig;
+  /** SIZE fields: units offered by the picker (defaults to ft, in, cm, mm, m) and the one preselected. */
+  sizeUnits?: string[];
+  defaultUnit?: string;
   visibilityRule?: VisibilityRule;
   futureDateRestriction?: FutureDateRestriction;
   restrictFutureDate?: boolean;

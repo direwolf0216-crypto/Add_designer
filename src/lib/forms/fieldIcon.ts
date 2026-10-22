@@ -7,7 +7,7 @@ export function getFieldIcon(fieldName: string, type: string): string {
   if (name.includes("date") || type === "DATE") return "ph-calendar-blank";
   if (type === "TIME") return "ph-clock";
   if (name.includes("category") || name.includes("type")) return "ph-list-dashes";
-  if (name.includes("size")) return "ph-ruler";
+  if (type === "SIZE" || name.includes("size")) return "ph-ruler";
   if (name.includes("qty") || name.includes("quantity")) return "ph-hash";
   if (name.includes("advance")) return "ph-wallet";
   if (name.includes("payment mode")) return "ph-credit-card";

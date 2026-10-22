@@ -49,7 +49,7 @@ export const DEFAULT_LAYOUTS = [
             { id: "fld_print_quantity", name: "Quantity", type: "NUMBER", mandatory: true },
             { id: "fld_print_paper_type", name: "Paper Type", type: "SINGLE_LINE", mandatory: false, placeholder: "e.g., Glossy, Matte, Art Board" },
             { id: "fld_print_gsm", name: "GSM", type: "NUMBER", mandatory: false, placeholder: "e.g., 300" },
-            { id: "fld_print_dimensions", name: "Dimensions / Size", type: "SINGLE_LINE", mandatory: false, placeholder: "e.g., A4, 12x18" },
+            { id: "fld_print_dimensions", name: "Size", type: "SIZE", mandatory: false, placeholder: "e.g. 12 x 18" },
           ]
         },
         {

@@ -1,6 +1,7 @@
 "use client";
 
 import FieldRenderer from "@/components/forms/FieldRenderer";
+import { isVisibleIn } from "@/lib/forms/visibility";
 import { JOB_FORM_FIELD_MAP, allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FormField, FormSection } from "@/lib/forms/types";
 import { newRepeatableEntry, removeRepeatableEntry, shiftRatesAfterRemoval, sortFinancialFields } from "@/lib/jobs/formMapping";
@@ -67,8 +68,13 @@ export default function RepeatableSection({ section }: { section: FormSection })
   const globalValue = (entry: Record<string, unknown>, index: number, name: string) =>
     entry?.[name] !== undefined ? entry[name] : index === 0 ? form.watch(name as never) : "";
 
+  // A "show conditionally" rule inside a job card is judged on that card first (its category, size...), then the flat form.
+  const formValues = form.watch() as Record<string, unknown>;
+  const visibleInEntry = (field: FormField, entry: Record<string, unknown>) =>
+    !field.visibilityRule || isVisibleIn(field.visibilityRule, { ...formValues, ...(entry ?? {}) }, JOB_FORM_FIELD_MAP);
+
   const renderField = (field: FormField, index: number, entry: Record<string, unknown>, isGlobal: boolean) => {
-    if (field.visibilityRule && !isVisible(field.visibilityRule)) return null;
+    if (!visibleInEntry(field, entry)) return null;
     if (!job && field.type === "STATUS_PICKER") return null;
     const name = isGlobal ? globalName(field) : toFieldName(field.id);
     return (
