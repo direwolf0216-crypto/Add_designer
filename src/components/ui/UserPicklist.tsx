@@ -5,6 +5,8 @@ import { useDropPlacement } from "@/hooks/useDropPlacement";
 import { UserItem } from "./MultiUserPicklist";
 
 interface UserPicklistProps {
+  /** Extra classes for the trigger (e.g. pl-10 when a leading icon overlays it). */
+  className?: string;
   users: UserItem[];
   value: string; // Stored as a single ID
   onChange: (val: string) => void;
@@ -13,7 +15,7 @@ interface UserPicklistProps {
   showAvailability?: boolean;
 }
 
-export default function UserPicklist({ users, value, onChange, placeholder = "Select user...", error, showAvailability = false }: UserPicklistProps) {
+export default function UserPicklist({ users, value, onChange, placeholder = "Select user...", error, showAvailability = false , className = "" }: UserPicklistProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const placement = useDropPlacement(containerRef, isOpen);
@@ -43,15 +45,15 @@ export default function UserPicklist({ users, value, onChange, placeholder = "Se
     <div ref={containerRef} className="relative w-full">
       {/* Trigger Area */}
       <div 
-        className={`h-[45px] w-full rounded-xl border bg-white px-3 py-2 transition-colors cursor-pointer flex items-center justify-between ${
+        className={`h-[45px] w-full rounded-xl border bg-white px-3 py-2 transition-colors cursor-pointer flex items-center justify-between gap-2 ${
           error ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-200 hover:border-orange-300'
-        } ${isOpen ? 'ring-2 ring-orange-500/50 border-orange-500' : ''}`}
+        } ${isOpen ? 'ring-2 ring-orange-500/50 border-orange-500' : ''} ${className}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         {!selectedUser ? (
-          <span className="text-[0.95rem] text-slate-400 ml-1">{placeholder}</span>
+          <span className="min-w-0 truncate text-[0.95rem] text-slate-400 ml-1">{placeholder}</span>
         ) : (
-          <div className="flex items-center gap-2 w-full">
+          <div className="flex min-w-0 items-center gap-2 w-full">
             {selectedUser.image ? (
               <img src={selectedUser.image} alt={selectedUser.name} className="w-7 h-7 rounded-full object-cover shadow-sm border border-white" />
             ) : (

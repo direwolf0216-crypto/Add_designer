@@ -15,6 +15,8 @@ export interface UserItem {
 }
 
 interface MultiUserPicklistProps {
+  /** Extra classes for the trigger (e.g. pl-10 when a leading icon overlays it). */
+  className?: string;
   users: UserItem[];
   value: string; // Stored as comma-separated IDs
   onChange: (val: string) => void;
@@ -23,7 +25,7 @@ interface MultiUserPicklistProps {
   showAvailability?: boolean;
 }
 
-export default function MultiUserPicklist({ users, value, onChange, placeholder = "Select users...", error, showAvailability = false }: MultiUserPicklistProps) {
+export default function MultiUserPicklist({ users, value, onChange, placeholder = "Select users...", error, showAvailability = false , className = "" }: MultiUserPicklistProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const placement = useDropPlacement(containerRef, isOpen);
@@ -74,11 +76,11 @@ export default function MultiUserPicklist({ users, value, onChange, placeholder 
       <div 
         className={`min-h-[45px] w-full rounded-xl border bg-white px-3 py-2 transition-colors cursor-pointer flex flex-wrap gap-2 items-center ${
           error ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-200 hover:border-orange-300'
-        } ${isOpen ? 'ring-2 ring-orange-500/50 border-orange-500' : ''}`}
+        } ${isOpen ? 'ring-2 ring-orange-500/50 border-orange-500' : ''} ${className}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         {selectedUsers.length === 0 ? (
-          <span className="text-[0.95rem] text-slate-400 ml-1">{placeholder}</span>
+          <span className="min-w-0 truncate text-[0.95rem] text-slate-400 ml-1">{placeholder}</span>
         ) : (
           <div className="flex flex-wrap gap-2 items-center w-full">
             {selectedUsers.map(u => (

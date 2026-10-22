@@ -16,6 +16,7 @@ export default function UserField({ field, value, onChange, error, context, mult
       placeholder={`Select ${field.name}...`}
       error={!!error}
       showAvailability={field.userPicklistConfig?.showAvailability}
+      className="pl-10"
     />
   );
 }
