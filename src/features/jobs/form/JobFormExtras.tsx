@@ -24,7 +24,7 @@ export default function JobFormExtras() {
   const toggle = (id: string) => setAssigneeIds(assigneeIds.includes(id) ? assigneeIds.filter((x) => x !== id) : [...assigneeIds, id]);
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/60 p-4 shadow-sm" aria-labelledby="job-assignees-title">
+    <section className="mb-6 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/60 p-5 shadow-sm sm:p-6" aria-labelledby="job-assignees-title">
       <div className="mb-3 flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
           <i className="ph-bold ph-users-three text-base" aria-hidden="true"></i>
