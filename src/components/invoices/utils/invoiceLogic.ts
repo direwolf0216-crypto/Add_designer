@@ -14,6 +14,7 @@ import { assets } from './assetRegistry';
 import { computeBalance, round2 } from '@/lib/money';
 import { businessTodayUtc } from '@/lib/dates';
 import { BUSINESS_DETAILS } from '@/lib/constants';
+import type { PricingRules } from '@/lib/jobs/pricing';
 
 type FullJob = Job & { client: Client; assignments?: { user: { name: string | null } }[] };
 type FullInvoice = Invoice & { lineItems: InvoiceLineItem[] };
@@ -52,12 +53,13 @@ function buildPrintInvoice(
   job: FullJob,
   payments: { amount: number }[],
   settings: Record<string, string>,
-  layout: FormLayout | null | undefined
+  layout: FormLayout | null | undefined,
+  rules: PricingRules = {}
 ): PrintInvoice {
   const cd = (job.customData && typeof job.customData === 'object' ? job.customData : {}) as Record<string, unknown>;
   const details = normalizeJob(job as unknown as Record<string, unknown>);
   const summary = resolveJobSummary(details, layout, JOB_DETAILS_FIELD_MAP);
-  const specs = resolveSpecEntries(details, layout, JOB_DETAILS_FIELD_MAP, summary);
+  const specs = resolveSpecEntries(details, layout, JOB_DETAILS_FIELD_MAP, summary, rules);
   // Older jobs keep quantity/size under loose keys ("field_qty"); use them when the layout lookup found nothing.
   const looseKey = (re: RegExp) => {
     const k = Object.keys(cd).find((key) => re.test(key) && present(cd[key]));
@@ -92,7 +94,7 @@ function buildPrintInvoice(
       subTotal += lineTotal;
       return {
         description: present(s.category) || present(job.category) || 'Printing job',
-        size: present(s.size) || '—',
+        size: s.area ? `${present(s.size)} (${s.area.toLocaleString('en-IN')} sq ft)` : present(s.size) || '—',
         qty: qtyText(s.quantity),
         rate: amount2(rate),
         amount: amount2(lineTotal),
@@ -151,6 +153,8 @@ function buildPrintInvoice(
     business: {
       // Settings win; the shop's own details from lib/constants fill anything not set there.
       name: present(settings.business_name) || 'ADDESIGNER LASER PRINTER',
+      logo: present(settings.business_logo),
+      tagline: present(settings.business_tagline),
       addressLines: splitAddress(present(settings.business_address) || BUSINESS_DETAILS.address),
       phones: [present(settings.business_phone) || BUSINESS_DETAILS.phone, present(settings.business_phone_2)].filter(Boolean),
       email: present(settings.business_email) || BUSINESS_DETAILS.email,
@@ -181,7 +185,8 @@ export const buildInvoiceViewModel = (
   transactions: Transaction[],
   settings: Record<string, string>,
   qrCodeDataUrl?: string,
-  layout?: FormLayout | null
+  layout?: FormLayout | null,
+  rules: PricingRules = {}
 ): InvoiceViewModel => {
   
   // Calculate Totals (Removed GST completely)
@@ -379,6 +384,6 @@ export const buildInvoiceViewModel = (
     
     settings,
 
-    print: buildPrintInvoice(invoice, job, payments, settings, layout),
+    print: buildPrintInvoice(invoice, job, payments, settings, layout, rules),
   };
 };

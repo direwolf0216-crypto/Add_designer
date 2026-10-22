@@ -22,6 +22,7 @@ import JobTimeline from "./JobTimeline";
 import { exportJobPdf } from "./exportJobPdf";
 import { toast } from "sonner";
 import { useJob } from "./useJob";
+import { usePricingRules } from "@/hooks/usePricingRules";
 import { useJobMutations } from "./useJobMutations";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
 
@@ -51,6 +52,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
 
   const { job, refreshJob, layoutSchema: fullLayout, teamUsers } = useJob(jobDetailsId, isVisible);
   const layoutSchema = canSeeAmounts ? fullLayout : layoutWithoutMoney(fullLayout ?? null);
+  const pricingRules = usePricingRules();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [activeTabId, setActiveTabId] = useState(DETAILS_TAB.id);
   const [isExporting, setIsExporting] = useState(false);
@@ -72,7 +74,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
     if (!job) return;
     setIsExporting(true);
     try {
-      await exportJobPdf(job, layoutSchema ?? null, JOB_DETAILS_FIELD_MAP, canSeeAmounts);
+      await exportJobPdf(job, layoutSchema ?? null, JOB_DETAILS_FIELD_MAP, canSeeAmounts, pricingRules);
     } catch {
       toast.error("Couldn't build the PDF");
     } finally {
@@ -104,7 +106,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
 
           {/* RIGHT COLUMN */}
           <div className="flex flex-col gap-6">
-            <JobSpecsCard entries={resolveSpecEntries(job, layoutSchema, JOB_DETAILS_FIELD_MAP, summary)} showAmounts={canSeeAmounts} />
+            <JobSpecsCard entries={resolveSpecEntries(job, layoutSchema, JOB_DETAILS_FIELD_MAP, summary, pricingRules)} showAmounts={canSeeAmounts} />
           </div>
 
           {/* Dynamic Content Mapping (Sections not covered above) */}

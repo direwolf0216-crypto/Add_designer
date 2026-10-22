@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { FieldMap, FormLayout } from "@/lib/forms/types";
+import type { PricingRules } from "@/lib/jobs/pricing";
 import {
   dynamicFieldValue,
   resolveDynamicSections,
@@ -29,12 +30,12 @@ const money = (n: number) => `Rs ${n.toLocaleString("en-IN", { minimumFractionDi
  * A laid-out PDF of the job: header, client, job details, financials and any other layout sections as
  * tables. Built from the data, not a screenshot, so it lines up at any screen size and is searchable.
  */
-export async function exportJobPdf(job: DetailsJob, layout: FormLayout | null, fieldMap: FieldMap, showAmounts: boolean, shopName = "Add designer") {
+export async function exportJobPdf(job: DetailsJob, layout: FormLayout | null, fieldMap: FieldMap, showAmounts: boolean, rules: PricingRules = {}, shopName = "Add designer") {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
   const summary = resolveJobSummary(job, layout, fieldMap);
-  const specs = resolveSpecEntries(job, layout, fieldMap, summary);
+  const specs = resolveSpecEntries(job, layout, fieldMap, summary, rules);
   const financials = resolveFinancials(job);
   const jobNo = job.jobNumber || `#${job.id.slice(-6).toUpperCase()}`;
   const client = job.client?.name || job.title || job.customData?.fld_b_client || "Client";
@@ -119,7 +120,7 @@ export async function exportJobPdf(job: DetailsJob, layout: FormLayout | null, f
     const e = specs[0];
     table("Job details", e ? [
       ...(e.category ? [["Category", text(e.category)]] : []),
-      ["Size", text(e.size)],
+      ["Size", e.area ? `${text(e.size)} (${e.area.toLocaleString("en-IN")} sq ft)` : text(e.size)],
       ["Quantity", text(e.quantity)],
       ...(showAmounts && e.rateLabel !== "N/A" ? [["Rate", e.rateLabel]] : []),
       ...(showAmounts && e.total !== null ? [["Total", money(e.total)]] : []),

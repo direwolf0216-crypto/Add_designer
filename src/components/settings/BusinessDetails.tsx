@@ -12,6 +12,14 @@ type Field = { key: string; label: string; placeholder?: string; hint?: string; 
 
 const GROUPS: { title: string; icon: string; description: string; fields: Field[] }[] = [
   {
+    title: "Branding",
+    icon: "ph-image",
+    description: "Logo and services line printed at the top of every invoice.",
+    fields: [
+      { key: "business_tagline", label: "Services line", placeholder: "OFFSET PRINTING · DIGITAL PRINTING · XEROX | BINDING · LAMINATION", hint: "Separate items with · or |. Leave empty for the default line." },
+    ],
+  },
+  {
     title: "Shop details",
     icon: "ph-storefront",
     description: "Printed in the invoice header and contact bar.",
@@ -51,7 +59,69 @@ const GROUPS: { title: string; icon: string; description: string; fields: Field[
 const inputClass =
   "w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition-all focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10";
 
-/** Settings → Business & Invoice: the shop's details that print on every invoice. */
+const LOGO_MAX_WIDTH = 720;
+const LOGO_MAX_BYTES = 350_000;
+
+/** Reads an image file, scales it to at most 720px wide and returns a PNG data URL small enough to store. */
+async function fileToLogoDataUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, LOGO_MAX_WIDTH / bitmap.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const url = canvas.toDataURL("image/png");
+  if (url.length > LOGO_MAX_BYTES) throw new Error("That image is too detailed to store; try a simpler or smaller logo.");
+  return url;
+}
+
+/** Logo picker with preview; stores the image as a data URL in the business_logo setting. */
+function LogoField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+      toast.error("Use a PNG, JPEG or WebP image");
+      return;
+    }
+    try {
+      onChange(await fileToLogoDataUrl(file));
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+  return (
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-200 bg-white px-4 sm:w-64">
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element -- data URL preview
+          <img src={value} alt="Invoice logo" className="max-h-20 max-w-full object-contain" />
+        ) : (
+          <span className="text-center text-xs font-semibold text-slate-400">Default Add designer logo</span>
+        )}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[0.8rem] font-semibold text-slate-700">Invoice logo</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            <i className="ph-bold ph-upload-simple" aria-hidden="true"></i>
+            {value ? "Replace" : "Upload logo"}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={pick} />
+          </label>
+          {value && (
+            <button type="button" onClick={() => onChange("")} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">
+              Use default
+            </button>
+          )}
+        </div>
+        <span className="text-[0.7rem] text-slate-400">PNG, JPEG or WebP. Wide logos look best; it is scaled to fit 220 × 60 pt on the invoice.</span>
+      </div>
+    </div>
+  );
+}
+
+/** Settings → Business Details: the shop's details that print on every invoice. */
 export default function BusinessDetails() {
   const { data, mutate, isLoading } = useSWR<Values>("/api/settings/system?group=business", fetcher, { revalidateOnFocus: false });
   const [draft, setDraft] = useState<Values | null>(null);
@@ -95,8 +165,8 @@ export default function BusinessDetails() {
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out]">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-[1.15rem] font-bold text-slate-900 mb-1">Business & Invoice</h2>
-          <p className="text-sm text-slate-500">Your shop&apos;s details as they appear on every invoice. Empty fields are left off the invoice.</p>
+          <h2 className="text-[1.15rem] font-bold text-slate-900 mb-1">Business Details</h2>
+          <p className="text-sm text-slate-500">Your shop&apos;s logo, contact, tax and bank details as they appear on every invoice. Empty fields are left off the invoice.</p>
         </div>
         <button
           type="button"
@@ -126,6 +196,9 @@ export default function BusinessDetails() {
                   <p className="text-xs text-slate-500">{group.description}</p>
                 </div>
               </div>
+              {group.title === "Branding" && (
+                <LogoField value={draft.business_logo ?? ""} onChange={(v) => setDraft({ ...draft, business_logo: v })} />
+              )}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {group.fields.map((f) => (
                   <label key={f.key} className={`flex flex-col gap-1.5 ${f.multiline ? "md:col-span-2" : ""}`}>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { PricingRules } from '@/lib/jobs/pricing';
 import { renderToStream } from '@react-pdf/renderer';
 import QRCode from 'qrcode';
 import prisma from '@/lib/prisma';
@@ -27,6 +28,8 @@ const INVOICE_SETTING_KEYS = [
   'business_bank_account_no',
   'business_bank_ifsc',
   'business_bank_branch',
+  'business_tagline',
+  'business_logo',
 ];
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
@@ -45,12 +48,14 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
   });
   if (!job || job.deletedAt) throw notFound('Associated job not found');
 
-  const [transactions, settingsRecords, layoutRecord] = await Promise.all([
+  const [transactions, settingsRecords, layoutRecord, pricingRecord] = await Promise.all([
     prisma.transaction.findMany({ where: { jobId: job.id, type: 'INCOME', deletedAt: null } }),
     prisma.systemSetting.findMany({ where: { key: { in: INVOICE_SETTING_KEYS } } }),
     // The job form's layout says which fields hold each line item's category, size and quantity.
     prisma.formLayout.findUnique({ where: { formKey: 'JOB_FORM' }, select: { schema: true } }),
+    prisma.systemSetting.findUnique({ where: { key: 'pricing_rules' }, select: { value: true } }),
   ]);
+  const pricingRules = (pricingRecord?.value && typeof pricingRecord.value === 'object' && !Array.isArray(pricingRecord.value) ? pricingRecord.value : {}) as PricingRules;
   const settings: Record<string, string> = {};
   for (const s of settingsRecords) {
     if (typeof s.value === 'string' || typeof s.value === 'number') settings[s.key] = String(s.value);
@@ -75,7 +80,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
     heroImageUrl = await driveImageDataUrl(fileId, user.id);
   }
 
-  const viewModel = buildInvoiceViewModel(invoice, job, transactions, settings, qrCodeDataUrl, layoutRecord?.schema as FormLayout | null);
+  const viewModel = buildInvoiceViewModel(invoice, job, transactions, settings, qrCodeDataUrl, layoutRecord?.schema as FormLayout | null, pricingRules);
   if (heroImageUrl) viewModel.heroImageUrl = heroImageUrl;
 
   initFonts();

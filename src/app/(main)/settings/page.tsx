@@ -14,6 +14,7 @@ const LayoutsFieldsBuilder = dynamic(() => import("@/components/settings/Layouts
 const RecycleBin = dynamic(() => import("@/components/settings/RecycleBin"), { loading: tabLoading });
 const TeamsSettings = dynamic(() => import("@/components/settings/TeamsSettings"), { loading: tabLoading });
 const BusinessDetails = dynamic(() => import("@/components/settings/BusinessDetails"), { loading: tabLoading });
+const PricingRules = dynamic(() => import("@/components/settings/PricingRules"), { loading: tabLoading });
 const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
 
 const GROUPS = [
@@ -29,7 +30,8 @@ const GROUPS = [
     label: "Customization",
     items: [
       { id: "layouts", label: "Layouts & Fields", icon: "ph-layout" },
-      { id: "business", label: "Business & Invoice", icon: "ph-storefront" },
+      { id: "business", label: "Business Details", icon: "ph-storefront" },
+      { id: "pricing", label: "Pricing", icon: "ph-ruler" },
     ]
   },
   {
@@ -212,6 +214,7 @@ function SettingsPage() {
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
           {displayedSection === "business" && <BusinessDetails />}
+          {displayedSection === "pricing" && <PricingRules />}
           {displayedSection === "teams" && <TeamsSettings />}
         </div>
       </div>

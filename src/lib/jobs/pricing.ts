@@ -19,6 +19,44 @@ export interface Installment {
 /** Financial rates per repeatable entry, keyed `rep_<sectionId>_<index>`. */
 export type FinancialRates = Record<string, string>;
 
+/** How a category is priced: per piece (rate × qty) or per square foot (rate × area × qty). Keyed by category name. */
+export type PricingUnit = "piece" | "sqft";
+export type PricingRule = { unit: PricingUnit; defaultRate?: number };
+export type PricingRules = Record<string, PricingRule>;
+
+const SQFT_PER: Record<string, number> = { ft: 1, feet: 1, foot: 1, "'": 1, in: 1 / 144, inch: 1 / 144, inches: 1 / 144, '"': 1 / 144, cm: 1 / 929.0304, mm: 1 / 92903.04, m: 10.7639, mtr: 10.7639, meter: 10.7639, metre: 10.7639 };
+
+/**
+ * Area in square feet from a size like "10 x 10", "4*6 ft", "3.5 x 2 in" or "120 x 60 cm". Feet when no unit
+ * is given; a unit after either number applies to both. Null when the size isn't two numbers.
+ */
+export function parseAreaSqFt(size: unknown): number | null {
+  if (size === null || size === undefined) return null;
+  const text = String(size).trim().toLowerCase().replace(/×/g, "x");
+  const m = text.match(/^(\d+(?:\.\d+)?)\s*(ft|feet|foot|in|inch|inches|cm|mm|m|mtr|meter|metre|'|")?\s*[x*]\s*(\d+(?:\.\d+)?)\s*(ft|feet|foot|in|inch|inches|cm|mm|m|mtr|meter|metre|'|")?\s*(?:sq\.?\s*ft)?$/);
+  if (!m) return null;
+  const unit = m[4] || m[2] || "ft";
+  const factor = SQFT_PER[unit];
+  if (!factor) return null;
+  const area = parseFloat(m[1]) * parseFloat(m[3]) * factor;
+  return Number.isFinite(area) && area > 0 ? Math.round(area * 1000) / 1000 : null;
+}
+
+/** The pricing rule for a category (case-insensitive), per piece when none is set. */
+export function pricingRuleFor(rules: PricingRules | null | undefined, category: unknown): PricingRule {
+  if (!rules || typeof category !== "string") return { unit: "piece" };
+  const key = Object.keys(rules).find((k) => k.trim().toLowerCase() === category.trim().toLowerCase());
+  return key ? rules[key] : { unit: "piece" };
+}
+
+/** What the rate is multiplied by: qty for per-piece lines, qty × area (sq ft) for per-square-foot lines. */
+export function lineMultiplier(unit: PricingUnit, qty: unknown, size: unknown): { multiplier: number; area: number | null } {
+  const q = parseFloat(String(qty ?? "")) || 1;
+  if (unit !== "sqft") return { multiplier: q, area: null };
+  const area = parseAreaSqFt(size);
+  return { multiplier: area ? q * area : q, area };
+}
+
 export const rateKey = (secKey: string, index: number) => `${secKey}_${index}`;
 
 /** "1,250.50" → 1250.5; invalid → 0. */
@@ -53,12 +91,13 @@ const findRepeatableSection = (layout: FormLayout | null | undefined, secKey: st
 const isCategoryName = (s: string) => s.toLowerCase().includes("category") || s.toLowerCase().includes("job");
 const isQtyName = (s: string) => s.toLowerCase().includes("qty") || s.toLowerCase().includes("quantity");
 
-/** Σ rate × qty over repeatable entries that have a category; `hasRates` when any entry counted. */
+/** Σ rate × qty (× area for per-sq-ft categories) over repeatable entries that have a category; `hasRates` when any entry counted. */
 export function computeLineItemsPackage(
   repeatableData: RepeatableData,
   financialRates: FinancialRates,
   layout: FormLayout | null | undefined,
-  fieldMap: FieldMap
+  fieldMap: FieldMap,
+  rules: PricingRules = {}
 ): { hasRates: boolean; total: number } {
   let total = 0;
   let hasRates = false;
@@ -67,22 +106,13 @@ export function computeLineItemsPackage(
     const repSection = findRepeatableSection(layout, secKey);
     const entries = repeatableData[secKey] || [];
     entries.forEach((entry, idx) => {
-      let catFieldKey = Object.keys(entry).find(isCategoryName);
-      let qtyFieldKey = Object.keys(entry).find(isQtyName);
-
-      if (repSection && repSection.fields) {
-        const catF = repSection.fields.find((f) => isCategoryName(f.name));
-        if (catF) catFieldKey = fieldNameFor(fieldMap, catF.id);
-        const qtyF = repSection.fields.find((f) => isQtyName(f.name));
-        if (qtyF) qtyFieldKey = fieldNameFor(fieldMap, qtyF.id);
-      }
-
+      const { catFieldKey, sizeFieldKey, qtyFieldKey } = lineItemKeys(entry, repSection, fieldMap);
       if (catFieldKey && entry[catFieldKey]) {
         hasRates = true;
         const rate = parseCurrency(financialRates[rateKey(secKey, idx)] || "0");
-        let qty = 1;
-        if (qtyFieldKey && entry[qtyFieldKey]) qty = parseFloat(entry[qtyFieldKey]) || 1;
-        total += rate * qty;
+        const { unit } = pricingRuleFor(rules, entry[catFieldKey]);
+        const { multiplier } = lineMultiplier(unit, qtyFieldKey ? entry[qtyFieldKey] : "", sizeFieldKey ? entry[sizeFieldKey] : "");
+        total += rate * multiplier;
       }
     });
   });
@@ -111,6 +141,7 @@ export interface JobTotalsInput {
   financialRates: FinancialRates;
   layout: FormLayout | null | undefined;
   fieldMap: FieldMap;
+  rules?: PricingRules;
 }
 
 /**
@@ -118,7 +149,7 @@ export interface JobTotalsInput {
  * `advance` when there are installments, `package` when line-item rates drive it and it changed,
  * and always `due`.
  */
-export function computeJobTotals({ values, installments, repeatableData, financialRates, layout, fieldMap }: JobTotalsInput): {
+export function computeJobTotals({ values, installments, repeatableData, financialRates, layout, fieldMap, rules = {} }: JobTotalsInput): {
   advance?: string;
   package?: string;
   due: string;
@@ -132,7 +163,7 @@ export function computeJobTotals({ values, installments, repeatableData, financi
     current.advance = out.advance;
   }
 
-  const { hasRates, total: lineItemsTotal } = computeLineItemsPackage(repeatableData, financialRates, layout, fieldMap);
+  const { hasRates, total: lineItemsTotal } = computeLineItemsPackage(repeatableData, financialRates, layout, fieldMap, rules);
   if (hasRates) {
     const discountKey = findDiscountKey(current, layout, fieldMap);
     const discount = discountKey ? parseCurrency(current[discountKey] || "0") : 0;
@@ -159,6 +190,8 @@ export interface LineItemRow {
   /** " (size, Qty: n)" or "". */
   extraText: string;
   qty: string;
+  /** The entry's size value, as typed. */
+  size: string;
 }
 
 /** Rows of the "Rates per Job" list: every repeatable entry that has a category value. */
@@ -181,7 +214,7 @@ export function lineItemRows(
       if (qtyVal) extras.push(`Qty: ${qtyVal}`);
       const extraText = extras.length > 0 ? ` (${extras.join(", ")})` : "";
 
-      rows.push({ secKey, index: idx, rateKey: rateKey(secKey, idx), category: entry[catFieldKey], extraText, qty: qtyVal });
+      rows.push({ secKey, index: idx, rateKey: rateKey(secKey, idx), category: entry[catFieldKey], extraText, qty: qtyVal, size: sizeVal });
     });
   });
   return rows;
@@ -216,30 +249,26 @@ function lineItemKeys(entry: RepeatableEntry, repSection: FormSection | undefine
   return { catFieldKey, sizeFieldKey, qtyFieldKey };
 }
 
-/** Line total shown next to a rate input. */
-export const lineItemTotal = (rate: string | undefined, qty: string) => (parseFloat(rate as string) || 0) * (parseFloat(qty) || 1);
+/** Line total shown next to a rate input: rate × qty, or rate × area × qty for per-sq-ft lines. */
+export const lineItemTotal = (rate: string | undefined, qty: string, unit: PricingUnit = "piece", size: unknown = "") =>
+  (parseFloat(rate as string) || 0) * lineMultiplier(unit, qty, size).multiplier;
 
-/** Σ rate × qty over all repeatable entries (with or without a category), shown under the rates. */
+/** Σ line totals over all repeatable entries (with or without a category), shown under the rates. */
 export function sumLineItems(
   repeatableData: RepeatableData,
   financialRates: FinancialRates,
   layout: FormLayout | null | undefined,
-  fieldMap: FieldMap
+  fieldMap: FieldMap,
+  rules: PricingRules = {}
 ): number {
   let sum = 0;
   Object.keys(repeatableData).forEach((secKey) => {
     const repSection = findRepeatableSection(layout, secKey);
     (repeatableData[secKey] || []).forEach((entry, idx) => {
       const rate = parseFloat(financialRates[rateKey(secKey, idx)]) || 0;
-      const qtyFieldKey = Object.keys(entry).find((k) => {
-        if (repSection && repSection.fields) {
-          const f = repSection.fields.find((field) => fieldNameFor(fieldMap, field.id) === k);
-          if (f && isQtyName(f.name)) return true;
-        }
-        return isQtyName(k);
-      });
-      const qty = qtyFieldKey ? parseFloat(entry[qtyFieldKey]) || 1 : 1;
-      sum += rate * qty;
+      const { catFieldKey, sizeFieldKey, qtyFieldKey } = lineItemKeys(entry, repSection, fieldMap);
+      const { unit } = pricingRuleFor(rules, catFieldKey ? entry[catFieldKey] : undefined);
+      sum += rate * lineMultiplier(unit, qtyFieldKey ? entry[qtyFieldKey] : "", sizeFieldKey ? entry[sizeFieldKey] : "").multiplier;
     });
   });
   return sum;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { JOB_FORM_FIELD_MAP } from "@/lib/forms/fieldMap";
 import type { FormLayout } from "@/lib/forms/types";
 import {
+  parseAreaSqFt,
   advanceFromInstallments,
   computeJobTotals,
   computeLineItemsPackage,
@@ -130,5 +131,23 @@ describe("computeJobTotals", () => {
       fieldMap: map,
     });
     expect(totals).toEqual({ due: "400.00" });
+  });
+});
+
+
+describe("per-square-foot pricing", () => {
+  it("reads areas from common size formats", () => {
+    expect(parseAreaSqFt("10 x 6")).toBe(60);
+    expect(parseAreaSqFt("4*6 ft")).toBe(24);
+    expect(parseAreaSqFt("3.5 x 2 in")).toBeCloseTo(0.049, 3);
+    expect(parseAreaSqFt("120 x 60 cm")).toBeCloseTo(7.75, 2);
+    expect(parseAreaSqFt("A4")).toBeNull();
+    expect(parseAreaSqFt("")).toBeNull();
+  });
+  it("multiplies rate by area and quantity for sqft lines, by quantity otherwise", () => {
+    expect(lineItemTotal("25", "2", "sqft", "10 x 6")).toBe(3000);
+    expect(lineItemTotal("25", "2", "piece", "10 x 6")).toBe(50);
+    // Unreadable size: falls back to per piece so the total is never silently zero.
+    expect(lineItemTotal("25", "2", "sqft", "A4")).toBe(50);
   });
 });

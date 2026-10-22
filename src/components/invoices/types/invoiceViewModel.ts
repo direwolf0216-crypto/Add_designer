@@ -22,6 +22,10 @@ export interface PrintLineItem {
 export interface PrintInvoice {
   business: {
     name: string;
+    /** Custom logo as a data URL from Settings → Business Details; empty means the built-in logo. */
+    logo: string;
+    /** Services line under the logo, e.g. "OFFSET PRINTING · DIGITAL PRINTING". */
+    tagline: string;
     addressLines: string[];
     phones: string[];
     email: string;

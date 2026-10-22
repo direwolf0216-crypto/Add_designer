@@ -10,6 +10,7 @@ import type { RepeatableData } from "@/lib/forms/types";
 import { jobToFormState, layoutDefaults, newInstallment } from "@/lib/jobs/formMapping";
 import { computeJobTotals, type FinancialRates, type Installment } from "@/lib/jobs/pricing";
 import { useJobFormData } from "./useJobFormData";
+import { usePricingRules } from "@/hooks/usePricingRules";
 
 const INITIAL_VALUES: JobFormData = {
   title: "", category: "", date: "", time: "10:00 AM",
@@ -33,6 +34,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
   const [installments, setInstallments] = useState<Installment[]>(() => [newInstallment()]);
   const [repeatableData, setRepeatableData] = useState<RepeatableData>({});
   const [financialRates, setFinancialRates] = useState<FinancialRates>({});
+  const pricingRules = usePricingRules();
   /** User ids to assign; submitted alongside the job (see useJobFormSubmit). */
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
 
@@ -75,11 +77,12 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
       financialRates,
       layout: layoutSchema,
       fieldMap: JOB_FORM_FIELD_MAP,
+      rules: pricingRules,
     });
     if (totals.advance !== undefined) setValue("advance", totals.advance);
     if (totals.package !== undefined) setValue("package", totals.package);
     setValue("due", totals.due);
-  }, [packageValue, advanceValue, installments, setValue, watch, repeatableData, financialRates, layoutSchema]);
+  }, [packageValue, advanceValue, installments, setValue, watch, repeatableData, financialRates, layoutSchema, pricingRules]);
 
   return {
     form,
@@ -92,6 +95,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
     setRepeatableData,
     financialRates,
     setFinancialRates,
+    pricingRules,
     assigneeIds,
     setAssigneeIds,
   };

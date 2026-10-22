@@ -108,15 +108,15 @@ describe("resolveSpecEntries", () => {
   it("lists repeatable line items with rates from fld_financial_rates or the entry", () => {
     const summary = resolveJobSummary(job, layout, map);
     expect(resolveSpecEntries(job, layout, map, summary)).toEqual([
-      { category: "Flex", size: "10x4", quantity: "3", rateLabel: "₹ 100", total: 300 },
-      { category: "Posters", size: "10x4", quantity: "2", rateLabel: "₹ 50", total: null },
+      { category: "Flex", size: "10x4", quantity: "3", rateLabel: "₹ 100", total: 300, unit: "piece", area: null },
+      { category: "Posters", size: "10x4", quantity: "2", rateLabel: "₹ 50", total: null, unit: "piece", area: null },
     ]);
   });
 
   it("falls back to the job itself without a job-details section", () => {
     const j = normalizeJob({ id: "x", customData: { fld_print_size: "A4", fld_print_quantity: "10", rate: "5" } });
     expect(resolveSpecEntries(j, null, map, resolveJobSummary(j, null, map))).toEqual([
-      { category: undefined, size: "A4", quantity: "10", rateLabel: "₹ 5", total: 50 },
+      { category: undefined, size: "A4", quantity: "10", rateLabel: "₹ 5", total: 50, unit: "piece", area: null },
     ]);
   });
 });

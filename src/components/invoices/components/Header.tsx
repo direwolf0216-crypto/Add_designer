@@ -23,8 +23,15 @@ const styles = StyleSheet.create({
   },
   servicesRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 8,
+  },
+  businessName: {
+    fontSize: 11,
+    fontWeight: 800,
+    color: colors.darkBox,
+    letterSpacing: 0.5,
   },
   serviceTag: {
     fontSize: 7,
@@ -118,12 +125,12 @@ export const Header = ({ viewModel }: HeaderProps) => {
     <View>
       <View style={styles.container}>
         <View style={styles.leftCol}>
-          <PdfImage src={logoBase64} style={styles.logoImage} />
+          <PdfImage src={b.logo || logoBase64} style={styles.logoImage} />
+          {b.logo ? <Text style={styles.businessName}>{b.name}</Text> : null}
           <View style={styles.servicesRow}>
-            <Text style={styles.serviceTag}>OFFSET PRINTING</Text>
-            <Text style={styles.serviceTag}>DIGITAL PRINTING</Text>
-            <Text style={styles.serviceTag}>XEROX | BINDING</Text>
-            <Text style={styles.serviceTag}>LAMINATION</Text>
+            {(b.tagline ? b.tagline.split(/\s*[|·•]\s*/) : ['OFFSET PRINTING', 'DIGITAL PRINTING', 'XEROX | BINDING', 'LAMINATION']).filter(Boolean).map((tag, i) => (
+              <Text key={i} style={styles.serviceTag}>{tag.toUpperCase()}</Text>
+            ))}
           </View>
           {b.gstin ? <Text style={[styles.serviceTag, { marginTop: 6, fontWeight: 600 }]}>GSTIN: {b.gstin}</Text> : null}
         </View>

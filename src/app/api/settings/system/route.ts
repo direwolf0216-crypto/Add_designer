@@ -30,12 +30,16 @@ const DEFAULT_SETTINGS = {
     bannerEnabled: true,
     bannerTime1: "09:00",
     bannerTime2: "17:00"
-  }
+  },
+  // Per-category pricing (Settings → Pricing): { "Flex Printing": { unit: "sqft", defaultRate: 25 } }.
+  pricing_rules: {} as Record<string, { unit: "piece" | "sqft"; defaultRate?: number }>,
 };
 
 const color = z.string().max(32);
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Expected HH:MM");
 const businessText = z.string().trim().max(500);
+// A small PNG/JPEG/WebP data URL (the Business Details tab resizes uploads before saving), or empty to clear.
+const businessLogo = z.string().max(400_000).refine((v) => v === "" || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v), "Logo must be a PNG, JPEG or WebP image");
 const threshold = z.object({ days: z.number().int().min(0).max(365) });
 
 // Every key the app reads (SystemProvider, banner, invoices, reminders cron). Anything else is rejected,
@@ -52,12 +56,15 @@ const SETTING_SCHEMAS = {
     bannerTime1: time.optional(),
     bannerTime2: time.optional(),
   }),
+  pricing_rules: z.record(z.string().trim().min(1).max(100), z.object({ unit: z.enum(["piece", "sqft"]), defaultRate: z.number().nonnegative().max(10_000_000).optional() })),
   business_name: businessText,
   business_phone: businessText,
   business_email: businessText,
   business_address: businessText,
   business_instagram: businessText,
   business_website: businessText,
+  business_tagline: businessText,
+  business_logo: businessLogo,
   business_bank_name: businessText,
   business_upi_id: businessText,
   // Printed on invoices (each left off the PDF when empty).
@@ -85,7 +92,7 @@ const bodySchema = z.object({ key: z.enum(SETTING_KEYS), value: z.unknown() });
 const BUSINESS_KEYS = [
   "business_name", "business_address", "business_phone", "business_phone_2", "business_email", "business_website",
   "business_gstin", "business_gst_rate", "business_bank_name", "business_bank_account_name", "business_bank_account_no",
-  "business_bank_ifsc", "business_bank_branch", "business_upi_id", "business_instagram",
+  "business_bank_ifsc", "business_bank_branch", "business_upi_id", "business_instagram", "business_tagline", "business_logo",
 ] as const;
 
 export const GET = route(async (req) => {

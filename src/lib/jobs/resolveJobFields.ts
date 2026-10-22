@@ -3,6 +3,7 @@
 // Pure: no React.
 
 import type { ValueLookup } from "@/lib/forms/visibility";
+import { lineMultiplier, pricingRuleFor, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
 import type { FieldMap, FormField, FormLayout, FormSection } from "@/lib/forms/types";
 
 /** A job as returned by /api/jobs/[id], with customData/inclusions parsed. */
@@ -168,12 +169,16 @@ export interface SpecEntry {
   quantity: any;
   /** Formatted rate ("₹ 1,200") or "N/A". */
   rateLabel: string;
+  /** "sqft" when the category is priced per square foot (Settings → Pricing). */
+  unit: PricingUnit;
+  /** Area in sq ft parsed from the size, for per-sq-ft lines with a readable size. */
+  area: number | null;
   /** rate × quantity, or null without a numeric rate. */
   total: number | null;
 }
 
 /** Line items for the "Job Details" card: repeatable entries of the job-details section, else the job itself. */
-export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | undefined, fieldMap: FieldMap, summary: JobSummary): SpecEntry[] {
+export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | undefined, fieldMap: FieldMap, summary: JobSummary, rules: PricingRules = {}): SpecEntry[] {
   let entries: any[] = [job.customData];
   const jdSec = layout?.sections?.find(isJobDetailsSection);
 
@@ -223,12 +228,17 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
     if (!cVal) cVal = summary.displayCategory && summary.displayCategory !== "N/A" ? summary.displayCategory : undefined;
 
     const hasValidRate = rVal !== "N/A" && !isNaN(parseFloat(String(rVal)));
+    const { unit } = pricingRuleFor(rules, cVal);
+    const { multiplier, area } = lineMultiplier(unit, qVal, sVal);
+    const rateText = String(rVal).startsWith("₹") || rVal === "N/A" ? String(rVal) : `₹ ${parseFloat(String(rVal)).toLocaleString("en-IN")}`;
     return {
       category: cVal,
       size: sVal,
       quantity: qVal,
-      rateLabel: String(rVal).startsWith("₹") || rVal === "N/A" ? rVal : `₹ ${parseFloat(String(rVal)).toLocaleString("en-IN")}`,
-      total: hasValidRate ? (parseFloat(String(rVal)) || 0) * (parseFloat(String(qVal)) || 1) : null,
+      rateLabel: unit === "sqft" && rVal !== "N/A" ? `${rateText} / sq ft` : rateText,
+      total: hasValidRate ? (parseFloat(String(rVal)) || 0) * multiplier : null,
+      unit,
+      area,
     };
   });
 }
