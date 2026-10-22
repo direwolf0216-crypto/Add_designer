@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { categoryFromCustomData } from "@/lib/jobs/category";
 import { Prisma } from "@prisma/client";
 import { jobSchema } from "@/lib/validations/job";
 import type { Job } from "@/types";
@@ -84,7 +85,7 @@ export async function saveJobAction(formData: FormData) {
         id: validated.id || undefined,
         jobNumber: typeof rawData.jobNumber === "string" ? rawData.jobNumber : undefined,
         client: { name: validated.title, phone: validated.phone, email: validated.email || null },
-        category: validated.category,
+        category: validated.category || categoryFromCustomData(customData),
         date: validated.date || undefined,
         recordDate: typeof rawData.recordDate === "string" ? rawData.recordDate : undefined,
         time: validated.time,

@@ -52,11 +52,12 @@ export function syncStatusWithStage(
 ): { status?: string; customData: Record<string, unknown> } {
   if (!statusIsStage(layout)) return next;
   const customData = { ...next.customData };
+  const stages = stageOptions(layout).map((s) => s.label.toLowerCase());
   const stage = str(customData.fld_b_status);
   const stageChanged = stage !== null && stage !== (previous.stage ?? null);
   const statusChanged = next.status !== undefined && next.status !== (previous.status ?? null);
   if (stageChanged && !statusChanged) return { status: stage, customData };
-  if (statusChanged && !stageChanged && next.status) {
+  if (statusChanged && !stageChanged && next.status && stages.includes(next.status.toLowerCase())) {
     customData.fld_b_status = next.status;
     return { status: next.status, customData };
   }

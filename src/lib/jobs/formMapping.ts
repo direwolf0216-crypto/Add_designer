@@ -165,6 +165,9 @@ export function layoutDefaults(
   layout.sections.forEach((sec) => {
     if (sec.isRepeatable) {
       repeatableData[`rep_${sec.id}`] = [newRepeatableEntry(sec, fieldMap)];
+      // The job's status picker may sit inside the repeatable section; its first option is still the default status.
+      const statusF = sec.fields.find((f) => f.id === statusFieldId && f.type === "STATUS_PICKER");
+      if (statusF?.statusOptions?.length) values.status = statusF.statusOptions[0].label;
       return; // Repeatable fields are not flattened into the form values.
     }
     sec.fields.forEach((f) => {

@@ -17,14 +17,17 @@ import {
   withoutHiddenFields,
   type IsVisible,
 } from "@/lib/jobs/formMapping";
+import { findDiscountKey, parseCurrency } from "@/lib/jobs/pricing";
+import { globalFieldsOf, jobDetailsSection, missingEntryFields, splitIntoJobs, withFirstEntryDefaults } from "@/lib/jobs/multiJob";
+import { fieldNameFor } from "@/lib/forms/fieldMap";
 import type { JobFormState } from "./useJobFormState";
 
 const FLASH_CLASSES = ["bg-red-50", "p-2", "rounded-xl", "transition-colors", "duration-500"];
 
 /** Scroll a field container into view and flash it red. */
-function flashField(fieldName: string) {
+function flashField(fieldName: string, index?: number) {
   setTimeout(() => {
-    const element = document.getElementById(`field-container-${fieldName}`);
+    const element = document.getElementById(index === undefined ? `field-container-${fieldName}` : `field-container-${fieldName}-${index}`) ?? document.getElementById(`field-container-${fieldName}`);
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
       element.classList.add(...FLASH_CLASSES);
@@ -62,6 +65,20 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       setIsSubmittingLocal(false);
       return;
     }
+    // Each job entry needs its own mandatory fields (dates, size, quantity …).
+    const jdSection = jobDetailsSection(layoutSchema);
+    const perJob = !!jdSection && (!job || (repeatableData[`rep_${jdSection.id}`] ?? []).length <= 1);
+    const entriesData = perJob ? withFirstEntryDefaults(layoutSchema, JOB_FORM_FIELD_MAP, repeatableData, data as Record<string, unknown>) : repeatableData;
+    if (perJob) {
+      const missingInEntries = missingEntryFields(layoutSchema, JOB_FORM_FIELD_MAP, entriesData, isVisible);
+      if (missingInEntries.length > 0) {
+        const first = missingInEntries[0];
+        toast.error(`Job ${first.index + 1}: ${first.message}`);
+        flashField(first.fieldName, first.index);
+        setIsSubmittingLocal(false);
+        return;
+      }
+    }
 
     // Hidden fields are not submitted.
     let values: Record<string, any> = withoutHiddenFields(data, layoutSchema, isVisible, JOB_FORM_FIELD_MAP);
@@ -82,6 +99,58 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       return;
     }
 
+    // Create: one job per Job Details entry, each with its own dates, item, rate, share of the advance and people.
+    if (perJob && jdSection) {
+      const secKey = `rep_${jdSection.id}`;
+      const discountKey = findDiscountKey(values, layoutSchema, JOB_FORM_FIELD_MAP);
+      const jobs = splitIntoJobs({
+        layout: layoutSchema,
+        fieldMap: JOB_FORM_FIELD_MAP,
+        repeatableData: entriesData,
+        financialRates,
+        installments,
+        discount: discountKey ? parseCurrency(String(values[discountKey] ?? "0")) : 0,
+        fallbackPackage: parseCurrency(String(values.package ?? "0")),
+        rules: state.pricingRules,
+      });
+      const groupId = jobs.length > 1 ? (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now())) : undefined;
+      const globalNames = globalFieldsOf(jdSection).map((f) => fieldNameFor(JOB_FORM_FIELD_MAP, f.id));
+      let created = 0;
+      for (const j of jobs) {
+        const data: Record<string, unknown> = { ...values, ...j.globals, package: String(j.packageAmount), category: (j.entry.category as string | undefined) || (values.category as string | undefined) || "" };
+        if (discountKey && jobs.length > 1) data[discountKey] = String(Math.max(0, j.lineTotal - j.packageAmount));
+        // Only the first job keeps the form's own id (edit mode has exactly one job).
+        if (j.index > 0) delete data.id;
+        if (groupId) data.fld_job_group = groupId;
+        for (const name of globalNames) if (j.globals[name] === undefined && name !== "date" && name !== "status") delete data[name];
+        const formData = buildJobFormData({
+          data,
+          repeatableData: { ...entriesData, [secKey]: [j.entry] },
+          financialRates: j.financialRates,
+          installments: job ? installments : j.installments,
+          layout: layoutSchema,
+          fieldMap: JOB_FORM_FIELD_MAP,
+          rules: state.pricingRules,
+        });
+        formData.set("assigneeIds", JSON.stringify(state.entryAssignees[j.index] ?? []));
+        const result = await saveJobAction(formData);
+        if (!(result.success && result.data)) {
+          toast.error(jobs.length > 1 ? `Job ${j.index + 1} could not be saved${created ? ` (${created} saved)` : ""}. Please check its fields.` : "Failed to save job. Please check your inputs.");
+          invalidateAll();
+          router.refresh();
+          setIsSubmittingLocal(false);
+          return;
+        }
+        created++;
+      }
+      toast.success(job ? "Job updated successfully!" : created > 1 ? `Created ${created} jobs` : "Job created successfully!");
+      invalidateAll();
+      router.refresh();
+      onSaved();
+      setIsSubmittingLocal(false);
+      return;
+    }
+
     const formData = buildJobFormData({
       data: values,
       repeatableData,
@@ -91,7 +160,7 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       fieldMap: JOB_FORM_FIELD_MAP,
       rules: state.pricingRules,
     });
-    formData.set("assigneeIds", JSON.stringify(state.assigneeIds));
+    formData.set("assigneeIds", JSON.stringify(state.entryAssignees[0] ?? []));
     const result = await saveJobAction(formData);
 
     if (result.success && result.data) {

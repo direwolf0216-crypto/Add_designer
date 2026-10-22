@@ -10,6 +10,7 @@ import JobField from "./JobField";
 import JobFieldBlock from "./JobFieldBlock";
 import { useJobFormContext } from "./JobFormContext";
 import LineItemRates from "./LineItemRates";
+import { jobDetailsSection } from "@/lib/jobs/multiJob";
 
 /**
  * A regular layout section. The financial section (`sec_job_financial`) is special: its advance
@@ -17,8 +18,10 @@ import LineItemRates from "./LineItemRates";
  * (package itself stays registered but hidden), and grand total / outstanding balance are added.
  */
 export default function FlatSection({ section }: { section: FormSection }) {
-  const { job, layoutSchema, isVisible } = useJobFormContext();
+  const { job, layoutSchema, isVisible, repeatableData } = useJobFormContext();
   const isFinancial = section.id === "sec_job_financial";
+  const jd = jobDetailsSection(layoutSchema);
+  const jobCount = !job && jd ? (repeatableData[`rep_${jd.id}`] ?? []).length : 1;
   // The first STATUS_PICKER is the job's main status, stored as `status`.
   const statusF = allFields(layoutSchema).find((f) => f.type === "STATUS_PICKER");
 
@@ -52,6 +55,12 @@ export default function FlatSection({ section }: { section: FormSection }) {
         );
       })}
 
+      {isFinancial && jobCount > 1 && (
+        <p className="md:col-span-12 flex items-start gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 ring-1 ring-sky-100">
+          <i className="ph-bold ph-info mt-px" aria-hidden="true"></i>
+          You are creating {jobCount} jobs. Each gets its own total from its rate; the discount and the advance are shared out in proportion to those totals.
+        </p>
+      )}
       {isFinancial && <OutstandingBalance />}
     </div>
   );

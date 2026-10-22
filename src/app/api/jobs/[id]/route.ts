@@ -71,7 +71,16 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
   });
   if (!job || job.deletedAt) throw notFound("Job not found");
 
-  const full = { ...job, transactions: job.transactions ?? [] };
+  // Jobs created together from one form share a group id; list the siblings for the details header.
+  const groupId = (job.customData as Record<string, unknown> | null)?.fld_job_group;
+  const relatedJobs = typeof groupId === "string" && groupId
+    ? await prisma.job.findMany({
+        where: { id: { not: job.id }, deletedAt: null, customData: { path: ["fld_job_group"], equals: groupId }, ...(await jobScope(user)) },
+        select: { id: true, jobNumber: true, category: true, stage: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const full = { ...job, transactions: job.transactions ?? [], relatedJobs };
   return NextResponse.json(canSeeAmounts ? full : redactJobAmounts(full, await jobMoneyKeys()), {
     headers: { "Cache-Control": "private, no-store" },
   });

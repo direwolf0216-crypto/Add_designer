@@ -1,4 +1,5 @@
 import "server-only";
+import { categoryFromCustomData } from "@/lib/jobs/category";
 import { Prisma } from "@prisma/client";
 import prisma, { type TxClient } from "@/lib/prisma";
 import { computeBalance, parseAmount, round2 } from "@/lib/money";
@@ -10,7 +11,7 @@ import { jobScope } from "@/lib/jobs/scope";
 import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
 import { paymentLabel, recordJobActivity } from "@/lib/services/activity";
 import { syncAssignments } from "@/lib/services/assignments";
-import { deriveJobTracking, statusIsStage, syncStatusWithStage } from "@/lib/jobs/tracking";
+import { deriveJobTracking, statusIsStage, syncStatusWithStage, stageOptions } from "@/lib/jobs/tracking";
 import { notifyHandoff, recordHandoff } from "@/lib/services/teams";
 import { keepStoredMoney, moneyKeys } from "@/lib/jobs/amounts";
 import type { FormLayout } from "@/lib/forms/types";
@@ -252,16 +253,24 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         delete customData.fld_b_finishing_status;
       }
 
-      if (statusIsStage(layout?.schema as Parameters<typeof statusIsStage>[0]) && input.status && !customData.fld_b_status) {
-        customData.fld_b_status = input.status;
+      let status = input.status;
+      if (statusIsStage(layout?.schema as Parameters<typeof statusIsStage>[0]) && !customData.fld_b_status) {
+        const stages = stageOptions(layout?.schema as Parameters<typeof stageOptions>[0]);
+        const isStage = stages.some((s) => s.label.toLowerCase() === String(status ?? "").toLowerCase());
+        // Keep an existing job's stage; a new job without one starts at the first stage.
+        const stage = isStage ? status : existing?.stage ?? stages[0]?.label;
+        if (stage) {
+          customData.fld_b_status = stage;
+          if (!existing || isStage) status = stage;
+        }
       }
       const common = {
         // Board stage + due date as real columns (filterable, indexed), derived from the form data.
         ...deriveJobTracking(customData, layout?.schema as Parameters<typeof deriveJobTracking>[1]),
-        category: input.category,
+        category: input.category || categoryFromCustomData(customData),
         time: input.time ?? "",
         location: input.location ?? "",
-        status: input.status,
+        status,
         packageName: input.packageName,
         notes: input.notes,
         inclusions: asJson(input.inclusions),

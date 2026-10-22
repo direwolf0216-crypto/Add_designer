@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -166,6 +167,17 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                     return [category !== "N/A" ? category : null, job.jobNumber].filter(Boolean).join(" · ") || "Print job";
                   })()}
                 </p>
+                {Array.isArray(job.relatedJobs) && job.relatedJobs.length > 0 && (
+                  <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-500 print:hidden">
+                    <span>Same order:</span>
+                    {(job.relatedJobs as { id: string; jobNumber: string | null; category: string; stage: string | null }[]).map((r) => (
+                      <Link key={r.id} href={`/jobs/details/${r.id}`} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200">
+                        <span className="font-mono">{r.jobNumber ?? r.id.slice(-6).toUpperCase()}</span>
+                        <span className="font-semibold text-slate-500">· {r.category || "Uncategorised"}</span>
+                      </Link>
+                    ))}
+                  </p>
+                )}
               </div>
 
               <JobHeaderActions

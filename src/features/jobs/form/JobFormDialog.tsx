@@ -9,7 +9,7 @@ import { isVisibleIn } from "@/lib/forms/visibility";
 import type { VisibilityRule } from "@/lib/forms/types";
 import { withAvailability } from "@/lib/jobs/availability";
 import { JobFormProvider, type JobFormContextValue } from "./JobFormContext";
-import JobFormExtras from "./JobFormExtras";
+import { jobDetailsSection } from "@/lib/jobs/multiJob";
 import JobFormSection from "./JobFormSection";
 import { useJobFormState } from "./useJobFormState";
 import { useJobFormSubmit } from "./useJobFormSubmit";
@@ -40,9 +40,10 @@ function JobFormDialogInner() {
 
   const ctx: JobFormContextValue = { ...state, isVisible, usersWithAvailability, deleteConfirm, setDeleteConfirm };
 
-  // Non-layout inputs (JobFormExtras) go right after the client section.
   const sections = layoutSchema?.sections;
-  const clientSectionIdx = sections ? Math.max(0, sections.findIndex((s) => s.fields?.some((f) => f.id === "fld_b_client"))) : -1;
+  // Each Job Details entry becomes its own job when creating.
+  const jdSection = jobDetailsSection(layoutSchema);
+  const jobCount = !job && jdSection ? Math.max(1, (state.repeatableData[`rep_${jdSection.id}`] ?? []).length) : 1;
 
   return (
     <Dialog open={isJobFormOpen} onOpenChange={(open) => {
@@ -79,7 +80,6 @@ function JobFormDialogInner() {
                 {sections.map((section, idx) => (
                   <React.Fragment key={section.id}>
                     <JobFormSection section={section} index={idx} />
-                    {idx === clientSectionIdx && <JobFormExtras />}
                   </React.Fragment>
                 ))}
               </JobFormProvider>
@@ -94,7 +94,7 @@ function JobFormDialogInner() {
               <i className="ph-bold ph-x text-[1rem]"></i> Cancel
             </button>
             <button type="button" className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-[12px] font-bold text-[0.9rem] bg-blue-600 text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-[1px] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50" disabled={isSubmitting || isSubmittingLocal} onClick={handleSubmit(onSubmit, onError)}>
-              <i className="ph-bold ph-check-circle text-[1rem]"></i> {(isSubmitting || isSubmittingLocal) ? "Saving..." : job ? "Save Changes" : "Create Job"}
+              <i className="ph-bold ph-check-circle text-[1rem]"></i> {(isSubmitting || isSubmittingLocal) ? "Saving..." : job ? "Save Changes" : jobCount > 1 ? `Create ${jobCount} Jobs` : "Create Job"}
             </button>
           </div>
         </motion.div>
