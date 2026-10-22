@@ -118,11 +118,10 @@ export function transactionData(item: TransactionItem) {
   };
 }
 
-/** Owners may change their own entries; anyone else needs manage_transactions. */
-export async function assertCanModifyTransaction(user: SessionUser, row: { userId: string | null }) {
-  if (row.userId && row.userId === user.id) return;
-  if (await userCan(user, "manage_transactions")) return;
-  throw forbidden("You can only change transactions you recorded");
+/** Editing needs edit_transactions and deleting delete_transactions, whoever recorded the entry. */
+export async function assertCanModifyTransaction(user: SessionUser, _row: { userId: string | null }, action: "edit_transactions" | "delete_transactions" = "edit_transactions") {
+  if (await userCan(user, action)) return;
+  throw forbidden(action === "delete_transactions" ? "You do not have permission to delete transactions" : "You do not have permission to change transactions");
 }
 
 /** Partial update shared by PUT /api/transactions and PUT /api/transactions/[id]. */
@@ -242,11 +241,11 @@ export async function restoreTransactionTx(tx: TxClient, row: Transaction, actor
   return true;
 }
 
-/** Load a transaction for a write, enforcing existence and the ownership rule. */
-export async function loadTransactionForWrite(id: string, user: SessionUser) {
+/** Load a transaction for a write, enforcing existence and the edit or delete permission. */
+export async function loadTransactionForWrite(id: string, user: SessionUser, action: "edit_transactions" | "delete_transactions" = "edit_transactions") {
   const row = await prisma.transaction.findUnique({ where: { id } });
   if (!row) throw notFound("Transaction not found");
-  await assertCanModifyTransaction(user, row);
+  await assertCanModifyTransaction(user, row, action);
   return row;
 }
 

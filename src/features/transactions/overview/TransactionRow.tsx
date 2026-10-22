@@ -14,6 +14,8 @@ interface TransactionRowProps {
   onOpen: () => void;
   onEdit: () => void;
   onAskDelete: () => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onCancelDelete: () => void;
   onDismissError: () => void;
   onConfirmDelete: (e: React.MouseEvent) => void;
@@ -22,7 +24,7 @@ interface TransactionRowProps {
 /** One row of the overview's "Today's Transactions" ledger (a single line or a collapsed group). */
 export function TransactionRow({
   txn, idx, isConfirming, isDeleting, errorMessage,
-  onOpen, onEdit, onAskDelete, onCancelDelete, onDismissError, onConfirmDelete,
+  onOpen, onEdit, onAskDelete, onCancelDelete, onDismissError, onConfirmDelete, canEdit = true, canDelete = true,
 }: TransactionRowProps) {
   return (
     <div
@@ -113,6 +115,7 @@ export function TransactionRow({
           ) : (
             <>
               <div className={`flex items-center gap-1 w-[64px] justify-end ${txn.productOrderId || txn.jobId ? 'invisible' : 'visible'}`}>
+                {canEdit && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -123,6 +126,8 @@ export function TransactionRow({
                 >
                   <i className="ph ph-pencil-simple text-lg" />
                 </button>
+                )}
+                {canDelete && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onAskDelete(); }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
@@ -130,6 +135,7 @@ export function TransactionRow({
                 >
                   <i className="ph ph-trash text-lg" />
                 </button>
+                )}
               </div>
             </>
           )}

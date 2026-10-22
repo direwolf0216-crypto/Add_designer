@@ -122,7 +122,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
               ))}
             </PopoverContent>
           </Popover>
-          {checkPermission("manage_jobs") && (
+          {checkPermission("create_jobs") && (
             <button
               type="button"
               onClick={() => openJobForm()}

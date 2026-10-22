@@ -17,10 +17,12 @@ interface TodayLedgerProps {
   onEdit: (id: string) => void;
   /** Deletes a transaction or `grp_…` group; rejects with an Error whose message is shown inline. */
   onDelete: (id: string) => Promise<void>;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 /** Dark "Today's Transactions" card: income / expense / net strip and the grouped ledger with inline delete. */
-export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayTransactions, onOpen, onEdit, onDelete }: TodayLedgerProps) {
+export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayTransactions, onOpen, onEdit, onDelete, canEdit = true, canDelete = true }: TodayLedgerProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: string, message: string } | null>(null);
@@ -124,6 +126,8 @@ export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayT
                 onCancelDelete={() => { setConfirmDeleteId(null); setDeleteError(null); }}
                 onDismissError={() => setDeleteError(null)}
                 onConfirmDelete={(e) => handleDeleteConfirm(e, txn.id)}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             ))}
           </div>

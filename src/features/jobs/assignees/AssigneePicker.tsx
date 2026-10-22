@@ -74,12 +74,12 @@ export function AssigneeList({ users, selected, onToggle }: { users: AssignableU
 }
 
 /**
- * Avatar stack that opens a searchable assign popover for users with manage_jobs. Saves through
+ * Avatar stack that opens a searchable assign popover for users with edit_jobs. Saves through
  * PUT /api/jobs/[id]/assignees and calls `onSaved` with the new assignments.
  */
 export default function AssigneePicker({ jobId, assignees, onSaved }: { jobId: string; assignees: JobAssignee[]; onSaved?: (assignees: JobAssignee[]) => void }) {
   const { checkPermission } = usePermissions();
-  const canAssign = checkPermission("manage_jobs");
+  const canAssign = checkPermission("edit_jobs");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);

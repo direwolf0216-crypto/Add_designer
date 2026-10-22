@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { conflict, notFound, parseJson, route } from "@/lib/api/http";
-import { requireAdmin, requirePermission, requireUser } from "@/lib/auth/session";
+import { requireAdmin, requireAnyPermission, requireUser } from "@/lib/auth/session";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -27,7 +27,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
 });
 
 export const PUT = route<{ id: string }>(async (req, { params }) => {
-  await requirePermission("manage_jobs");
+  await requireAnyPermission("create_jobs", "edit_jobs");
   const { id } = await params;
   const data = await parseJson(req, updateSchema);
 

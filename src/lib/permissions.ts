@@ -16,52 +16,62 @@ export const EDITABLE_SYSTEM_ROLES = ["MANAGER", "STAFF"] as const;
 export type EditableSystemRole = (typeof EDITABLE_SYSTEM_ROLES)[number];
 
 export const PERMISSIONS = [
-  "manage_jobs",
+  "view_jobs",
+  "create_jobs",
+  "edit_jobs",
+  "delete_jobs",
   "view_all_jobs",
   "view_amounts",
   "view_transactions",
-  "manage_transactions",
+  "create_transactions",
+  "edit_transactions",
+  "delete_transactions",
   "view_analytics",
   "view_export_analytics",
-  "view_designs",
-  "manage_designs",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 export const PERMISSION_INFO: Record<Permission, { label: string; description: string; icon: string }> = {
-  manage_jobs: { label: "Create & edit jobs", description: "Add new jobs, edit details, move stages and assign people", icon: "ph-briefcase" },
+  view_jobs: { label: "View jobs", description: "Open the Jobs board, list, schedule and queue", icon: "ph-eye" },
+  create_jobs: { label: "Create jobs", description: "Add new jobs and clients", icon: "ph-plus-circle" },
+  edit_jobs: { label: "Edit jobs", description: "Edit details, move stages, set priority and assign people", icon: "ph-briefcase" },
+  delete_jobs: { label: "Delete jobs", description: "Delete jobs and restore them from the recycle bin", icon: "ph-trash" },
   view_all_jobs: { label: "See every job", description: "Without this, people only see jobs assigned to them", icon: "ph-eye" },
   view_amounts: { label: "See amounts", description: "Job prices, payments and balances. Off hides every rupee figure on jobs", icon: "ph-currency-inr" },
   view_transactions: { label: "View ledger", description: "Open the daily ledger and payment history", icon: "ph-receipt" },
-  manage_transactions: { label: "Manage ledger", description: "Add, edit and delete income and expenses", icon: "ph-pencil-simple-line" },
+  create_transactions: { label: "Create entries", description: "Record income and expenses, and generate invoices", icon: "ph-plus-circle" },
+  edit_transactions: { label: "Edit entries", description: "Change any income or expense entry", icon: "ph-pencil-simple-line" },
+  delete_transactions: { label: "Delete entries", description: "Delete entries and restore them from the recycle bin", icon: "ph-trash" },
   view_analytics: { label: "View dashboard", description: "Business overview, charts and reports", icon: "ph-chart-line-up" },
   view_export_analytics: { label: "Export reports", description: "Download dashboard and ledger reports", icon: "ph-download-simple" },
-  view_designs: { label: "View designs", description: "See proofs and artwork", icon: "ph-image" },
-  manage_designs: { label: "Manage designs", description: "Upload and update proofs and artwork", icon: "ph-paint-brush" },
 };
 
 export const PERMISSION_GROUPS: { title: string; permissions: Permission[] }[] = [
-  { title: "Jobs", permissions: ["manage_jobs", "view_all_jobs", "view_amounts"] },
-  { title: "Money", permissions: ["view_transactions", "manage_transactions"] },
+  { title: "Jobs", permissions: ["view_jobs", "create_jobs", "edit_jobs", "delete_jobs", "view_all_jobs", "view_amounts"] },
+  { title: "Money", permissions: ["view_transactions", "create_transactions", "edit_transactions", "delete_transactions"] },
   { title: "Insights", permissions: ["view_analytics", "view_export_analytics"] },
-  { title: "Designs", permissions: ["view_designs", "manage_designs"] },
 ];
 
 export const ROLE_LABEL: Record<SystemRole, string> = { ADMIN: "Admin", MANAGER: "Manager", STAFF: "Staff" };
 
 /** Staff defaults, used until an admin changes a Staff permission. */
 export const STAFF_DEFAULTS: Record<Permission, boolean> = {
-  manage_jobs: true,
+  view_jobs: true,
+  create_jobs: true,
+  edit_jobs: true,
+  // Off: deleting is for managers and admins unless granted.
+  delete_jobs: false,
   // Off: staff see the jobs assigned to them ("My jobs").
   view_all_jobs: false,
   // Off: staff work on jobs without seeing prices, payments or balances.
   view_amounts: false,
   view_transactions: true,
-  manage_transactions: false,
+  create_transactions: true,
+  edit_transactions: true,
+  // Off: deleting ledger entries is for managers and admins unless granted.
+  delete_transactions: false,
   view_analytics: true,
   view_export_analytics: false,
-  view_designs: true,
-  manage_designs: false,
 };
 
 /** Manager defaults: every job, ledger, report and design permission (team and settings stay with admins). */
@@ -89,9 +99,48 @@ export const hasFullAccess = (role: AppRole | string | null | undefined) => role
 
 type Override = { role: string; permission: string; enabled: boolean };
 
+/** Permissions that older data stored under one name; each expands to the new ones. */
+export const LEGACY_PERMISSIONS: Record<string, Permission[]> = {
+  manage_jobs: ["create_jobs", "edit_jobs", "delete_jobs"],
+  manage_transactions: ["create_transactions", "edit_transactions", "delete_transactions"],
+};
+
+/** The section a person lands on: the first they may view, else the no-access page. */
+export function homePathFor(role: string | null | undefined, permissions: readonly string[] | null | undefined): string {
+  if (hasFullAccess(role)) return "/dashboard/overview";
+  const has = (p: Permission) => permissions?.includes(p) ?? false;
+  if (has("view_analytics")) return "/dashboard/overview";
+  if (has("view_jobs")) return "/jobs";
+  if (has("view_transactions")) return "/transactions/overview";
+  return "/no-access";
+}
+
+/** Which permission a page needs ("admin" for settings), or null for pages everyone may open. */
+export function permissionForPath(pathname: string): Permission | "admin" | null {
+  if (pathname.startsWith("/dashboard")) return "view_analytics";
+  if (pathname.startsWith("/jobs")) return "view_jobs";
+  if (pathname.startsWith("/transactions")) return "view_transactions";
+  if (pathname.startsWith("/settings")) return "admin";
+  return null;
+}
+
+/** Current permission names from a stored list that may still hold legacy names. */
+export function expandLegacyPermissions(list: readonly string[] | null | undefined): Permission[] {
+  const out = new Set<Permission>();
+  for (const p of list ?? []) {
+    if (isPermission(p)) out.add(p);
+    else for (const q of LEGACY_PERMISSIONS[p] ?? []) out.add(q);
+  }
+  return PERMISSIONS.filter((p) => out.has(p));
+}
+
 /** A Manager's or Staff member's permissions from the stored overrides, falling back to the role's defaults. */
 export function systemRolePermissions(role: EditableSystemRole, overrides: Override[]): Permission[] {
-  return PERMISSIONS.filter((p) => overrides.find((o) => o.role === role && o.permission === p)?.enabled ?? SYSTEM_DEFAULTS[role][p]);
+  const find = (permission: string) => overrides.find((o) => o.role === role && o.permission === permission)?.enabled;
+  return PERMISSIONS.filter((p) => {
+    const legacy = Object.entries(LEGACY_PERMISSIONS).find(([, group]) => group.includes(p))?.[0];
+    return find(p) ?? (legacy ? find(legacy) : undefined) ?? SYSTEM_DEFAULTS[role][p];
+  });
 }
 
 /** Staff permissions from the stored overrides, falling back to the defaults. */
@@ -103,7 +152,7 @@ export function staffPermissions(overrides: Override[]): Permission[] {
 export function resolvePermissions(role: AppRole, customPermissions: readonly string[] | null | undefined, systemOverrides: Override[]): Permission[] {
   if (hasFullAccess(role)) return [...PERMISSIONS];
   if (isEditableSystemRole(role)) return systemRolePermissions(role, systemOverrides);
-  return (customPermissions ?? []).filter(isPermission);
+  return expandLegacyPermissions(customPermissions);
 }
 
 /** Role display name: the custom role's name, else the built-in label. */

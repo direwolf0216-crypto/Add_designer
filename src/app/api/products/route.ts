@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { intParam, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser } from "@/lib/auth/session";
+import { requireAnyPermission, requireUser } from "@/lib/auth/session";
 import { round2 } from "@/lib/money";
 
 const createSchema = z.object({
@@ -32,7 +32,7 @@ export const GET = route(async (req) => {
 });
 
 export const POST = route(async (req) => {
-  await requirePermission("manage_jobs");
+  await requireAnyPermission("create_jobs", "edit_jobs");
   const data = await parseJson(req, createSchema);
 
   const newProduct = await prisma.product.create({ data });

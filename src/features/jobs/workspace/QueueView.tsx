@@ -31,7 +31,7 @@ export default function QueueView({ data }: { data: WorkspaceData }) {
   const router = useRouter();
   const { hrefWith } = useWorkspaceUrl();
   const { checkPermission, isAdmin } = usePermissions();
-  const canEdit = checkPermission("manage_jobs");
+  const canEdit = checkPermission("edit_jobs");
   const canReorder = canEdit && !queue.narrowed;
   const [, startTransition] = useTransition();
 

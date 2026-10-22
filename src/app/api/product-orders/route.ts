@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { intParam, notFound, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser } from "@/lib/auth/session";
+import { requireAnyPermission, requireUser } from "@/lib/auth/session";
 import { newOrderNumber, withUniqueRetry } from "@/lib/ids";
 
 const createSchema = z.object({
@@ -28,7 +28,7 @@ export const GET = route(async (req) => {
 });
 
 export const POST = route(async (req) => {
-  const user = await requirePermission("manage_jobs");
+  const user = await requireAnyPermission("create_jobs", "edit_jobs");
   const data = await parseJson(req, createSchema);
 
   const product = await prisma.product.findUnique({ where: { id: data.productId }, select: { id: true } });

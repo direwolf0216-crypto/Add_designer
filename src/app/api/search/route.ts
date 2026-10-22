@@ -28,9 +28,9 @@ export const GET = route(async (request) => {
   }
 
   const contains = { contains: query, mode: "insensitive" as const };
-  const canSeeTransactions = await userCan(user, "view_transactions");
+  const [canSeeJobs, canSeeTransactions] = await Promise.all([userCan(user, "view_jobs"), userCan(user, "view_transactions")]);
 
-  const [jobs, transactions] = await Promise.all([
+  const [jobsFound, transactions] = await Promise.all([
     prisma.job.findMany({
       where: { ...scope,
         deletedAt: null,
@@ -59,6 +59,7 @@ export const GET = route(async (request) => {
         })
       : Promise.resolve([]),
   ]);
+  const jobs = canSeeJobs ? jobsFound : [];
 
   const results: SearchResult[] = [
     ...jobs.map((b) => ({

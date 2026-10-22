@@ -39,8 +39,9 @@ const DETAILS_TAB = { id: "details", label: "Details" };
 export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobDetailsViewProps) {
   const router = useRouter();
   const { checkPermission } = usePermissions();
-  const canManageTransactions = checkPermission("manage_transactions");
-  const canManageJobs = checkPermission("manage_jobs");
+  const canManageTransactions = checkPermission("create_transactions");
+  const canEditJobs = checkPermission("edit_jobs");
+  const canDeleteJobs = checkPermission("delete_jobs");
   // Without "See amounts" the API already strips money; hide the cards and rows that would show ₹0.
   const canSeeAmounts = checkPermission("view_amounts");
   const { openJobForm, isJobDetailsOpen, jobDetailsId: contextJobId, closeJobDetails } = useGlobalForm();
@@ -141,7 +142,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{job.client?.name || job.title || "Job Details"}</h1>
                   <span className="print:hidden">
-                    <JobPriority jobId={job.id} priority={job.priority} canEdit={canManageJobs} onChanged={refreshJob} />
+                    <JobPriority jobId={job.id} priority={job.priority} canEdit={canEditJobs} onChanged={refreshJob} />
                   </span>
                 </div>
                 <p className="text-sm text-slate-500 font-medium">
@@ -154,7 +155,8 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
 
               <JobHeaderActions
                 job={job}
-                canManageJobs={canManageJobs}
+                canEditJobs={canEditJobs}
+                canDeleteJobs={canDeleteJobs}
                 canManageTransactions={canManageTransactions && canSeeAmounts}
                 isExporting={isExporting}
                 isGeneratingInvoice={mutations.isGeneratingInvoice}

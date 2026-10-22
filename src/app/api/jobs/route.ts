@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { intParam, notFound, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser, userCan } from "@/lib/auth/session";
+import { requirePermission, userCan } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { parseAmount } from "@/lib/money";
 import { actorName, broadcastLater, jobLabel } from "@/lib/notifications";
@@ -73,7 +73,7 @@ const parseDateParam = (value: string | null) => {
 };
 
 export const GET = route(async (req) => {
-  const user = await requireUser();
+  const user = await requirePermission("view_jobs");
   const url = new URL(req.url);
   const { searchParams } = url;
   const limit = intParam(url, "limit", 100, 1, 500);
@@ -143,7 +143,7 @@ export const GET = route(async (req) => {
 });
 
 export const POST = route(async (req) => {
-  const user = await requirePermission("manage_jobs");
+  const user = await requirePermission("create_jobs");
   const body = await parseJson(req, createSchema);
 
   let client = body.client;

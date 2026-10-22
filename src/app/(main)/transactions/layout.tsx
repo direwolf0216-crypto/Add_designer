@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
+import { usePermissions } from "@/hooks/usePermissions";
 
 function TransactionsLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const router = useRouter();
   const { openTransactionForm } = useGlobalForm();
+  const { checkPermission } = usePermissions();
+  const canCreate = checkPermission("create_transactions");
 
   const isOverview = pathname === "/transactions/overview";
   const isAll = pathname === "/transactions/allTransactions";
@@ -40,6 +43,7 @@ function TransactionsLayoutContent({ children }: { children: React.ReactNode }) 
           </Link>
         </div>
 
+        {canCreate && (
         <div className="sm:ml-auto w-full sm:w-auto">
           <button
             onClick={() => openTransactionForm()}
@@ -49,6 +53,7 @@ function TransactionsLayoutContent({ children }: { children: React.ReactNode }) 
             Add Transaction
           </button>
         </div>
+        )}
       </div>
 
       <div>{children}</div>

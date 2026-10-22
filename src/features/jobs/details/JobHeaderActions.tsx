@@ -7,7 +7,8 @@ import type { DetailsJob } from "@/lib/jobs/resolveJobFields";
 /** Status badge and the edit / delete / PDF export / invoice icon actions. */
 export default function JobHeaderActions({
   job,
-  canManageJobs,
+  canEditJobs,
+  canDeleteJobs,
   canManageTransactions,
   isExporting,
   isGeneratingInvoice,
@@ -18,7 +19,8 @@ export default function JobHeaderActions({
   assigneesSlot,
 }: {
   job: DetailsJob;
-  canManageJobs: boolean;
+  canEditJobs: boolean;
+  canDeleteJobs: boolean;
   canManageTransactions: boolean;
   isExporting: boolean;
   isGeneratingInvoice: boolean;
@@ -40,12 +42,12 @@ export default function JobHeaderActions({
 
       {/* Edit, delete, export, invoice: icons only, with a tooltip each */}
       <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-        {canManageJobs && (
+        {canEditJobs && (
           <button onClick={onEdit} className="p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md transition-colors" title="Edit job" aria-label="Edit job">
             <Edit3 className="w-4 h-4" />
           </button>
         )}
-        {canManageJobs && (
+        {canDeleteJobs && (
           <button onClick={onDelete} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete job" aria-label="Delete job">
             <Trash2 className="w-4 h-4" />
           </button>

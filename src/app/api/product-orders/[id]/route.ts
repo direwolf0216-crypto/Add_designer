@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { notFound, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser } from "@/lib/auth/session";
+import { requireAnyPermission, requireUser } from "@/lib/auth/session";
 import { refreshOrderTotals } from "@/lib/services/jobs";
 
 const updateSchema = z.object({
@@ -23,7 +23,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
 });
 
 export const PUT = route<{ id: string }>(async (req, { params }) => {
-  await requirePermission("manage_jobs");
+  await requireAnyPermission("create_jobs", "edit_jobs");
   const { id } = await params;
   const data = await parseJson(req, updateSchema);
 
@@ -34,7 +34,7 @@ export const PUT = route<{ id: string }>(async (req, { params }) => {
 
 /** Moves the order to the recycle bin: snapshot it, hide its payments, then remove the row. */
 export const DELETE = route<{ id: string }>(async (_req, { params }) => {
-  const user = await requirePermission("manage_jobs");
+  const user = await requireAnyPermission("create_jobs", "edit_jobs");
   const { id } = await params;
 
   await prisma.$transaction(async (tx) => {

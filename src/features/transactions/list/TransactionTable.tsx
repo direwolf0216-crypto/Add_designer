@@ -17,10 +17,12 @@ interface TransactionTableProps {
   onEdit: (id: string) => void;
   /** Ask to delete a transaction or a group (by its group id). */
   onDelete: (id: string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 /** Loading skeleton, empty state, or the grouped transaction rows with expandable bulk groups. */
-export function TransactionTable({ transactions, isLoading, hasFilters, onClearFilters, onOpenDetails, onEdit, onDelete }: TransactionTableProps) {
+export function TransactionTable({ transactions, isLoading, hasFilters, onClearFilters, onOpenDetails, onEdit, onDelete, canEdit, canDelete }: TransactionTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const items = useMemo(() => groupTransactions(transactions), [transactions]);
 
@@ -63,6 +65,8 @@ export function TransactionTable({ transactions, isLoading, hasFilters, onClearF
             onOpenDetails={onOpenDetails}
             onEdit={onEdit}
             onDelete={onDelete}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         ) : (
           <TransactionRow
@@ -71,6 +75,8 @@ export function TransactionTable({ transactions, isLoading, hasFilters, onClearF
             onOpenDetails={() => onOpenDetails(tx.id)}
             onEdit={() => onEdit(tx.id)}
             onDelete={() => onDelete(tx.id)}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         ))
       )}

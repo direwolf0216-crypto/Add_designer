@@ -30,7 +30,7 @@ const INVOICE_SETTING_KEYS = [
 ];
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
-  const user = await requirePermission('manage_transactions');
+  const user = await requirePermission('create_transactions');
   const { id: invoiceId } = await params;
 
   const invoice = await prisma.invoice.findUnique({

@@ -21,7 +21,7 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
   const router = useRouter();
   const { hrefWith } = useWorkspaceUrl();
   const { checkPermission } = usePermissions();
-  const canMove = checkPermission("manage_jobs");
+  const canMove = checkPermission("edit_jobs");
   const [, startTransition] = useTransition();
 
   // Local copy for optimistic moves; re-synced whenever the server sends a new board.

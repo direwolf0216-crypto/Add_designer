@@ -20,6 +20,7 @@ import { IncomeFlowChart } from "@/features/transactions/overview/IncomeFlowChar
 import { NetTrendChart } from "@/features/transactions/overview/NetTrendChart";
 import { SmartInsightBanner } from "@/features/transactions/overview/SmartInsightBanner";
 import PageReveal from "@/components/motion/PageReveal";
+import { usePermissions } from "@/hooks/usePermissions";
 import { format, parseISO } from "date-fns";
 import type { WeekSummary } from "@/lib/transactions/weekly";
 
@@ -28,6 +29,10 @@ const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net
 function OverviewPageContent() {
   const { openTransactionForm, openTransactionDetails } = useGlobalForm();
   const { data, isLoading, layoutSchema, deleteTransaction } = useTransactionsOverview();
+  const { checkPermission } = usePermissions();
+  const canCreate = checkPermission("create_transactions");
+  const canEdit = checkPermission("edit_transactions");
+  const canDelete = checkPermission("delete_transactions");
 
   if (isLoading || !data) {
     return <div className="flex justify-center items-center h-64"><div className="animate-pulse w-8 h-8 rounded-full bg-orange-500"></div></div>;
@@ -81,7 +86,7 @@ function OverviewPageContent() {
       </div>
 
       {/* Quick Add Transaction */}
-      <QuickAddBar categories={allCategoriesList} onPick={(qa) => openTransactionForm(undefined, { category: qa.label, type: qa.type })} />
+      {canCreate && <QuickAddBar categories={allCategoriesList} onPick={(qa) => openTransactionForm(undefined, { category: qa.label, type: qa.type })} />}
 
       <TodayLedger
         today={today}
@@ -92,6 +97,8 @@ function OverviewPageContent() {
         onOpen={openTransactionDetails}
         onEdit={(id) => openTransactionForm(id)}
         onDelete={deleteTransaction}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
 
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mb-4">

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { intParam, parseJson, route } from "@/lib/api/http";
-import { requirePermission, requireUser } from "@/lib/auth/session";
+import { requireAnyPermission, requireUser } from "@/lib/auth/session";
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -46,7 +46,7 @@ export const GET = route(async (req) => {
 });
 
 export const POST = route(async (req) => {
-  await requirePermission("manage_jobs");
+  await requireAnyPermission("create_jobs", "edit_jobs");
   const data = await parseJson(req, createSchema);
 
   const newClient = await prisma.client.create({ data });

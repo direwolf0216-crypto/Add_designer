@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { route } from "@/lib/api/http";
-import { requireUser } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/session";
 import { businessTodayUtc } from "@/lib/dates";
 import { jobScope } from "@/lib/jobs/scope";
 
 /** Confirmed jobs whose (IST) job date has passed without being marked done. */
 export const GET = route(async () => {
-  const user = await requireUser();
+  const user = await requirePermission("view_jobs");
   const scope = await jobScope(user);
 
   const where = {

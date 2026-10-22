@@ -92,7 +92,7 @@ export const GET = route(async (request) => {
 });
 
 export const POST = route(async (request) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("create_transactions");
   const body = await parseJson(request, transactionCreateSchema);
   const data = transactionData(body);
 
@@ -153,7 +153,7 @@ export const POST = route(async (request) => {
 
 /** Legacy collection update (`{ id, ...fields }`); same rules as PUT /api/transactions/[id]. */
 export const PUT = route(async (request) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("edit_transactions");
   const body = await parseJson(request, z.looseObject({ id: z.string().min(1, "Transaction ID required") }));
   const updated = await updateTransaction(body.id, body, user);
   return NextResponse.json(updated, { headers: NO_STORE });

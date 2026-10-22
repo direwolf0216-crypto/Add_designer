@@ -21,7 +21,7 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard/overview", icon: "ph-house", permission: "view_analytics" },
-    { name: "Jobs", path: "/jobs", icon: "ph-briefcase", permission: null },
+    { name: "Jobs", path: "/jobs", icon: "ph-briefcase", permission: "view_jobs" },
     { name: "Daily Ledger", path: "/transactions/overview", icon: "ph-file-text", permission: "view_transactions" },
   ];
 

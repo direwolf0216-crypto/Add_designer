@@ -6,7 +6,7 @@ import AssigneePicker from "@/features/jobs/assignees/AssigneePicker";
 import type { JobAssignee } from "@/features/jobs/assignees/types";
 import type { TeamUser } from "./useJob";
 
-/** Assignee avatars in the job details header; opens the assign popover for users with manage_jobs. */
+/** Assignee avatars in the job details header; opens the assign popover for users with edit_jobs. */
 export default function JobAssignees({ job }: { job: DetailsJob; teamUsers: TeamUser[] }) {
   const assignees = ((job as { assignments?: JobAssignee[] }).assignments ?? []) as JobAssignee[];
   return (

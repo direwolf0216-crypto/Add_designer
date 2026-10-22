@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
+import { usePermissions } from "@/hooks/usePermissions";
 import BudgetOverview from "@/components/dashboard/BudgetOverview";
 import HighPriorityAlerts from "@/components/dashboard/HighPriorityAlerts";
 import {
@@ -24,6 +25,7 @@ import { TransactionFiltersDialog } from "./TransactionFiltersDialog";
 /** All Transactions: URL-driven filters, paged + grouped ledger, export and delete. Needs a Suspense boundary. */
 export function TransactionsList() {
   const { openTransactionDetails, openTransactionForm } = useGlobalForm();
+  const { checkPermission } = usePermissions();
   const { filters, filterKey, applyDraft, clearAll, setView, setDay, setWeekFromDate, setMonthFromDate } = useTransactionFilters();
   const { transactions, totalCount, totalPages, currentPage, isLoading, isLoadingMore, goToPage } = useTransactions(filters, filterKey);
 
@@ -93,6 +95,8 @@ export function TransactionsList() {
           onOpenDetails={openTransactionDetails}
           onEdit={(id) => openTransactionForm(id)}
           onDelete={setDeleteId}
+          canEdit={checkPermission("edit_transactions")}
+          canDelete={checkPermission("delete_transactions")}
         />
 
         {/* F5/P2: Pagination Controls */}

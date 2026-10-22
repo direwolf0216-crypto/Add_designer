@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { badRequest, notFound, parseJson, route } from "@/lib/api/http";
-import { requireAdmin, requirePermission, requireUser, userCan } from "@/lib/auth/session";
+import { requireAdmin, requirePermission, userCan } from "@/lib/auth/session";
 import { calendarDateToUtc } from "@/lib/dates";
 import { actorName, broadcastLater, jobLabel } from "@/lib/notifications";
 import { hardDeleteJob, isProductionDone, softDeleteJob, updateJob } from "@/lib/services/jobs";
@@ -50,7 +50,7 @@ function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown>
 }
 
 export const GET = route<{ id: string }>(async (_req, { params }) => {
-  const user = await requireUser();
+  const user = await requirePermission("view_jobs");
   const { id } = await params;
   const [canSeeLedger, canSeeAmounts] = await Promise.all([userCan(user, "view_transactions"), userCan(user, "view_amounts")]);
   const canSeePayments = canSeeLedger && canSeeAmounts;
@@ -78,7 +78,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
 });
 
 export const PUT = route<{ id: string }>(async (req, { params }) => {
-  const user = await requirePermission("manage_jobs");
+  const user = await requirePermission("edit_jobs");
   const { id } = await params;
   const body = await parseJson(req, updateSchema);
 
@@ -159,7 +159,7 @@ export const DELETE = route<{ id: string }>(async (req, { params }) => {
       { timeout: 20000 }
     );
   } else {
-    const user = await requirePermission("manage_jobs");
+    const user = await requirePermission("delete_jobs");
     await assertJobVisible(id, user);
     const deleted = await softDeleteJob(id, user.id);
     if (!deleted) throw notFound("Job not found");

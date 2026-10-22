@@ -165,7 +165,7 @@ export const GET = route<{ id: string }>(async (_request, { params }) => {
 });
 
 export const PUT = route<{ id: string }>(async (request, { params }) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("edit_transactions");
   const { id } = await params;
   const body = await parseJson(request, z.record(z.string(), z.unknown()));
   const updated = await updateTransaction(id, body, user);
@@ -176,7 +176,7 @@ const patchSchema = z.object({ deletedAt: z.union([z.string(), z.null()]) });
 
 /** `{ deletedAt: <date> }` trashes and `{ deletedAt: null }` restores, via the same paths as DELETE / recycle bin. */
 export const PATCH = route<{ id: string }>(async (request, { params }) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("edit_transactions");
   const { id } = await params;
   const { deletedAt } = await parseJson(request, patchSchema);
   const row = await loadTransactionForWrite(id, user);
@@ -190,9 +190,9 @@ export const PATCH = route<{ id: string }>(async (request, { params }) => {
 });
 
 export const DELETE = route<{ id: string }>(async (_request, { params }) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("delete_transactions");
   const { id } = await params;
-  const row = await loadTransactionForWrite(id, user);
+  const row = await loadTransactionForWrite(id, user, "delete_transactions");
   if (row.deletedAt) throw notFound("Transaction not found");
 
   await prisma.$transaction((tx) => softDeleteTransactionTx(tx, row, user.id));

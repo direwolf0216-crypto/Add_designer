@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { intParam, notFound, parseJson, route } from "@/lib/api/http";
-import { requirePermission } from "@/lib/auth/session";
+import { requirePermission , requireAnyPermission } from "@/lib/auth/session";
 import { jobScope } from "@/lib/jobs/scope";
 import { parseAmount, round2 } from "@/lib/money";
 import { refreshOrderTotals } from "@/lib/services/jobs";
@@ -33,7 +33,7 @@ export const GET = route(async (req) => {
 });
 
 export const POST = route(async (req) => {
-  await requirePermission("manage_jobs");
+  await requireAnyPermission("create_jobs", "edit_jobs");
   await requirePermission("view_amounts");
   const body = await parseJson(req, createSchema);
 

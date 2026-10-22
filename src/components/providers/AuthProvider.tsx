@@ -3,6 +3,7 @@
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { homePathFor, permissionForPath } from "@/lib/permissions";
 
 // Refresh the session cookie a little more often than the server's 60s role/permission recheck, so page
 // and API requests reuse a fresh token instead of re-reading the user on every request.
@@ -20,13 +21,14 @@ function RevokedSessionGuard() {
   const router = useRouter();
   const revoked = status === "authenticated" && !data?.user;
   // Permission a page needs; when a refreshed session no longer has it, move to the jobs board.
-  const needs = pathname.startsWith("/dashboard") ? "view_analytics" : pathname.startsWith("/transactions") ? "view_transactions" : pathname.startsWith("/settings") ? "admin" : null;
+  const needs = permissionForPath(pathname);
   const role = data?.user?.role;
   const perms = data?.user?.permissions;
   const forbidden = status === "authenticated" && !!data?.user && role !== "ADMIN" && !!needs && (needs === "admin" || !perms?.includes(needs));
+  const home = homePathFor(role, perms);
   useEffect(() => {
-    if (forbidden) router.replace("/jobs");
-  }, [forbidden, router]);
+    if (forbidden && !pathname.startsWith(home)) router.replace(home);
+  }, [forbidden, home, pathname, router]);
   // One re-read of role and permissions per full page load, so a refresh shows permission changes at once.
   const refreshed = useRef(false);
   useEffect(() => {

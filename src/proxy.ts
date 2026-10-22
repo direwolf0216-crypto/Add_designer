@@ -1,5 +1,6 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
+import { homePathFor, permissionForPath } from "@/lib/permissions";
 
 /**
  * Content Security Policy for pages. A fresh nonce per request lets Next.js mark its own inline
@@ -79,9 +80,10 @@ export async function proxy(req: NextRequest) {
   // refreshed on every page load, so this follows role changes closely).
   const perms = (token.permissions as string[] | undefined) ?? [];
   const admin = token.role === "ADMIN";
-  const needs = pathname.startsWith("/dashboard") ? "view_analytics" : pathname.startsWith("/transactions") ? "view_transactions" : null;
-  if (!admin && ((needs && !perms.includes(needs)) || pathname.startsWith("/settings"))) {
-    return withCsp(req, NextResponse.redirect(new URL("/jobs", req.url)));
+  const needs = permissionForPath(pathname);
+  if (!admin && needs && (needs === "admin" || !perms.includes(needs))) {
+    const home = homePathFor(token.role as string, perms);
+    if (!pathname.startsWith(home)) return withCsp(req, NextResponse.redirect(new URL(home, req.url)));
   }
 
   return withCsp(req, NextResponse.next());

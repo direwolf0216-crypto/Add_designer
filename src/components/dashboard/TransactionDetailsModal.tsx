@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type CustomField = {
   id: string;
@@ -103,6 +104,9 @@ const fieldIcon = (type: string, label: string) => {
 export default function TransactionDetailsModal({ id, standalone = false }: { id?: string; standalone?: boolean } = {}) {
   const router = useRouter();
   const { isTransactionDetailsOpen: isGlobalOpen, transactionDetailsId: globalId, closeTransactionDetails, openTransactionForm, openJobDetails } = useGlobalForm();
+  const { checkPermission } = usePermissions();
+  const canEdit = checkPermission("edit_transactions");
+  const canDelete = checkPermission("delete_transactions");
   const isTransactionDetailsOpen = standalone || isGlobalOpen;
   const transactionDetailsId = standalone ? id : globalId;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -390,6 +394,7 @@ export default function TransactionDetailsModal({ id, standalone = false }: { id
 
           {!isLoading && transaction && (
             <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white p-3 sm:flex sm:items-center sm:justify-between sm:px-6 sm:py-4">
+              {canDelete ? (
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
@@ -398,7 +403,9 @@ export default function TransactionDetailsModal({ id, standalone = false }: { id
                 <i className="ph-bold ph-trash mr-2" />
                 Delete
               </button>
+              ) : <span className="hidden sm:block" />}
               <div className="order-1 col-span-2 grid grid-cols-2 gap-2 sm:order-2 sm:col-span-1 sm:flex">
+                {canEdit && (
                 <button
                   type="button"
                   onClick={() => {
@@ -410,6 +417,7 @@ export default function TransactionDetailsModal({ id, standalone = false }: { id
                   <i className="ph-bold ph-pencil-simple mr-2" />
                   Edit
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={close}

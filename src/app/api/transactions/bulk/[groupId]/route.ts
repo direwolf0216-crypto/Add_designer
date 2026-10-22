@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { Transaction } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { route, parseJson, badRequest, forbidden, notFound } from "@/lib/api/http";
-import { requirePermission, type SessionUser, userCan } from "@/lib/auth/session";
+import { route, parseJson, badRequest, notFound } from "@/lib/api/http";
+import { requirePermission, type SessionUser } from "@/lib/auth/session";
 import { newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { sumAmounts } from "@/lib/money";
 import { refreshOrderTotals } from "@/lib/services/jobs";
@@ -13,10 +13,9 @@ import {
   transactionData,
 } from "@/lib/services/transactions";
 
-async function assertCanModifyGroup(user: SessionUser, rows: Transaction[]) {
-  if (rows.every((row) => row.userId === user.id)) return;
-  if (await userCan(user, "manage_transactions")) return;
-  throw forbidden("You can only change transactions you recorded");
+/** The route's requirePermission already checked edit/delete; nothing further is owner-specific now. */
+async function assertCanModifyGroup(_user: SessionUser, _rows: Transaction[]) {
+  return;
 }
 
 export const GET = route<{ groupId: string }>(async (_request, { params }) => {
@@ -41,7 +40,7 @@ export const GET = route<{ groupId: string }>(async (_request, { params }) => {
 });
 
 export const PUT = route<{ groupId: string }>(async (request, { params }) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("edit_transactions");
   const { groupId } = await params;
   const items = await parseJson(request, bulkTransactionSchema);
   assertSingleType(items);
@@ -87,7 +86,7 @@ export const PUT = route<{ groupId: string }>(async (request, { params }) => {
 });
 
 export const DELETE = route<{ groupId: string }>(async (_request, { params }) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("delete_transactions");
   const { groupId } = await params;
 
   const existing = await prisma.transaction.findMany({ where: { groupId, deletedAt: null } });

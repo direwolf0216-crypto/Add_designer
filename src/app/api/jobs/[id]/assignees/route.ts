@@ -12,7 +12,7 @@ const bodySchema = z.object({
 
 /** Replace the job's assignees (quick assign from details / job-status). */
 export const PUT = route<{ id: string }>(async (req, { params }) => {
-  const user = await requirePermission("manage_jobs");
+  const user = await requirePermission("edit_jobs");
   const { id } = await params;
   const { userIds } = await parseJson(req, bodySchema);
 

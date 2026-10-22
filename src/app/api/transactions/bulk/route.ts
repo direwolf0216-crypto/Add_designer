@@ -6,7 +6,7 @@ import { newGroupId, newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { assertSingleType, bulkTransactionSchema, transactionData } from "@/lib/services/transactions";
 
 export const POST = route(async (request) => {
-  const user = await requirePermission("view_transactions");
+  const user = await requirePermission("create_transactions");
   const items = await parseJson(request, bulkTransactionSchema);
   assertSingleType(items);
 

@@ -36,7 +36,7 @@ function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown>
 }
 
 export const PATCH = route<{ id: string }>(async (req, { params }) => {
-  const user = await requirePermission("manage_jobs");
+  const user = await requirePermission("edit_jobs");
   const { id } = await params;
   const { status, finishingStatus, customData: patch } = await parseJson(req, statusSchema);
 

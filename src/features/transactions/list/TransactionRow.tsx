@@ -16,10 +16,12 @@ interface TransactionRowProps {
   onDelete: () => void;
   /** Rendered after the row inside its wrapper (a group's expanded children). */
   children?: ReactNode;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 /** One ledger line in the All Transactions list: a single transaction, a group header, or a group child. */
-export function TransactionRow({ tx, isChild = false, isExpanded = false, onToggle, onOpenDetails, onEdit, onDelete, children }: TransactionRowProps) {
+export function TransactionRow({ tx, isChild = false, isExpanded = false, onToggle, onOpenDetails, onEdit, onDelete, children, canEdit = true, canDelete = true }: TransactionRowProps) {
   const category = tx.isGroup ? tx.categoryNames[0] : tx.category;
   const colorClass = getConsistentColorClasses(category);
   const iconClass = getRelatableIcon(category);
@@ -70,6 +72,7 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
 
           {!tx.isGroup && (
             <div className="hidden sm:flex items-center gap-1 w-[64px] justify-end">
+              {canDelete && (
               <button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -80,6 +83,8 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
               >
                 <i className="ph-bold ph-trash"></i>
               </button>
+              )}
+              {canEdit && (
               <button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -90,10 +95,12 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
               >
                 <i className="ph-bold ph-pencil-simple"></i>
               </button>
+              )}
             </div>
           )}
           {tx.isGroup && (
             <div className="hidden sm:flex items-center gap-1 w-[64px] justify-end">
+              {canDelete && (
               <button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -104,6 +111,8 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
               >
                 <i className="ph-bold ph-trash"></i>
               </button>
+              )}
+              {canEdit && (
               <button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -114,6 +123,7 @@ export function TransactionRow({ tx, isChild = false, isExpanded = false, onTogg
               >
                 <i className="ph-bold ph-pencil-simple"></i>
               </button>
+              )}
             </div>
           )}
 

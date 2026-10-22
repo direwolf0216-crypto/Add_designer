@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { notFound, parseJson, route } from "@/lib/api/http";
-import { requireAdmin, requirePermission } from "@/lib/auth/session";
+import { requireAdmin, requirePermission , requireAnyPermission } from "@/lib/auth/session";
 import { jobScope } from "@/lib/jobs/scope";
 import { parseAmount, round2 } from "@/lib/money";
 import { refreshOrderTotals } from "@/lib/services/jobs";
@@ -29,7 +29,7 @@ export const GET = route<{ id: string }>(async (_req, { params }) => {
 });
 
 export const PUT = route<{ id: string }>(async (req, { params }) => {
-  await requirePermission("manage_jobs");
+  await requireAnyPermission("create_jobs", "edit_jobs");
   await requirePermission("view_amounts");
   const { id } = await params;
   const body = await parseJson(req, updateSchema);

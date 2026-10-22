@@ -29,11 +29,22 @@ describe("permissions", () => {
     ]);
     expect(staff).toContain("view_all_jobs");
     expect(staff).not.toContain("view_amounts");
-    expect(staff).toContain("manage_jobs");
+    expect(staff).toContain("create_jobs");
+    expect(staff).toContain("edit_jobs");
+    expect(staff).not.toContain("delete_jobs");
+  });
+
+  it("expands legacy manage_* names into view/create/edit/delete", () => {
+    expect(resolvePermissions("CUSTOM", ["manage_jobs", "manage_transactions"], [])).toEqual([
+      "create_jobs", "edit_jobs", "delete_jobs", "create_transactions", "edit_transactions", "delete_transactions",
+    ]);
+    const staff = resolvePermissions("STAFF", null, [{ role: "STAFF", permission: "manage_transactions", enabled: false }]);
+    expect(staff).not.toContain("create_transactions");
+    expect(staff).not.toContain("edit_transactions");
   });
 
   it("takes custom roles' permissions from the role, ignoring unknown ones", () => {
-    expect(resolvePermissions("CUSTOM", ["view_designs", "manage_users", "nope"], [])).toEqual(["view_designs"]);
+    expect(resolvePermissions("CUSTOM", ["view_amounts", "manage_users", "nope"], [])).toEqual(["view_amounts"]);
     expect(resolvePermissions("CUSTOM", null, [])).toEqual([]);
   });
 

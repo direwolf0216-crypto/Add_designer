@@ -23,14 +23,14 @@ export const POST = route(async (req) => {
   if (!metaRes.ok) throw new HttpError(404, "File not found in your Google Drive");
   const meta = (await metaRes.json()) as { parents?: string[] };
 
-  // Files inside this user's app folders were uploaded through the app; anything else needs manage_jobs.
+  // Files inside this user's app folders were uploaded through the app; anything else needs a job permission.
   const appFolders = await prisma.systemSetting.findMany({
     where: { key: { startsWith: folderCachePrefix(user.id) } },
     select: { value: true },
   });
   const appFolderIds = new Set(appFolders.map((f) => f.value).filter((v): v is string => typeof v === "string"));
   const inAppFolder = (meta.parents ?? []).some((p) => appFolderIds.has(p));
-  if (!inAppFolder && !(await userCan(user, "manage_jobs"))) {
+  if (!inAppFolder && !(await userCan(user, "create_jobs")) && !(await userCan(user, "edit_jobs"))) {
     throw forbidden("You do not have permission to share this file");
   }
 

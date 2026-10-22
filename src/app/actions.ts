@@ -22,13 +22,13 @@ import { MAX_QUEUE, reorderQueue, setJobPriority } from "@/lib/services/queue";
 type ActionError = { success: false; error: string };
 
 /** Server actions are public endpoints: every one must authenticate and authorise itself. */
-async function authorize(permission: Permission): Promise<SessionUser | ActionError> {
+/** The signed-in user when they hold `permission` (or any of a list), else an action error. */
+async function authorize(permission: Permission | Permission[]): Promise<SessionUser | ActionError> {
   const user = await getSessionUser();
   if (!user) return { success: false, error: "Unauthorized" };
-  if (!(await userCan(user, permission))) {
-    return { success: false, error: "You do not have permission to perform this action" };
-  }
-  return user;
+  const wanted = Array.isArray(permission) ? permission : [permission];
+  for (const p of wanted) if (await userCan(user, p)) return user;
+  return { success: false, error: "You do not have permission to perform this action" };
 }
 
 const isError = (v: SessionUser | ActionError): v is ActionError => "success" in v;
@@ -59,12 +59,16 @@ const MAX_CUSTOM_FIELDS = 200;
 const MAX_CUSTOM_VALUE_LENGTH = 20000;
 
 export async function saveJobAction(formData: FormData) {
-  const user = await authorize("manage_jobs");
+  const user = await authorize(["create_jobs", "edit_jobs"]);
   if (isError(user)) return { success: false as const, errors: { _form: [user.error] } };
 
   try {
     const rawData = Object.fromEntries(formData.entries());
     const validated = jobSchema.parse(rawData);
+    // Creating needs create_jobs, saving an existing job needs edit_jobs.
+    if (!(await userCan(user, validated.id ? "edit_jobs" : "create_jobs"))) {
+      return { success: false as const, errors: { _form: ["You do not have permission to perform this action"] } };
+    }
 
     const customData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(rawData)) {
@@ -156,7 +160,7 @@ export async function saveJobAction(formData: FormData) {
 }
 
 export async function deleteJobAction(id: string) {
-  const user = await authorize("manage_jobs");
+  const user = await authorize("delete_jobs");
   if (isError(user)) return user;
 
   try {
@@ -184,7 +188,7 @@ function readCustomData(value: Prisma.JsonValue | null): Record<string, unknown>
 }
 
 export async function updateJobStatusAction(jobId: string, newStatus: string) {
-  const user = await authorize("manage_jobs");
+  const user = await authorize("edit_jobs");
   if (isError(user)) return user;
   if (typeof newStatus !== "string" || !newStatus.trim() || newStatus.length > 100) {
     return { success: false, error: "Invalid status" };
@@ -235,7 +239,7 @@ const trackingSchema = z.object({
 });
 
 export async function updateJobTrackingAction(jobId: string, updates: { status?: string; customData?: Record<string, unknown> }) {
-  const user = await authorize("manage_jobs");
+  const user = await authorize("edit_jobs");
   if (isError(user)) return user;
 
   const parsed = trackingSchema.safeParse(updates);
@@ -277,7 +281,7 @@ export async function updateJobTrackingAction(jobId: string, updates: { status?:
 const prioritySchema = z.enum(PRIORITIES);
 
 export async function setJobPriorityAction(jobId: string, priority: string) {
-  const user = await authorize("manage_jobs");
+  const user = await authorize("edit_jobs");
   if (isError(user)) return user;
   const parsed = prioritySchema.safeParse(priority);
   if (!parsed.success) return { success: false, error: "Invalid priority" };
@@ -298,7 +302,7 @@ const queueSchema = z.object({
 
 /** Save a team queue's order (and any priority changes from dragging between groups). */
 export async function reorderQueueAction(teamId: string, items: { id: string; priority: string }[]) {
-  const user = await authorize("manage_jobs");
+  const user = await authorize("edit_jobs");
   if (isError(user)) return user;
   const parsed = queueSchema.safeParse({ teamId, items });
   if (!parsed.success) return { success: false, error: "Invalid queue order" };
@@ -313,7 +317,7 @@ export async function reorderQueueAction(teamId: string, items: { id: string; pr
 }
 
 export async function generateInvoiceAction(jobId: string) {
-  const user = await authorize("manage_transactions");
+  const user = await authorize("create_transactions");
   if (isError(user)) return user;
 
   try {

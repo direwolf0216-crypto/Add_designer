@@ -87,9 +87,8 @@ function driveFileIds(customData: unknown): string[] {
   return ids;
 }
 
-async function canActOnTransactions(user: SessionUser, txs: TxSnapshot[]) {
-  if (await userCan(user, "manage_transactions")) return true;
-  return txs.length > 0 && txs.every((t) => t.userId === user.id);
+async function canActOnTransactions(user: SessionUser, _txs: TxSnapshot[]) {
+  return userCan(user, "delete_transactions");
 }
 
 async function refreshJobs(tx: TxClient, jobIds: Iterable<string | null>) {
@@ -156,7 +155,7 @@ export async function restoreItem(entry: RecycleBin, user: SessionUser) {
   if (!type) throw badRequest("This item type cannot be restored");
 
   if (type === "job" || type === "product-order") {
-    if (!(await userCan(user, "manage_jobs"))) throw forbidden();
+    if (!(await userCan(user, "delete_jobs"))) throw forbidden();
   } else if (!(await canActOnTransactions(user, snapshotTransactions(type, entry)))) {
     throw forbidden();
   }

@@ -7,8 +7,8 @@ export default function QuickActions() {
   const { openJobForm, openTransactionForm } = useGlobalForm();
   const { checkPermission } = usePermissions();
 
-  const canManageJobs = checkPermission('manage_jobs');
-  const canManageTransactions = checkPermission('manage_transactions');
+  const canManageJobs = checkPermission('create_jobs');
+  const canManageTransactions = checkPermission('create_transactions');
 
   const base = 'inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-[0.95rem] font-bold transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 active:scale-[0.98]';
 

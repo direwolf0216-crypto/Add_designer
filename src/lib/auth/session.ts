@@ -73,6 +73,13 @@ export async function requirePermission(permission: Permission): Promise<Session
   return user;
 }
 
+/** Throws 401/403 unless the signed-in user holds at least one of `permissions`. */
+export async function requireAnyPermission(...permissions: Permission[]): Promise<SessionUser> {
+  const user = await requireUser();
+  for (const p of permissions) if (await userCan(user, p)) return user;
+  throw forbidden("You do not have permission to perform this action");
+}
+
 /** For server pages: the signed-in user, or a redirect to the login page (e.g. revoked sessions). */
 export async function requirePageUser(): Promise<SessionUser> {
   const user = await getSessionUser();
