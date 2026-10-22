@@ -200,14 +200,15 @@ export function buildAuthOptions(google?: GoogleOAuthClient | null): NextAuthOpt
       }
     },
 
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (account?.provider === "google-drive") {
         return token;
       }
 
-      // Role, custom role and permissions are re-read on sign-in and then at most once a minute, so role
-      // changes, permission edits and deactivation apply without waiting for the session to expire.
-      const stale = Date.now() - (token.checkedAt ?? 0) > RECHECK_INTERVAL_MS;
+      // Role, custom role and permissions are re-read on sign-in, whenever the client asks (AuthProvider
+      // does so on every full page load) and otherwise at most once a minute, so role changes, permission
+      // edits and deactivation apply without waiting for the session to expire.
+      const stale = trigger === "update" || Date.now() - (token.checkedAt ?? 0) > RECHECK_INTERVAL_MS;
       if (user) token.sub = user.id;
       if (token.sub && !token.revoked && (user || stale || !isRole(token.role))) {
         const current = await loadUserPermissions(token.sub);

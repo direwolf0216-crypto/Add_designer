@@ -75,6 +75,15 @@ export async function proxy(req: NextRequest) {
     return withCsp(req, clearSession(NextResponse.redirect(loginUrl), revoked));
   }
 
+  // Pages that need a permission send people without it to the jobs board (the token's permissions are
+  // refreshed on every page load, so this follows role changes closely).
+  const perms = (token.permissions as string[] | undefined) ?? [];
+  const admin = token.role === "ADMIN";
+  const needs = pathname.startsWith("/dashboard") ? "view_analytics" : pathname.startsWith("/transactions") ? "view_transactions" : null;
+  if (!admin && ((needs && !perms.includes(needs)) || pathname.startsWith("/settings"))) {
+    return withCsp(req, NextResponse.redirect(new URL("/jobs", req.url)));
+  }
+
   return withCsp(req, NextResponse.next());
 }
 
