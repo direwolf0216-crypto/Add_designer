@@ -27,6 +27,14 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
+/** Drop the stale session cookies when a revoked token sent someone back to sign in. */
+function clearSession(res: NextResponse, revoked: boolean): NextResponse {
+  if (revoked) {
+    for (const name of ["next-auth.session-token", "__Secure-next-auth.session-token"]) res.cookies.set(name, "", { maxAge: 0, path: "/" });
+  }
+  return res;
+}
+
 /** Pass the nonce to Next (it reads the CSP from the request headers) and set the policy on the response. */
 function withCsp(req: NextRequest, response: NextResponse): NextResponse {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -46,7 +54,11 @@ const PUBLIC_PAGES = ["/privacy", "/terms"];
 
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const raw = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  // A session whose account no longer exists or was deactivated is marked revoked by the JWT callback;
+  // treat it as signed out (and clear the cookie) instead of serving a shell whose every API call fails.
+  const revoked = Boolean(raw?.revoked);
+  const token = revoked ? null : raw;
   const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
   if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return withCsp(req, NextResponse.next());
 
@@ -60,7 +72,7 @@ export async function proxy(req: NextRequest) {
   if (!token) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname + search);
-    return withCsp(req, NextResponse.redirect(loginUrl));
+    return withCsp(req, clearSession(NextResponse.redirect(loginUrl), revoked));
   }
 
   return withCsp(req, NextResponse.next());
