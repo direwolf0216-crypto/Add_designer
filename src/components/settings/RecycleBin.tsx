@@ -243,8 +243,9 @@ export default function RecycleBin() {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-gray-200">
-        <table className="w-full min-w-[640px] text-left border-collapse">
-          <thead>
+        {/* Only a table with rows needs its full width (and headers); the empty and loading messages fit the screen. */}
+        <table className={`w-full text-left border-collapse ${!isLoading && items.length > 0 ? "min-w-[640px]" : ""}`}>
+          <thead className={!isLoading && items.length > 0 ? "" : "hidden"}>
             <tr className="bg-slate-50 border-b border-gray-200">
               <th className="p-4 w-[40px]">
                 <input

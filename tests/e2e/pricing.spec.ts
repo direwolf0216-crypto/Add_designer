@@ -69,7 +69,7 @@ async function generateInvoice(page: Page): Promise<string> {
 
 type ApiJob = { id: string; category: string; customData: Record<string, unknown>; client: { name: string }; order: { package: number; advance: number; due: number } };
 async function jobsForClient(page: Page): Promise<ApiJob[]> {
-  const res = await page.request.get("/api/jobs?limit=100");
+  const res = await page.request.get("/api/jobs?limit=500");
   expect(res.ok()).toBe(true);
   const { items } = (await res.json()) as { items: ApiJob[] };
   return items.filter((j) => j.client?.name === CLIENT);

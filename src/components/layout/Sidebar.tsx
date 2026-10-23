@@ -13,9 +13,9 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useStoredBoolean('sidebar_collapsed');
   const { checkPermission, isAdmin } = usePermissions();
 
-  if (pathname.startsWith('/settings')) {
-    return null;
-  }
+  // Settings has its own side menu on wide screens, so the app sidebar only appears there as the
+  // phone drawer (the top bar's menu button still has to open it).
+  const onSettings = pathname.startsWith('/settings');
 
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
 
@@ -43,6 +43,7 @@ export default function Sidebar() {
         transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 overflow-visible
         bg-[#09090b] text-white border-r border-white/5
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${onSettings ? 'lg:hidden' : ''}
         ${isCollapsed ? 'lg:w-[110px] w-[260px] items-center px-0' : 'w-[280px] px-4'}
       `}>
 

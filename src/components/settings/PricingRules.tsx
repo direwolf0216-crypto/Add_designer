@@ -102,8 +102,8 @@ export default function PricingRules() {
 
   return (
     <div className="relative flex flex-col gap-3 animate-[fadeIn_0.3s_ease-out]">
-      <div className="grid gap-3 xl:grid-cols-2">
-        <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-pink-500 text-white shadow-md shadow-orange-500/25">
               <i className="ph-fill ph-tag text-lg" aria-hidden="true"></i>
@@ -233,10 +233,10 @@ export default function PricingRules() {
 function Stat({ icon, tone, label, value, loading }: { icon: string; tone: string; label: string; value: number; loading: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/70 px-2 py-1.5">
-      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br text-white ${tone}`}>
+      <span className={`hidden h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br text-white sm:flex ${tone}`}>
         <i className={`ph-fill ${icon} text-[0.75rem]`} aria-hidden="true"></i>
       </span>
-      <p className="min-w-0 truncate text-[0.68rem] font-bold uppercase tracking-wide text-slate-400">
+      <p className="min-w-0 truncate text-[0.6rem] font-bold uppercase tracking-wide text-slate-400 sm:text-[0.68rem]">
         <span className="mr-1 text-sm font-black normal-case tracking-normal text-slate-900 tabular-nums">{loading ? "–" : value}</span>
         {label}
       </p>
@@ -247,7 +247,7 @@ function Stat({ icon, tone, label, value, loading }: { icon: string; tone: strin
 /** Where the area units come from: the Size field's units, with a link to change them. */
 function SizeSource({ options }: { options: ReturnType<typeof pricingUnitOptions> }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50/60 px-2.5 py-1.5 text-xs">
+    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50/60 px-2.5 py-1.5 text-xs">
       <i className="ph-fill ph-ruler shrink-0 text-violet-500" aria-hidden="true"></i>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
         {options.hasSizeField ? (
@@ -294,15 +294,15 @@ function Calculator({ categories, rules, options, defaultSizeUnit, currency }: {
   const areaLabel = shownArea ? areaText(shownArea) : pricingUnitLabel(rule.unit);
 
   return (
-    <div data-testid="pricing-calculator" className="flex flex-col gap-2.5 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
+    <div data-testid="pricing-calculator" className="flex min-w-0 flex-col gap-2.5 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
       <div className="flex items-center gap-2">
         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-teal-400 text-white">
           <i className="ph-fill ph-calculator text-[0.75rem]" aria-hidden="true"></i>
         </span>
         <h3 className="text-sm font-extrabold text-slate-800">Try a price</h3>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3.75rem] gap-2">
-        <div className="min-w-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_3.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3.75rem]">
+        <div className="col-span-2 min-w-0 sm:col-span-1">
           <CustomDropdown options={categories} value={cat} onChange={setCategory} className="h-9 rounded-lg px-2.5 text-sm" />
         </div>
         <div className="flex min-w-0 overflow-hidden rounded-lg border border-gray-200 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-500/15">

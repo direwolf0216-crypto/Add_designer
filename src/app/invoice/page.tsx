@@ -63,9 +63,9 @@ const invoiceData = {
 
 export default function InvoicePage() {
   return (
-    <div className={`min-h-screen bg-slate-100 py-12 print:py-0 print:bg-white flex justify-center ${inter.className}`}>
+    <div className={`min-h-screen overflow-x-auto bg-slate-100 px-4 py-12 print:overflow-visible print:p-0 print:bg-white ${inter.className}`}>
       
-      <div className="w-[850px] bg-white shadow-2xl print:shadow-none print:w-[210mm] print:h-[297mm] rounded-3xl print:rounded-none overflow-hidden flex flex-col relative border-t-[12px] border-[#001B44]">
+      <div className="mx-auto w-[850px] shrink-0 bg-white shadow-2xl print:shadow-none print:w-[210mm] print:h-[297mm] rounded-3xl print:rounded-none overflow-hidden flex flex-col relative border-t-[12px] border-[#001B44]">
         
         {/* Background Watermark */}
         <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">

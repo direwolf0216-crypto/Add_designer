@@ -72,7 +72,7 @@ function jobBody(client: string, line: { category: string; size?: string; qty?: 
 }
 
 type ApiJob = { id: string; category: string; customData: Record<string, unknown>; client: { name: string }; order: { package: number; advance: number; due: number } | null };
-const jobsFor = async (api: APIRequestContext, client: string): Promise<ApiJob[]> => ((await (await api.get("/api/jobs?limit=200")).json()).items as ApiJob[]).filter((j) => j.client?.name === client);
+const jobsFor = async (api: APIRequestContext, client: string): Promise<ApiJob[]> => ((await (await api.get("/api/jobs?limit=500")).json()).items as ApiJob[]).filter((j) => j.client?.name === client);
 
 test.describe.serial("pricing negative end to end (scratch database only)", () => {
   test.skip(!adminEmail || !password || !scratch, "Needs E2E_USER_EMAIL, E2E_USER_PASSWORD and E2E_SCRATCH_DB=1");

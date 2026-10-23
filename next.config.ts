@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
       { source: '/jobs/allJobs', destination: '/jobs?view=list', permanent: true },
       { source: '/jobs/upcoming', destination: '/jobs?view=schedule', permanent: true },
       { source: '/jobs/my-jobs', destination: '/jobs?scope=mine', permanent: true },
+      // Redirect before any page code runs (a redirect() during render cut off the session request).
+      { source: '/transactions', destination: '/transactions/overview', permanent: false },
     ];
   },
 };
