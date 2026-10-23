@@ -44,6 +44,8 @@ export interface PrintInvoice {
     lines: string[];
     phone: string;
     email: string;
+    /** What Bill To prints, as "label : value" rows; only filled-in ones. */
+    rows: { label: string; value: string }[];
   };
   dueDate: string;
   items: PrintLineItem[];

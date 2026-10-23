@@ -22,6 +22,9 @@ export const initFonts = () => {
       ]
     });
 
+    // Words are never split with a hyphen (a label like "Company" stays whole and wraps as a word).
+    Font.registerHyphenationCallback((word) => [word]);
+
     Font.register({
       family: 'Great Vibes',
       src: path.join(fontsDir, 'GreatVibes-Regular.ttf')

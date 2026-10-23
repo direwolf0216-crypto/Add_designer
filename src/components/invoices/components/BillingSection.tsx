@@ -24,37 +24,25 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 700,
   },
-  companyName: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: colors.darkBox,
-    marginBottom: 3,
-  },
-  addressLine: {
-    fontSize: 8.5,
-    color: colors.primaryText,
-    marginBottom: 1.5,
-  },
-  details: {
-    marginTop: 4,
-  },
-  detailRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    marginTop: 2.5,
+    marginBottom: 3.5,
   },
-  detailLabel: {
-    fontSize: 7,
-    width: 34,
+  label: {
+    fontSize: 8.5,
     color: colors.secondaryText,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
   },
-  detailValue: {
+  colon: {
+    width: 10,
+    fontSize: 8.5,
+    color: colors.secondaryText,
+  },
+  value: {
+    flex: 1,
     fontSize: 8.5,
     fontWeight: 700,
     color: colors.primaryText,
-  }
+  },
 });
 
 interface BillingSectionProps {
@@ -62,6 +50,9 @@ interface BillingSectionProps {
 }
 
 export const BillingSection = ({ viewModel }: BillingSectionProps) => {
+  // The label column fits the longest label on one line (about 5.3 pt per character at this size).
+  const longest = Math.max(4, ...viewModel.print.billTo.rows.map((r) => r.label.length));
+  const labelWidth = Math.min(140, Math.round(longest * 5.3) + 6);
   return (
     <View style={styles.container}>
       {/* Bill To */}
@@ -69,29 +60,14 @@ export const BillingSection = ({ viewModel }: BillingSectionProps) => {
         <View style={styles.headerBox}>
           <Text style={styles.headerText}>BILL TO</Text>
         </View>
-        <Text style={styles.companyName}>{viewModel.print.billTo.name}</Text>
-        {viewModel.print.billTo.lines.map((line, i) => (
-          <Text key={i} style={styles.addressLine}>{line}</Text>
-        ))}
-
-        {/* Only what's known: an empty phone or email is left off, not printed as N/A. */}
-        {(viewModel.print.billTo.phone || viewModel.print.billTo.email) && (
-          <View style={styles.details}>
-            {viewModel.print.billTo.phone ? (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Phone</Text>
-                <Text style={styles.detailValue}>{viewModel.print.billTo.phone}</Text>
-              </View>
-            ) : null}
-            {viewModel.print.billTo.email ? (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Email</Text>
-                <Text style={styles.detailValue}>{viewModel.print.billTo.email}</Text>
-              </View>
-            ) : null}
+        {/* "Name / Company : Nandha", "Phone : …", "Address : …": only the filled-in ones. */}
+        {viewModel.print.billTo.rows.map((r) => (
+          <View key={r.label} style={styles.row}>
+            <Text style={[styles.label, { width: labelWidth }]}>{r.label}</Text>
+            <Text style={styles.colon}>:</Text>
+            <Text style={styles.value}>{r.value}</Text>
           </View>
-        )}
-
+        ))}
       </View>
     </View>
   );

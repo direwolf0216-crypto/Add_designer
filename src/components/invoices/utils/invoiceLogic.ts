@@ -1,7 +1,7 @@
 import { Invoice, Job, Transaction, InvoiceLineItem, Client } from '@prisma/client';
 import { InvoiceViewModel, InvoiceLineItemVM, SummaryCardVariant, PrintInvoice, PrintLineItem } from '../types/invoiceViewModel';
 import { amountInWords } from './amountInWords';
-import { normalizeJob, resolveJobSummary, resolveSpecEntries } from '@/lib/jobs/resolveJobFields';
+import { clientDetailRows, normalizeJob, resolveJobSummary, resolveSpecEntries } from '@/lib/jobs/resolveJobFields';
 import { JOB_DETAILS_FIELD_MAP } from '@/lib/forms/fieldMap';
 import type { FormLayout } from '@/lib/forms/types';
 import { InvoiceStatus } from '../types/invoiceStatus';
@@ -152,6 +152,13 @@ function buildPrintInvoice(
   ].filter((r) => r.value);
 
   const email = present(job.client.email) || present(cd.fld_b_email);
+  // Bill To as "label : value" rows, labelled and ordered as the shop's job form has them (its client
+  // fields and its location / address); nothing empty is printed.
+  // The customer's own name reads simply "Name" there (one short line, whatever the form calls it).
+  const billToRows = clientDetailRows(details, layout, JOB_DETAILS_FIELD_MAP, { withLocation: true }).map(({ id, label, value }) => ({
+    label: id === 'fld_b_client' ? 'Name' : label,
+    value,
+  }));
   const printedItems = items.length ? items : [{ description: 'Printing job', size: '', qty: '1 No', rate: amount2(total), amount: amount2(total) }];
   // The payment code is for collecting what is still owed, so a settled invoice prints without it.
   const payImage = present(settings.business_gpay_qr) || generatedUpiQr;
@@ -176,6 +183,7 @@ function buildPrintInvoice(
       lines: [present(job.location)].filter(Boolean),
       phone: present(job.client.phone),
       email,
+      rows: billToRows,
     },
     dueDate: formatDate(job.dueDate ?? job.date),
     items: printedItems,

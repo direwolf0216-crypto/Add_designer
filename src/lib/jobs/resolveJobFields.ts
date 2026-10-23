@@ -2,6 +2,7 @@
 // layout, financials, spec line items, the dynamic sections to list and the status timeline.
 // Pure: no React.
 
+import { DEFAULT_LAYOUTS } from "@/lib/defaultLayouts";
 import { displayText } from "@/lib/display/blank";
 import type { ValueLookup } from "@/lib/forms/visibility";
 import { isAreaPricing, isPricingUnit, lineMultiplier, pricingRuleFor, pricingUnitLabel, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
@@ -364,18 +365,54 @@ export function buildStatusSteps(layout: FormLayout | null | undefined): StatusS
 /** A layout section about the customer (its fields belong in the Client Information card). */
 export const isClientSection = (title: string | undefined) => /client|customer|contact/i.test(title ?? "");
 
+// The job's own customer fields, wherever the layout places them (their labels come from the layout).
+const CLIENT_CORE: Record<string, (job: DetailsJob) => unknown> = {
+  fld_b_client: (j) => j.client?.name || j.title || j.customData?.fld_b_client,
+  fld_b_phone: (j) => j.client?.phone || j.phone || j.customData?.fld_b_phone,
+  fld_b_email: (j) => j.client?.email || j.email || j.customData?.fld_b_email,
+  fld_b_location: (j) => j.location || j.customData?.fld_b_location,
+};
+const NOT_PRINTABLE = new Set(["FILE", "ATTACHMENT"]);
+
 /**
- * The customer's other details from the layout's client sections (e.g. an Address field in a
- * "Client Info" section), shown inside the Client Information card. Blank values are left out.
+ * The customer's details as "label : value" rows, labelled and ordered exactly as the shop's job form
+ * layout has them: name, phone, email (wherever they sit), plus every field of the layout's client
+ * sections (an Address, a GSTIN...). `withLocation` also takes the job's location field from any
+ * section (the invoice's Bill To). Nothing empty is included. Without a saved layout the built-in
+ * default layout is used.
  */
-export function clientExtraRows(job: DetailsJob, layout: FormLayout | null | undefined, fieldMap: FieldMap): { id: string; label: string; value: string }[] {
+export function clientDetailRows(
+  job: DetailsJob,
+  layout: FormLayout | null | undefined,
+  fieldMap: FieldMap,
+  { withLocation = false } = {}
+): { id: string; label: string; value: string }[] {
+  const defaults = (DEFAULT_LAYOUTS.find((l) => l.formKey === "JOB_FORM")?.schema.sections ?? []) as FormSection[];
+  const sections = layout?.sections?.length ? layout.sections : defaults;
   const rows: { id: string; label: string; value: string }[] = [];
-  for (const { section, globalFields } of resolveDynamicSections(job, layout)) {
-    if (section.isRepeatable || !isClientSection(titleOf(section) as string)) continue;
-    for (const field of globalFields) {
-      const value = displayText(dynamicFieldValue(job, field, fieldMap, job.customData));
+  const seen = new Set<string>();
+  for (const section of sections) {
+    const clientSection = !section.isRepeatable && isClientSection(section.title);
+    for (const field of section.fields ?? []) {
+      if (seen.has(field.id) || NOT_PRINTABLE.has(field.type)) continue;
+      const core = CLIENT_CORE[field.id];
+      let raw: unknown;
+      if (core && (field.id !== "fld_b_location" || withLocation || clientSection)) raw = core(job);
+      else if (clientSection && !core) raw = dynamicFieldValue(job, field, fieldMap, job.customData);
+      else continue;
+      seen.add(field.id);
+      const value = displayText(raw);
       if (value) rows.push({ id: field.id, label: field.name, value });
     }
+  }
+  // A customer detail the job holds but the shop's layout doesn't list (an older layout without a
+  // location field, say) is still shown, under the built-in layout's label for it.
+  const defaultFields = defaults.flatMap((sec) => sec.fields ?? []);
+  for (const [id, read] of Object.entries(CLIENT_CORE)) {
+    if (seen.has(id) || (id === "fld_b_location" && !withLocation)) continue;
+    const value = displayText(read(job));
+    const label = defaultFields.find((f) => f.id === id)?.name;
+    if (value && label) rows.push({ id, label, value });
   }
   return rows;
 }
