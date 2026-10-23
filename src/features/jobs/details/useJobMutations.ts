@@ -26,44 +26,58 @@ export function useJobMutations({ job, layout, refreshJob, onDeleted }: { job: D
     router.refresh();
   };
 
+  /**
+   * Run a status save with the pills locked, and always unlock them afterwards (a dropped connection
+   * used to leave them spinning). Resolves to whether the save worked.
+   */
+  const runStatusUpdate = async (save: () => Promise<{ success: boolean; error?: string }>, newStatus: string, failMessage: string) => {
+    setIsUpdatingStatus(true);
+    try {
+      const res = await save();
+      if (res.success) afterStatusChange(newStatus);
+      else toast.error(res.error || failMessage);
+      return res.success;
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+      return false;
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const changeStatus = async (newStatus: string) => {
     if (!job) return;
-    setIsUpdatingStatus(true);
-
     // A board stage moves the card and sets the status together; any other status only sets the status.
     const isStage = stageOptions(layout as Parameters<typeof stageOptions>[0]).some((s) => s.label.toLowerCase() === newStatus.toLowerCase());
-    const res = isStage
-      ? await updateJobTrackingAction(job.id, { customData: { fld_b_status: newStatus }, status: newStatus })
-      : await updateJobStatusAction(job.id, newStatus);
-
-    setIsUpdatingStatus(false);
-    if (res.success) afterStatusChange(newStatus);
-    else toast.error("Failed to update status");
+    await runStatusUpdate(
+      () => (isStage ? updateJobTrackingAction(job.id, { customData: { fld_b_status: newStatus }, status: newStatus }) : updateJobStatusAction(job.id, newStatus)),
+      newStatus,
+      "Failed to update status"
+    );
   };
 
   /** Move the job to `cancelStage`, keeping the charge and reason with it. */
   const cancelJob = async (cancelStage: string, input: { charge: number; reason: string }) => {
     if (!job) return false;
-    setIsUpdatingStatus(true);
-    const res = await updateJobTrackingAction(job.id, {
-      status: cancelStage,
-      customData: { fld_b_job_status: cancelStage, fld_b_status: cancelStage, [CANCELLATION_KEY]: { ...input, at: new Date().toISOString() } },
-    });
-    setIsUpdatingStatus(false);
-    if (res.success) afterStatusChange(cancelStage);
-    else toast.error(res.error || "Couldn't cancel the job");
-    return res.success;
+    return runStatusUpdate(
+      () =>
+        updateJobTrackingAction(job.id, {
+          status: cancelStage,
+          customData: { fld_b_job_status: cancelStage, fld_b_status: cancelStage, [CANCELLATION_KEY]: { ...input, at: new Date().toISOString() } },
+        }),
+      cancelStage,
+      "Couldn't cancel the job"
+    );
   };
 
   /** Put a cancelled job back at `stage` and drop the cancellation details. */
   const reopenJob = async (stage: string) => {
     if (!job) return false;
-    setIsUpdatingStatus(true);
-    const res = await updateJobTrackingAction(job.id, { status: stage, customData: { fld_b_job_status: stage, fld_b_status: stage, [CANCELLATION_KEY]: null } });
-    setIsUpdatingStatus(false);
-    if (res.success) afterStatusChange(stage);
-    else toast.error(res.error || "Couldn't reopen the job");
-    return res.success;
+    return runStatusUpdate(
+      () => updateJobTrackingAction(job.id, { status: stage, customData: { fld_b_job_status: stage, fld_b_status: stage, [CANCELLATION_KEY]: null } }),
+      stage,
+      "Couldn't reopen the job"
+    );
   };
 
   /** Update a STATUS_PICKER stored in customData (e.g. a finishing status); `fld_b_status` is the job status. */
@@ -71,14 +85,9 @@ export function useJobMutations({ job, layout, refreshJob, onDeleted }: { job: D
     if (!job) return;
     if (fieldId === "fld_b_status") return changeStatus(newStatus);
 
-    setIsUpdatingStatus(true);
     const updates: { customData: Record<string, unknown>; status?: string } = { customData: { [fieldId]: newStatus } };
     if (fieldId === "fld_b_job_status") updates.status = newStatus;
-    const res = await updateJobTrackingAction(job.id, updates);
-    setIsUpdatingStatus(false);
-
-    if (res.success) afterStatusChange(newStatus);
-    else toast.error("Failed to update status");
+    await runStatusUpdate(() => updateJobTrackingAction(job.id, updates), newStatus, "Failed to update status");
   };
 
   const deleteJob = async () => {

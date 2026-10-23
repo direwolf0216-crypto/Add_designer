@@ -33,6 +33,13 @@ export default function JobTimeline({
   const info = readCancellation(job.customData);
   const { advanceAmount } = resolveFinancials(job);
   const [open, setOpen] = useState(false);
+  // The stage whose pill was tapped, shown with a spinner until the save finishes.
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [wasBusy, setWasBusy] = useState(!!busy);
+  if (!!busy !== wasBusy) {
+    setWasBusy(!!busy);
+    if (!busy) setPendingStatus(null);
+  }
 
   if (cancelled) {
     const refund = refundDue(advanceAmount, info?.charge ?? 0);
@@ -80,7 +87,11 @@ export default function JobTimeline({
       <JobStatusStepper
         steps={steps}
         currentStatus={job.status || (steps.length > 0 ? steps[0].value : "Pending")}
-        onStatusChange={(val) => onStatusChange(val)}
+        onStatusChange={(val) => {
+          setPendingStatus(val);
+          onStatusChange(val);
+        }}
+        pendingStatus={busy ? pendingStatus : null}
         className="min-w-0 flex-1"
       />
       {canEdit && cancelStep && (

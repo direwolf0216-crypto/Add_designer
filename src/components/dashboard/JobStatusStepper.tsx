@@ -13,6 +13,8 @@ interface JobStatusStepperProps {
   currentStatus: string;
   onStatusChange: (status: string) => void;
   className?: string;
+  /** The stage being saved right now: its pill shows a spinner and the others wait. */
+  pendingStatus?: string | null;
 }
 
 type Tone = { solid: string; soft: string; icon: string; line: string };
@@ -42,7 +44,8 @@ function toneFor(step: StepperStep, index: number): Tone {
 }
 
 /** Compact one-line stage track: every stage is a chip in its own colour; click one to move the job there. */
-export default function JobStatusStepper({ steps, currentStatus, onStatusChange, className }: JobStatusStepperProps) {
+export default function JobStatusStepper({ steps, currentStatus, onStatusChange, className, pendingStatus = null }: JobStatusStepperProps) {
+  const saving = pendingStatus !== null;
   let currentIndex = steps.findIndex(s => s.value === currentStatus);
   if (currentIndex === -1) currentIndex = 0; // Fallback
 
@@ -52,6 +55,7 @@ export default function JobStatusStepper({ steps, currentStatus, onStatusChange,
         const isCompleted = index < currentIndex;
         const isCurrent = index === currentIndex;
         const tone = toneFor(step, index);
+        const isPending = saving && step.value === pendingStatus;
 
         return (
           <li key={step.value} className="flex shrink-0 items-center gap-1">
@@ -63,26 +67,37 @@ export default function JobStatusStepper({ steps, currentStatus, onStatusChange,
             )}
             <button
               type="button"
-              onClick={() => onStatusChange(step.value)}
+              onClick={() => !saving && onStatusChange(step.value)}
+              disabled={saving}
               aria-current={isCurrent ? "step" : undefined}
-              title={isCurrent ? `Current stage: ${step.label}` : `Move to ${step.label}`}
+              aria-busy={isPending || undefined}
+              title={isPending ? `Moving to ${step.label}…` : isCurrent ? `Current stage: ${step.label}` : `Move to ${step.label}`}
               className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-[12.5px] font-semibold transition-[background-color,box-shadow,transform] duration-200 active:scale-[0.97]",
-                isCurrent
-                  ? `bg-gradient-to-r text-white shadow-md ${tone.solid}`
-                  : isCompleted
-                    ? `ring-1 ${tone.soft}`
-                    : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-800"
+                "inline-flex h-8 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-[12.5px] font-semibold transition-[background-color,box-shadow,transform,opacity] duration-200 active:scale-[0.97] disabled:active:scale-100",
+                isPending
+                  ? `ring-2 ${tone.soft} cursor-progress`
+                  : isCurrent
+                    ? `bg-gradient-to-r text-white shadow-md ${tone.solid}`
+                    : isCompleted
+                      ? `ring-1 ${tone.soft}`
+                      : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-800",
+                saving && !isPending && "cursor-wait opacity-60"
               )}
             >
               <span
                 className={cn(
                   "flex h-6 w-6 items-center justify-center rounded-full text-[12px]",
-                  isCurrent ? "bg-white/20" : isCompleted ? `bg-white ${tone.icon}` : `bg-slate-50 ${tone.icon}`
+                  isPending ? `bg-white ${tone.icon}` : isCurrent ? "bg-white/20" : isCompleted ? `bg-white ${tone.icon}` : `bg-slate-50 ${tone.icon}`
                 )}
                 aria-hidden="true"
               >
-                {isCompleted ? <i className="ph-bold ph-check text-[12px]"></i> : <i className={step.icon}></i>}
+                {isPending ? (
+                  <span data-testid="status-spinner" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : isCompleted ? (
+                  <i className="ph-bold ph-check text-[12px]"></i>
+                ) : (
+                  <i className={step.icon}></i>
+                )}
               </span>
               <span className="whitespace-nowrap">{step.label}</span>
             </button>
