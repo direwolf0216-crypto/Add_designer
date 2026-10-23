@@ -367,6 +367,8 @@ export async function loadJobsWorkspace(user: SessionUser, raw: Raw) {
     /** True when "My jobs" is limited to the viewer's teams' stages. */
     teamBoard: params.scope === "mine" && myStageSet.size > 0,
     today: today.toISOString().slice(0, 10),
+    /** When this was read (ms), so a copy shown from the browser's page cache can refresh itself. */
+    loadedAt: Date.now(),
   };
 }
 

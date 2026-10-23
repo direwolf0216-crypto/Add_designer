@@ -31,7 +31,8 @@ export function useTransactionsOverview(initialData?: TransactionsOverviewData, 
   // The ledger page sends today's figures with the page, so they show at once.
   const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher, {
     fallbackData: weekOf ? undefined : initialData,
-    revalidateOnMount: weekOf ? true : !initialData,
+    // Always refresh in the background: the page may have come from the browser's cache.
+    revalidateOnMount: true,
     keepPreviousData: true,
   });
 

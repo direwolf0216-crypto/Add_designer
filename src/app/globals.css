@@ -1704,7 +1704,7 @@ button {
   --motion-exit: 120ms;
   --motion-enter: 220ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --motion-xfade: 320ms;
+  --motion-xfade: 240ms;
 }
 ::view-transition {
   pointer-events: none;

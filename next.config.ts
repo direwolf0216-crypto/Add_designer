@@ -12,9 +12,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   experimental: {
-    // Fully prefetched pages (the sidebar's, the Jobs tabs) open instantly from the client cache; keep
-    // that cache to 30 s (default 5 min) so a switch never shows data more than half a minute old.
-    staleTimes: { static: 30 },
+    // Prefetched pages (the sidebar's, the Jobs tabs) open straight from the browser's cache for 5
+    // minutes, with no round trip to the server (~0.35 s from India to the US region on every miss).
+    // Pages shown from that cache refresh their figures in the background (SWR on Dashboard and
+    // Daily Ledger, router.refresh on Jobs), so they stay current.
+    staleTimes: { static: 300 },
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

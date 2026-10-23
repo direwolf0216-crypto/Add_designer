@@ -1,6 +1,7 @@
 "use client";
 
-import { ViewTransition } from "react";
+import { startTransition, useEffect, ViewTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import EmptyState from "@/components/ui/empty-state";
 import type { WorkspaceData } from "@/lib/jobs/workspace";
@@ -41,6 +42,14 @@ function NoJobs({ data }: { data: WorkspaceData }) {
 /** The Jobs workspace: one page for my/all jobs with board, list and schedule views. */
 export default function JobsWorkspace({ data }: { data: WorkspaceData }) {
   const { view } = data.params;
+  // Switching pages shows the browser's cached copy at once (no server trip); if that copy is more
+  // than a few seconds old, quietly fetch a fresh one so the board stays current.
+  const router = useRouter();
+  const loadedAt = data.loadedAt;
+  useEffect(() => {
+    if (Date.now() - loadedAt < 15_000) return;
+    startTransition(() => router.refresh());
+  }, [loadedAt, router]);
   const empty = (view === "board" && data.board?.every((c) => c.count === 0)) || (view === "list" && data.list?.total === 0);
   return (
     <div className="flex flex-col gap-5">

@@ -35,6 +35,7 @@ function TransactionsLayoutContent({ children }: { children: React.ReactNode }) 
           {pillStyle && <span aria-hidden="true" data-sliding-pill className="rounded-xl bg-slate-900 shadow-md" style={pillStyle} />}
           <Link
             href="/transactions/overview"
+            prefetch={true}
             data-pill-key="overview"
             onClick={pick("/transactions/overview")}
             className={`relative z-10 px-5 py-2.5 rounded-xl font-bold text-sm transition-colors duration-300 ${
@@ -45,6 +46,7 @@ function TransactionsLayoutContent({ children }: { children: React.ReactNode }) 
           </Link>
           <Link
             href="/transactions/allTransactions"
+            prefetch={true}
             data-pill-key="all"
             onClick={pick("/transactions/allTransactions")}
             className={`relative z-10 px-5 py-2.5 rounded-xl font-bold text-sm transition-colors duration-300 ${
