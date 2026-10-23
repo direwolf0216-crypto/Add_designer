@@ -268,24 +268,37 @@ function OverviewPageContent() {
         <QuickActions />
       </div>
 
-      {/* The period picker sits right above the figures it controls. */}
-      <div className="-mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[0.78rem] font-extrabold uppercase tracking-wider text-slate-500">
-          Overview <span className="font-bold normal-case tracking-normal text-slate-400">· {periodLabel}</span>
-        </h2>
-        <DashboardDateRangePicker onRangeChange={handleRangeChange} />
-      </div>
+      {/* Everything but the two actions sits on one frosted glass panel. The colour glows live in their
+          own clipped layer, so chart tooltips and menus are never cut off at the panel's edge. */}
+      <div
+        data-glass-panel
+        className="relative isolate flex flex-col gap-6 rounded-[30px] border border-white/70 bg-gradient-to-br from-white/50 via-white/25 to-white/10 p-2.5 shadow-[0_34px_80px_-40px_rgba(76,29,149,0.45),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150 sm:p-5"
+      >
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]">
+          <span className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-orange-400/30 blur-3xl" />
+          <span className="absolute -right-20 top-[30%] h-80 w-80 rounded-full bg-fuchsia-500/25 blur-3xl" />
+          <span className="absolute bottom-[15%] left-[20%] h-72 w-96 rounded-full bg-sky-400/25 blur-3xl" />
+          <span className="absolute -bottom-24 -right-10 h-64 w-72 rounded-full bg-violet-500/20 blur-3xl" />
+        </div>
+        {/* The period picker sits right above the figures it controls. */}
+        <div className="-mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+          <h2 className="text-[0.78rem] font-extrabold uppercase tracking-wider text-slate-500">
+            Overview <span className="font-bold normal-case tracking-normal text-slate-400">· {periodLabel}</span>
+          </h2>
+          <DashboardDateRangePicker onRangeChange={handleRangeChange} />
+        </div>
 
-      <Suspense fallback={<PrinterLoader label="Printing your dashboard" />}>
-        <DashboardMetrics
-          data={data}
-          error={error}
-          isLoading={isLoading}
-          retry={() => mutate()}
-          periodLabel={periodLabel}
-          overdueCount={overdueCount}
-        />
-      </Suspense>
+        <Suspense fallback={<PrinterLoader label="Printing your dashboard" />}>
+          <DashboardMetrics
+            data={data}
+            error={error}
+            isLoading={isLoading}
+            retry={() => mutate()}
+            periodLabel={periodLabel}
+            overdueCount={overdueCount}
+          />
+        </Suspense>
+      </div>
     </section>
   );
 }

@@ -51,6 +51,21 @@ test.describe.serial("dashboard layout (scratch database only)", () => {
     await context.close();
   });
 
+  test("the whole dashboard sits on one glass panel, the two actions outside it", async ({ browser }) => {
+    const { context, page } = await open(browser);
+    await page.goto("/dashboard/overview");
+    const panel = page.locator("[data-glass-panel]");
+    await expect(panel).toHaveCount(1);
+    await expect(panel.getByRole("region", { name: "Overview" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: /This month/ })).toBeVisible();
+    await expect(panel.getByRole("heading", { name: "Recent transactions" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Add transaction" })).toHaveCount(0);
+    await expect(panel.getByRole("button", { name: "New job" })).toHaveCount(0);
+    const blur = await panel.evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).getPropertyValue("-webkit-backdrop-filter"));
+    expect(blur).toContain("blur");
+    await context.close();
+  });
+
   test("Add transaction opens the form, and its category takes one choice", async ({ browser }) => {
     const { context, page } = await open(browser);
     await page.goto("/dashboard/overview");
