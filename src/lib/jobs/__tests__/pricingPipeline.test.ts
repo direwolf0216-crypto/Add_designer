@@ -145,7 +145,8 @@ describe("create: one job per Job Details card, then Job Details and the invoice
       const inv = invoiceOf(s, RULES, paid);
       const discount = round2(EXPECTED_LINES[i] - s.order.package);
       expect(inv.summary.find((r) => r.label === "SUB TOTAL")?.value).toBe(rs(EXPECTED_LINES[i]));
-      expect(inv.summary.find((r) => r.label === "DISCOUNT")?.value).toBe(rs(discount));
+      // A zero discount isn't printed at all.
+      expect(inv.summary.find((r) => r.label === "DISCOUNT")?.value).toBe(discount > 0 ? rs(discount) : undefined);
       expect(inv.total).toBe(rs(s.order.package));
       expect(inv.balance).toBe(rs(round2(s.order.package - paid.reduce((a, b) => a + b, 0))));
       expect(inv.items[0].amount).toBe(rs(EXPECTED_LINES[i]).replace("Rs ", ""));

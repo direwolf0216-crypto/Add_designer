@@ -38,6 +38,7 @@ export interface PrintInvoice {
   };
   /** Payment QR printed only while a balance is due: the uploaded GPay code, else one generated from the UPI ID. */
   payQr: { image: string; caption: string } | null;
+  /** Phone / email are empty when unknown (then not printed). */
   billTo: {
     name: string;
     lines: string[];
@@ -46,6 +47,8 @@ export interface PrintInvoice {
   };
   dueDate: string;
   items: PrintLineItem[];
+  /** False when no item has a size, so the Size column is left out. */
+  showSize: boolean;
   /** Rows above the total box: sub total, discount and (when a GST rate is set) CGST / SGST. */
   summary: { label: string; value: string }[];
   total: string;
@@ -53,6 +56,8 @@ export interface PrintInvoice {
   balance: string;
   /** True when something has been paid, so the paid/balance line is worth printing. */
   showPayments: boolean;
+  /** True while something is still owed (a zero balance isn't printed). */
+  showBalance: boolean;
   amountInWords: string;
 }
 

@@ -240,7 +240,7 @@ export const SummarySection = ({ viewModel }: SummarySectionProps) => {
         {viewModel.print.showPayments && (
           <View style={styles.paymentsRow}>
             <Text style={styles.paymentsText}>Paid: {viewModel.print.paid}</Text>
-            <Text style={styles.paymentsTextBold}>Balance Due: {viewModel.print.balance}</Text>
+            {viewModel.print.showBalance && <Text style={styles.paymentsTextBold}>Balance Due: {viewModel.print.balance}</Text>}
           </View>
         )}
 

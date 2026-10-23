@@ -127,9 +127,10 @@ function buildPrintInvoice(
   // GST only when the shop has set a rate (split equally into CGST and SGST).
   const gstRate = num(settings.business_gst_rate);
   const taxable = round2(Math.max(0, subTotal - discount));
+  // Nothing empty or zero is printed: the discount row only when there is a discount.
   const summaryRows: { label: string; value: string }[] = [
     { label: 'SUB TOTAL', value: rs(subTotal) },
-    { label: 'DISCOUNT', value: rs(discount) },
+    ...(round2(discount) > 0 ? [{ label: 'DISCOUNT', value: rs(discount) }] : []),
   ];
   let tax = 0;
   if (Number.isFinite(gstRate) && gstRate > 0) {
@@ -151,6 +152,7 @@ function buildPrintInvoice(
   ].filter((r) => r.value);
 
   const email = present(job.client.email) || present(cd.fld_b_email);
+  const printedItems = items.length ? items : [{ description: 'Printing job', size: '', qty: '1 No', rate: amount2(total), amount: amount2(total) }];
   // The payment code is for collecting what is still owed, so a settled invoice prints without it.
   const payImage = present(settings.business_gpay_qr) || generatedUpiQr;
   const payQr = due > 0 && payImage ? { image: payImage, caption: `Scan to pay the balance of ${rs(due)}` } : null;
@@ -172,16 +174,18 @@ function buildPrintInvoice(
     billTo: {
       name: job.client.name,
       lines: [present(job.location)].filter(Boolean),
-      phone: present(job.client.phone) || 'N/A',
-      email: email || 'N/A',
+      phone: present(job.client.phone),
+      email,
     },
     dueDate: formatDate(job.dueDate ?? job.date),
-    items: items.length ? items : [{ description: 'Printing job', size: '—', qty: '1 No', rate: amount2(total), amount: amount2(total) }],
+    items: printedItems,
+    showSize: printedItems.some((i) => i.size && i.size !== '—'),
     summary: summaryRows,
     total: rs(total),
     paid: rs(paid),
     balance: rs(due),
     showPayments: paid > 0,
+    showBalance: due > 0,
     amountInWords: amountInWords(total),
   };
 }

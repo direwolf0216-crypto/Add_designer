@@ -3,7 +3,7 @@ import type { FormField } from "@/lib/forms/types";
 /** A field this viewer may see but not change: its current value in a disabled box. */
 export default function LockedField({ field, value, variant }: { field: FormField; value: unknown; variant?: "job" | "jobRepeatable" | "transaction" }) {
   const text = Array.isArray(value) ? value.join(", ") : value === null || value === undefined || value === "" ? "—" : typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
-  const pad = variant === "transaction" ? "pl-4" : "pl-10";
+  const pad = variant === "transaction" ? "pl-4" : "pl-11";
   return (
     <div
       title={`${field.name} can't be changed by you`}

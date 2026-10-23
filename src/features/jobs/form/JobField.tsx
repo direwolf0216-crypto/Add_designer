@@ -55,7 +55,7 @@ export default function JobField({ field }: { field: FormField }) {
           onChange={(val) => setValidated(val)}
           placeholder={field.placeholder || "e.g. Grand Hyatt, City"}
           error={isError}
-          className="pl-10"
+          className="pl-11"
         />
       </IconWrap>
     );

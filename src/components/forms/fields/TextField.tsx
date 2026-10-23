@@ -1,7 +1,7 @@
 import { asText, type FieldProps } from "./types";
 
 const JOB_INPUT =
-  "flex h-[45px] w-full rounded-xl border bg-white pl-10 pr-4 py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
+  "flex h-[45px] w-full rounded-xl border bg-white pl-11 pr-4 py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
 /** Single-line input; the fallback for every field type a form does not render specially. */
 export default function TextField({

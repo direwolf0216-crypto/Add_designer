@@ -35,7 +35,7 @@ export default function DateField({ field, value, onChange, variant }: FieldProp
       onChange={(date) => onChange(date)}
       placeholder={field.placeholder || "Select Date..."}
       disableFutureDates={!!field.restrictFutureDate}
-      className="pl-10"
+      className="pl-11"
     />
   );
 }

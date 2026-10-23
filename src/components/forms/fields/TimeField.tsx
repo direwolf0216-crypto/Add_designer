@@ -8,7 +8,7 @@ export default function TimeField({ field, value, onChange, error }: FieldProps)
       onChange={(time) => onChange(time)}
       placeholder={field.placeholder || "e.g. HH:MM AM/PM"}
       hasError={!!error}
-      className="pl-10"
+      className="pl-11"
     />
   );
 }

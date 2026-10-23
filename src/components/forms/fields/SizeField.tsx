@@ -28,7 +28,7 @@ export default function SizeField({ field, value, onChange, error, variant }: Fi
         onChange={(e) => onChange(composeSize(e.target.value, unit))}
         placeholder={field.placeholder || (isAreaUnit(unit) ? "e.g. 10" : "e.g. 3 x 6")}
         aria-label={field.name}
-        className={`flex h-[45px] w-full rounded-xl border bg-white ${transaction ? "pl-4" : "pl-10"} pr-[5.25rem] py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 ${
+        className={`flex h-[45px] w-full rounded-xl border bg-white ${transaction ? "pl-4" : "pl-11"} pr-[5.25rem] py-2 text-[0.95rem] transition-colors focus-visible:outline-none focus-visible:ring-2 ${
           transaction ? "focus-visible:ring-orange-500 shadow-sm" : "focus-visible:ring-blue-500"
         } ${error ? "border-red-500" : "border-gray-200"}`}
       />

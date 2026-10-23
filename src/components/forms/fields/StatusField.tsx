@@ -31,7 +31,7 @@ export default function StatusField({ field, value, onChange, error, variant, co
       onChange={(val) => onChange(val)}
       error={!!error}
       placeholder={field.placeholder || "Select Status..."}
-      className="pl-10"
+      className="pl-11"
     />
   );
 }

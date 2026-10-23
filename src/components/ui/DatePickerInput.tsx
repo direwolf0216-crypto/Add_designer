@@ -70,7 +70,7 @@ export default function DatePickerInput({ value, onChange, placeholder, hasError
           {getDisplayValue()}
         </span>
         {!(className || '').includes('pl-') && (
-          <i className={`ph-bold ph-calendar-blank text-[1.1rem] transition-colors duration-300 ${isOpen ? 'text-blue-500' : 'text-slate-400'}`}></i>
+          <i className={`ph-bold ph-calendar-blank text-[1.1rem] transition-colors duration-300 ${isOpen ? 'text-blue-500' : 'text-slate-600'}`}></i>
         )}
       </div>
       

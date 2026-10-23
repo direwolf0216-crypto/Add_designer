@@ -25,27 +25,33 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   companyName: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 700,
     color: colors.darkBox,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   addressLine: {
-    fontSize: 8,
+    fontSize: 8.5,
     color: colors.primaryText,
-    marginBottom: 2,
+    marginBottom: 1.5,
+  },
+  details: {
+    marginTop: 4,
   },
   detailRow: {
     flexDirection: 'row',
-    marginTop: 2,
+    alignItems: 'baseline',
+    marginTop: 2.5,
   },
   detailLabel: {
-    fontSize: 8,
-    width: 35,
+    fontSize: 7,
+    width: 34,
     color: colors.secondaryText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   detailValue: {
-    fontSize: 8,
+    fontSize: 8.5,
     fontWeight: 700,
     color: colors.primaryText,
   }
@@ -68,14 +74,23 @@ export const BillingSection = ({ viewModel }: BillingSectionProps) => {
           <Text key={i} style={styles.addressLine}>{line}</Text>
         ))}
 
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Phone :</Text>
-          <Text style={styles.detailValue}>{viewModel.print.billTo.phone}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Email :</Text>
-          <Text style={styles.detailValue}>{viewModel.print.billTo.email}</Text>
-        </View>
+        {/* Only what's known: an empty phone or email is left off, not printed as N/A. */}
+        {(viewModel.print.billTo.phone || viewModel.print.billTo.email) && (
+          <View style={styles.details}>
+            {viewModel.print.billTo.phone ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Phone</Text>
+                <Text style={styles.detailValue}>{viewModel.print.billTo.phone}</Text>
+              </View>
+            ) : null}
+            {viewModel.print.billTo.email ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Email</Text>
+                <Text style={styles.detailValue}>{viewModel.print.billTo.email}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
 
       </View>
     </View>

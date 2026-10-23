@@ -27,7 +27,7 @@ export default function MultiSelectField({ field, value, onChange, error, varian
       onChange={join}
       error={!!error}
       placeholder={field.placeholder || `Select ${field.name}...`}
-      className="pl-10"
+      className="pl-11"
     />
   );
 }

@@ -94,13 +94,16 @@ interface InvoiceItemsTableProps {
 
 export const InvoiceItemsTable = ({ viewModel }: InvoiceItemsTableProps) => {
   const items = viewModel.print.items;
+  // No item has a size: leave the column out (its share goes to the description).
+  const showSize = viewModel.print.showSize;
+  const cols = [styles.cellSno, styles.cellDesc, ...(showSize ? [styles.cellSize] : []), styles.cellQty, styles.cellRate, styles.cellAmount];
 
   return (
     <View style={styles.table}>
       <View style={styles.tableHeader}>
         <Text style={[styles.headerCell, styles.headerCellSno]}>S.No.</Text>
         <Text style={[styles.headerCell, styles.headerCellDesc]}>DESCRIPTION</Text>
-        <Text style={[styles.headerCell, styles.headerCellSize]}>SIZE</Text>
+        {showSize && <Text style={[styles.headerCell, styles.headerCellSize]}>SIZE</Text>}
         <Text style={[styles.headerCell, styles.headerCellQty]}>QTY.</Text>
         <Text style={[styles.headerCell, styles.headerCellRate]}>RATE (Rs)</Text>
         <Text style={[styles.headerCell, styles.headerCellAmount]}>AMOUNT (Rs)</Text>
@@ -110,7 +113,7 @@ export const InvoiceItemsTable = ({ viewModel }: InvoiceItemsTableProps) => {
         <View key={index} style={[styles.tableRow, index % 2 !== 0 ? styles.tableRowAlt : {}]}>
           <Text style={[styles.cell, styles.cellSno]}>{index + 1}</Text>
           <Text style={[styles.cell, styles.cellDesc]}>{item.description}</Text>
-          <Text style={[styles.cell, styles.cellSize]}>{item.size}</Text>
+          {showSize && <Text style={[styles.cell, styles.cellSize]}>{item.size || '—'}</Text>}
           <Text style={[styles.cell, styles.cellQty]}>{item.qty}</Text>
           <Text style={[styles.cell, styles.cellRate]}>{item.rate}</Text>
           <Text style={[styles.cell, styles.cellAmount]}>{item.amount}</Text>
@@ -122,7 +125,7 @@ export const InvoiceItemsTable = ({ viewModel }: InvoiceItemsTableProps) => {
         const index = items.length + i;
         return (
           <View key={`empty-${i}`} style={[styles.tableRow, index % 2 !== 0 ? styles.tableRowAlt : {}]}>
-            {[styles.cellSno, styles.cellDesc, styles.cellSize, styles.cellQty, styles.cellRate, styles.cellAmount].map((col, c) => (
+            {cols.map((col, c) => (
               <Text key={c} style={[styles.cell, col]}> </Text>
             ))}
           </View>

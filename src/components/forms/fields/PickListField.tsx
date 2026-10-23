@@ -29,7 +29,7 @@ export default function PickListField({ field, value, onChange, error, variant }
       onChange={(val) => onChange(val)}
       error={!!error}
       placeholder={field.placeholder || `Select ${field.name}...`}
-      className="pl-10"
+      className="pl-11"
     />
   );
 }
