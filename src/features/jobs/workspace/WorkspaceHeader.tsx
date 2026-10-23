@@ -119,6 +119,17 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* New job first: it's the action people come here for. */}
+          {checkPermission("create_jobs") && (
+            <button
+              type="button"
+              onClick={() => openJobForm()}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-[filter,box-shadow] hover:shadow-xl hover:brightness-105"
+            >
+              <i className="ph-bold ph-plus" aria-hidden="true"></i>
+              New job
+            </button>
+          )}
           <Popover>
             <PopoverTrigger
               disabled={exporting}
@@ -136,16 +147,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
               ))}
             </PopoverContent>
           </Popover>
-          {checkPermission("create_jobs") && (
-            <button
-              type="button"
-              onClick={() => openJobForm()}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-[filter,box-shadow] hover:shadow-xl hover:brightness-105"
-            >
-              <i className="ph-bold ph-plus" aria-hidden="true"></i>
-              New job
-            </button>
-          )}
+
         </div>
       </div>
 
