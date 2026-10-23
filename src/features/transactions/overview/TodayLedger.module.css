@@ -1,0 +1,12 @@
+/* A day figure: label and total, with the Cash / UPI / Bank (/ Other) list beside it on the right,
+   or under it when the cards are too narrow for both at full size (decided by measuring, in TodayLedger). */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.side {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.875rem;
+}

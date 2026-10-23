@@ -1,17 +1,99 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { groupLedgerTransactions } from "@/lib/transactions/grouping";
 import type { TransactionRecord } from "@/lib/transactions/types";
 import { TransactionRow } from "./TransactionRow";
 import { formatINR } from "@/lib/money";
+import Amount from "@/components/data/Amount";
+import css from "./TodayLedger.module.css";
+import { hasOtherModes, type ModeKey, type ModeSplit } from "@/lib/transactions/paymentModes";
+
+const MODES: { key: ModeKey; label: string; icon: string }[] = [
+  { key: "cash", label: "Cash", icon: "ph-fill ph-money text-emerald-400" },
+  { key: "upi", label: "UPI", icon: "ph-bold ph-qr-code text-indigo-300" },
+  { key: "bank", label: "Bank", icon: "ph-bold ph-bank text-sky-300" },
+  { key: "other", label: "Other", icon: "ph-bold ph-dots-three-circle text-slate-400" },
+];
+
+/** Cash / UPI / Bank (and Other, when used today) as a small list beside one of the day's figures. */
+function ModeList({ byMode, figure, signed = false }: { byMode: ModeSplit; figure: "income" | "expense" | "net"; signed?: boolean }) {
+  const modes = hasOtherModes(byMode) ? MODES : MODES.slice(0, 3);
+  return (
+    <ul
+      className="min-w-0 divide-y divide-white/[0.06] rounded-xl bg-white/[0.03] px-2.5 py-0.5 ring-1 ring-white/[0.07]"
+      aria-label={`${figure} by payment mode`}
+    >
+      {modes.map((m) => {
+        const value = byMode[m.key][figure];
+        const tone = signed ? (value < 0 ? "text-red-400" : value > 0 ? "text-emerald-400" : "text-slate-300") : "text-slate-100";
+        return (
+          <li key={m.key} data-mode={m.key} className="flex min-w-0 items-center justify-between gap-3 py-1.5">
+            <div className="flex shrink-0 items-center gap-1.5 text-[0.6rem] font-extrabold uppercase tracking-wider text-slate-400">
+              <i className={`${m.icon} text-[0.8rem]`} aria-hidden="true" />
+              {m.label}
+            </div>
+            <span className={`min-w-0 truncate text-right text-[0.8rem] font-bold tabular-nums ${tone}`}>
+              {signed && value > 0 ? "+" : ""}
+              <Amount value={value} maxChars={13} />
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+const COLUMN_GAP = 14;
+
+/**
+ * Whether every figure card has room for its label and total and its payment-mode list side by side,
+ * at full size. Measured from the real text widths, rechecked when the cards resize; all three cards
+ * then lay out the same way.
+ */
+function useSideBySide(deps: unknown[]) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [side, setSide] = useState(true);
+  useLayoutEffect(() => {
+    const strip = ref.current;
+    if (!strip) return;
+    const check = () => {
+      let fits = true;
+      strip.querySelectorAll<HTMLElement>("[data-today-figure]").forEach((card) => {
+        const body = card.querySelector<HTMLElement>("[data-figure-body]");
+        if (!body) return;
+        const left = Math.max(
+          ...[...card.querySelectorAll<HTMLElement>("[data-figure-head], [data-figure-total]")].map((el) => el.scrollWidth)
+        );
+        const list = Math.max(
+          0,
+          ...[...card.querySelectorAll<HTMLElement>("[data-mode]")].map((row) => {
+            const [label, amount] = [...row.children] as HTMLElement[];
+            const pad = parseFloat(getComputedStyle(row.parentElement!).paddingLeft) * 2;
+            return label.scrollWidth + amount.scrollWidth + parseFloat(getComputedStyle(row).columnGap || "0") + pad;
+          })
+        );
+        if (left + COLUMN_GAP + list > body.clientWidth) fits = false;
+      });
+      setSide(fits);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(strip);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return { ref, side };
+}
 
 interface TodayLedgerProps {
   today: Date;
   todayIncome: number;
   todayExpense: number;
   todayNet: number;
+  /** The day's figures by payment mode, over every transaction today. */
+  byMode: ModeSplit;
   todayTransactions: TransactionRecord[];
   onOpen: (id: string) => void;
   onEdit: (id: string) => void;
@@ -21,12 +103,13 @@ interface TodayLedgerProps {
   canDelete?: boolean;
 }
 
-/** Dark "Today's Transactions" card: income / expense / net strip and the grouped ledger with inline delete. */
-export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayTransactions, onOpen, onEdit, onDelete, canEdit = true, canDelete = true }: TodayLedgerProps) {
+/** Dark "Today's Transactions" card: income / expense / net strip (each with its payment-mode list) and the grouped ledger with inline delete. */
+export function TodayLedger({ today, todayIncome, todayExpense, todayNet, byMode, todayTransactions, onOpen, onEdit, onDelete, canEdit = true, canDelete = true }: TodayLedgerProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: string, message: string } | null>(null);
   const items = useMemo(() => groupLedgerTransactions(todayTransactions), [todayTransactions]);
+  const { ref: stripRef, side } = useSideBySide([byMode, todayIncome, todayExpense, todayNet]);
 
   const handleDeleteConfirm = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -63,40 +146,55 @@ export function TodayLedger({ today, todayIncome, todayExpense, todayNet, todayT
       </div>
 
       {/* Summary Strip */}
-      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 px-5 sm:px-8 py-5">
-        <Link href="/transactions/allTransactions?view=day&type=INCOME" className="block outline-none">
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <i className="ph-bold ph-arrow-down-left text-emerald-400 text-xs" />
+      <div ref={stripRef} className="relative z-10 grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 px-5 sm:px-8 py-5">
+        <Link href="/transactions/allTransactions?view=day&type=INCOME" className="block h-full outline-none">
+          <div data-today-figure="income" className={`h-full bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-colors`}>
+            <div data-figure-body className={side ? `${css.body} ${css.side}` : css.body}>
+              <div className="min-w-0">
+                <div data-figure-head className="mb-2 flex w-max max-w-full items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <i className="ph-bold ph-arrow-down-left text-emerald-400 text-xs" />
+                  </div>
+                  <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Income</span>
+                </div>
+                <span data-figure-total className={`block w-max max-w-full whitespace-nowrap text-[1.5rem] text-white font-extrabold tracking-tight`}>{formatINR(todayIncome)}</span>
               </div>
-              <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Income</span>
+              <ModeList byMode={byMode} figure="income" />
             </div>
-            <span className="text-white text-[1.5rem] font-extrabold tracking-tight">{formatINR(todayIncome)}</span>
           </div>
         </Link>
-        <Link href="/transactions/allTransactions?view=day&type=EXPENSE" className="block outline-none">
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-lg bg-red-500/20 flex items-center justify-center">
-                <i className="ph-bold ph-arrow-up-right text-red-400 text-xs" />
+        <Link href="/transactions/allTransactions?view=day&type=EXPENSE" className="block h-full outline-none">
+          <div data-today-figure="expense" className={`h-full bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-colors`}>
+            <div data-figure-body className={side ? `${css.body} ${css.side}` : css.body}>
+              <div className="min-w-0">
+                <div data-figure-head className="mb-2 flex w-max max-w-full items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-red-500/20 flex items-center justify-center">
+                    <i className="ph-bold ph-arrow-up-right text-red-400 text-xs" />
+                  </div>
+                  <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Expense</span>
+                </div>
+                <span data-figure-total className={`block w-max max-w-full whitespace-nowrap text-[1.5rem] text-white font-extrabold tracking-tight`}>{formatINR(todayExpense)}</span>
               </div>
-              <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Expense</span>
+              <ModeList byMode={byMode} figure="expense" />
             </div>
-            <span className="text-white text-[1.5rem] font-extrabold tracking-tight">{formatINR(todayExpense)}</span>
           </div>
         </Link>
-        <Link href="/transactions/allTransactions?view=day" className="block outline-none">
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-6 h-6 rounded-lg ${todayNet >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'} flex items-center justify-center`}>
-                <i className={`ph-bold ${todayNet >= 0 ? 'ph-trend-up text-emerald-400' : 'ph-trend-down text-red-400'} text-xs`} />
+        <Link href="/transactions/allTransactions?view=day" className="block h-full outline-none">
+          <div data-today-figure="net" className={`h-full bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-colors`}>
+            <div data-figure-body className={side ? `${css.body} ${css.side}` : css.body}>
+              <div className="min-w-0">
+                <div data-figure-head className="mb-2 flex w-max max-w-full items-center gap-2">
+                  <div className={`w-6 h-6 rounded-lg ${todayNet >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'} flex items-center justify-center`}>
+                    <i className={`ph-bold ${todayNet >= 0 ? 'ph-trend-up text-emerald-400' : 'ph-trend-down text-red-400'} text-xs`} />
+                  </div>
+                  <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Net Today</span>
+                </div>
+                <span data-figure-total className={`block w-max max-w-full whitespace-nowrap text-[1.5rem] font-extrabold tracking-tight ${todayNet >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {todayNet > 0 ? '+' : ''}{formatINR(todayNet)}
+                </span>
               </div>
-              <span className="text-slate-400 text-[0.65rem] font-bold uppercase tracking-[1px]">Net Today</span>
+              <ModeList byMode={byMode} figure="net" signed />
             </div>
-            <span className={`text-[1.5rem] font-extrabold tracking-tight ${todayNet >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {todayNet > 0 ? '+' : ''}{formatINR(todayNet)}
-            </span>
           </div>
         </Link>
       </div>

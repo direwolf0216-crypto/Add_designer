@@ -19,6 +19,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { format, parseISO } from "date-fns";
 import type { WeekSummary } from "@/lib/transactions/weekly";
 import PrinterLoader from "@/components/motion/PrinterLoader";
+import { emptyModeSplit } from "@/lib/transactions/paymentModes";
 
 const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net: 0 }, previous: { income: 0, expense: 0, net: 0 }, expensesByCategory: [] };
 
@@ -38,6 +39,7 @@ function OverviewPageContent() {
     todayIncome = 0,
     todayExpense = 0,
     todayNet = 0,
+    todayByMode = emptyModeSplit(),
     week = EMPTY_WEEK,
   } = data;
 
@@ -68,6 +70,7 @@ function OverviewPageContent() {
         todayIncome={todayIncome}
         todayExpense={todayExpense}
         todayNet={todayNet}
+        byMode={todayByMode}
         todayTransactions={todayTransactions}
         onOpen={openTransactionDetails}
         onEdit={(id) => openTransactionForm(id)}

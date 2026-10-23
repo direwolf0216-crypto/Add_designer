@@ -7,6 +7,7 @@ import { businessDayRange, businessRangeFromISO, toBusinessISODate } from "@/lib
 import { round2 } from "@/lib/money";
 import { transactionJobScope } from "@/lib/jobs/scope";
 import { addIsoDays, buildWeekSummary, mondayOf } from "@/lib/transactions/weekly";
+import { splitByPaymentMode } from "@/lib/transactions/paymentModes";
 
 /** Accepts `yyyy-MM-dd` or an ISO instant and returns the business-timezone calendar day. */
 function businessDayParam(value: string | null): string | undefined {
@@ -34,7 +35,7 @@ export const GET = route(async (req) => {
   const todayIso = toBusinessISODate();
   const weekRange = businessRangeFromISO(addIsoDays(mondayOf(todayIso), -7), addIsoDays(mondayOf(todayIso), 6));
 
-  const [typeAgg, categoryExpenses, recentTransactions, todayTransactions, todayTypeAgg, weekRows] = await Promise.all([
+  const [typeAgg, categoryExpenses, recentTransactions, todayTransactions, todayTypeAgg, weekRows, todayModeAgg] = await Promise.all([
     prisma.transaction.groupBy({ by: ["type"], _sum: { amount: true }, where }),
     prisma.transaction.groupBy({ by: ["category"], _sum: { amount: true }, where: { ...where, type: "EXPENSE" } }),
     prisma.transaction.findMany({ where, orderBy: [{ date: "desc" }, { createdAt: "desc" }], take: 100 }),
@@ -45,6 +46,8 @@ export const GET = route(async (req) => {
       select: { amount: true, type: true, date: true, category: true },
       take: 50000,
     }),
+    // Every one of today's transactions by payment mode (the list above is capped).
+    prisma.transaction.groupBy({ by: ["type", "paymentMode"], _sum: { amount: true }, where: todayWhere }),
   ]);
 
   const sumFor = (rows: typeof typeAgg, type: "INCOME" | "EXPENSE") =>
@@ -62,6 +65,7 @@ export const GET = route(async (req) => {
     todayIncome,
     todayExpense,
     todayNet: round2(todayIncome - todayExpense),
+    todayByMode: splitByPaymentMode(todayModeAgg.map((r) => ({ type: r.type, paymentMode: r.paymentMode, amount: r._sum.amount }))),
     week: buildWeekSummary(weekRows, todayIso),
   });
 });
