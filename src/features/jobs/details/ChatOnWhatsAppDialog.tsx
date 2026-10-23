@@ -115,8 +115,9 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-w-[480px] overflow-hidden rounded-2xl border-0 p-0 sm:max-w-[480px]">
-        <div className="flex items-start gap-3 border-b border-gray-100 px-6 pb-4 pt-6">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-[480px] flex-col gap-0 overflow-hidden rounded-2xl border-0 p-0 sm:max-w-[480px]">
+        {/* On a phone the header and the buttons stay in view and only the middle scrolls. */}
+        <div className="flex shrink-0 items-start gap-3 border-b border-gray-100 px-4 pb-3 pt-5 pr-12 sm:px-6 sm:pb-4 sm:pt-6">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-md shadow-emerald-500/25">
             <i className="ph-fill ph-whatsapp-logo text-2xl" aria-hidden="true"></i>
           </div>
@@ -128,7 +129,7 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
           </div>
         </div>
 
-        <div className="space-y-2 px-6 py-4">
+        <div data-chat-body className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-3 sm:px-6 sm:py-4">
           {isLoading && !data && <div className="h-40 animate-pulse rounded-xl bg-slate-100" aria-busy="true" />}
           {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
           {chat && !chat.phone && (
@@ -209,12 +210,12 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 whitespace-nowrap px-6 pb-6">
-          <button type="button" onClick={close} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 sm:px-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 whitespace-nowrap border-t border-gray-100 px-4 pb-4 pt-3 sm:flex-nowrap sm:px-6 sm:pb-6">
+          <button type="button" onClick={close} className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 sm:flex-none sm:px-4">
             Cancel
           </button>
           {chat && (
-            <button type="button" onClick={copy} disabled={!shown.trim()} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 sm:px-4">
+            <button type="button" onClick={copy} disabled={!shown.trim()} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 sm:flex-none sm:px-4">
               <i className="ph-bold ph-copy" aria-hidden="true"></i>
               Copy
             </button>
@@ -225,13 +226,13 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
               target="_blank"
               rel="noopener noreferrer"
               onClick={close}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-2.5 sm:px-5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 hover:from-emerald-600 hover:to-green-700"
+              className="order-first inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-md sm:order-none sm:w-auto sm:px-5 shadow-emerald-500/25 hover:from-emerald-600 hover:to-green-700"
             >
               <i className="ph-fill ph-whatsapp-logo text-base" aria-hidden="true"></i>
               Open WhatsApp
             </a>
           ) : (
-            <span aria-disabled="true" className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-emerald-600/40 px-4 py-2.5 sm:px-5 text-sm font-bold text-white">
+            <span aria-disabled="true" className="order-first inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-emerald-600/40 px-4 py-2.5 text-sm font-bold text-white sm:order-none sm:w-auto sm:px-5">
               <i className="ph-fill ph-whatsapp-logo text-base" aria-hidden="true"></i>
               Open WhatsApp
             </span>

@@ -1978,3 +1978,13 @@ html {
 html:has([data-boot-loader="on"]) [data-printer-loader]:not([data-boot-loader] [data-printer-loader]) {
   visibility: hidden;
 }
+
+/* iOS Safari can paint stale, hard-edged blocks of colour over a dialog while a full-screen
+   backdrop blur sits under it, so on iPhone and iPad the dialog backdrop dims without blurring. */
+@supports (-webkit-touch-callout: none) {
+  [data-slot="dialog-overlay"] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: rgb(15 23 42 / 0.35);
+  }
+}

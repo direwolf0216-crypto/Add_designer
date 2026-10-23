@@ -144,6 +144,38 @@ test.describe.serial("chat on WhatsApp (scratch database only)", () => {
     await context.close();
   });
 
+  test("on a phone the dialog fits the screen: header and buttons in view, the middle scrolls", async ({ browser }) => {
+    const { context, page } = await as(browser, "admin");
+    await page.goto(`/jobs/details/${jobId}`);
+    await page.getByRole("button", { name: "Chat on WhatsApp" }).click();
+    const dialog = page.getByRole("dialog", { name: "Chat on WhatsApp" });
+    await expect(dialog.getByRole("textbox", { name: "Message" })).not.toHaveValue("");
+    for (const size of [{ width: 330, height: 600 }, { width: 375, height: 667 }, { width: 390, height: 844 }, { width: 330, height: 460 }]) {
+      await page.setViewportSize(size);
+      await page.waitForTimeout(300);
+      const box = (await dialog.boundingBox())!;
+      expect(box.y, `${size.width}x${size.height} top`).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height, `${size.width}x${size.height} bottom`).toBeLessThanOrEqual(size.height);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(size.width);
+      for (const el of [dialog.getByRole("heading", { name: "Chat on WhatsApp" }), dialog.getByRole("link", { name: "Open WhatsApp" }), dialog.getByRole("button", { name: "Cancel" }), dialog.getByRole("button", { name: "Copy" })]) {
+        await expect(el).toBeInViewport({ ratio: 1 });
+      }
+      // Nothing in the button row runs past the dialog's edge.
+      const overflow = await dialog.evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    }
+    // A short screen (or the keyboard up): the middle scrolls, the header stays.
+    await page.setViewportSize({ width: 330, height: 460 });
+    await page.waitForTimeout(300);
+    const body = dialog.locator("[data-chat-body]");
+    expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await expect(dialog.getByText("Opens the chat in your WhatsApp")).toBeInViewport();
+    await expect(dialog.getByRole("heading", { name: "Chat on WhatsApp" })).toBeInViewport();
+    await context.close();
+  });
+
   test("a phone WhatsApp can't use is explained instead of opening a broken chat", async ({ browser }) => {
     const { context, page } = await as(browser, "admin");
     await page.goto(`/jobs/details/${badPhoneJobId}`);
