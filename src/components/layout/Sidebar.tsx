@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useMobileNav } from "../providers/MobileNavProvider";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useWarmPageData } from "@/lib/warmPageData";
 
 export default function Sidebar() {
@@ -33,6 +33,31 @@ export default function Sidebar() {
   ];
 
   const visibleNavItems = navItems.filter((item) => !item.permission || checkPermission(item.permission));
+  const isItemActive = (item: (typeof navItems)[number]) =>
+    pathname.startsWith(item.path) ||
+    (item.name === "Jobs" && pathname.startsWith("/jobs")) ||
+    (item.name === "Daily Ledger" && pathname.startsWith("/transactions"));
+  const activePath = visibleNavItems.find(isItemActive)?.path ?? null;
+
+  // One highlight that glides to the active item (instead of each item switching its own background).
+  const menuRef = useRef<HTMLUListElement>(null);
+  const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number; glide: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    const place = (glide: boolean) => {
+      const link = activePath ? menu.querySelector<HTMLElement>(`[data-nav-item="${activePath}"]`) : null;
+      if (!link) return setPill(null);
+      const m = menu.getBoundingClientRect();
+      const r = link.getBoundingClientRect();
+      setPill((prev) => ({ x: r.left - m.left, y: r.top - m.top, w: r.width, h: r.height, glide: glide && prev !== null }));
+    };
+    place(true);
+    // Collapsing or expanding the sidebar resizes the items: follow them without gliding.
+    const ro = new ResizeObserver(() => place(false));
+    ro.observe(menu);
+    return () => ro.disconnect();
+  }, [activePath, isCollapsed]);
 
   return (
     <>
@@ -119,11 +144,18 @@ export default function Sidebar() {
         )}
 
         {/* Navigation Menu */}
-        <ul className={`list-none flex flex-col relative z-10 w-full ${isCollapsed ? 'gap-6 items-center px-1' : 'gap-4 px-2 mt-2'}`}>
+        <ul ref={menuRef} className={`list-none flex flex-col relative z-10 w-full ${isCollapsed ? 'gap-6 items-center px-1' : 'gap-4 px-2 mt-2'}`}>
+          {pill && (
+            <li
+              aria-hidden="true"
+              className={`pointer-events-none absolute left-0 top-0 z-0 bg-gradient-to-r from-[#8B5CF6] to-[#3B82F6] motion-reduce:transition-none ${
+                isCollapsed ? "rounded-[1.3rem] bg-gradient-to-br shadow-[0_0_25px_rgba(139,92,246,0.35)]" : "rounded-2xl shadow-lg shadow-indigo-500/25"
+              } ${pill.glide ? "transition-[transform,width,height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" : ""}`}
+              style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }}
+            />
+          )}
           {visibleNavItems.map((item) => {
-            const isActive = pathname.startsWith(item.path) ||
-              (item.name === "Jobs" && pathname.startsWith("/jobs")) ||
-              (item.name === "Daily Ledger" && pathname.startsWith("/transactions"));
+            const isActive = isItemActive(item);
 
             // Shorter names for collapsed state to match the design
             const displayName = isCollapsed ?
@@ -143,6 +175,7 @@ export default function Sidebar() {
 
                 <Link
                   href={item.path}
+                  data-nav-item={item.path}
                   prefetch={true}
                   onClick={(e) => {
                     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !isActive) setPending({ from: currentPath, to: item.path });
@@ -154,11 +187,9 @@ export default function Sidebar() {
                   className={`
                     ${isCollapsed ? 'flex flex-col items-center justify-center p-3 gap-1.5 w-[76px] h-[76px] rounded-[1.3rem]'
                       : 'flex items-center justify-between py-2.5 px-3 rounded-2xl w-full'}
-                    no-underline transition-all duration-300 outline-none focus:outline-none
+                    relative z-10 no-underline transition-[color,background-color,border-color] duration-300 outline-none focus:outline-none
                     ${isActive
-                      ? (isCollapsed
-                        ? 'bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] text-white shadow-[0_0_25px_rgba(139,92,246,0.35)]'
-                        : 'bg-gradient-to-r from-[#8B5CF6] to-[#3B82F6] text-white shadow-lg')
+                      ? (isCollapsed ? 'border border-transparent text-white' : 'text-white')
                       : (isCollapsed
                         ? 'bg-transparent border border-white/5 text-slate-400 hover:border-white/20 hover:text-slate-200 hover:bg-white/5'
                         : 'text-slate-300 hover:bg-white/5')
@@ -168,7 +199,7 @@ export default function Sidebar() {
                   <div className={`flex ${isCollapsed ? 'flex-col items-center' : 'items-center gap-4'}`}>
                     {/* Icon */}
                     <div className={`
-                      ${isCollapsed ? 'text-[1.5rem]' : 'w-10 h-10 rounded-[0.8rem] flex items-center justify-center shrink-0 transition-colors shadow-sm'}
+                      ${isCollapsed ? 'text-[1.5rem]' : 'w-10 h-10 rounded-[0.8rem] flex items-center justify-center shrink-0 transition-colors duration-300 shadow-sm'}
                       ${!isCollapsed && isActive ? 'bg-white text-[#6366f1]' : ''}
                       ${!isCollapsed && !isActive ? 'bg-[#1e2030] text-slate-300' : ''}
                     `}>
@@ -179,8 +210,11 @@ export default function Sidebar() {
                       ${isCollapsed ? 'text-[10px] font-semibold tracking-wide mt-0.5' : 'text-[0.95rem] font-medium'}
                     `}>{displayName}</span>
                   </div>
-                  {isActive && !isCollapsed && (
-                    <i className="ph-bold ph-caret-right text-white mr-1 text-sm"></i>
+                  {!isCollapsed && (
+                    <i
+                      aria-hidden="true"
+                      className={`ph-bold ph-caret-right mr-1 text-sm text-white transition-[opacity,transform] duration-300 ${isActive ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"}`}
+                    ></i>
                   )}
                 </Link>
               </li>
