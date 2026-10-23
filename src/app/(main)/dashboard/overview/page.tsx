@@ -126,22 +126,12 @@ function DashboardMetrics({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* The period's figures together on one frosted glass card. */}
-      <section
-        aria-label="Overview"
-        className="relative isolate overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-white/55 via-white/30 to-white/15 p-3 shadow-[0_30px_70px_-35px_rgba(76,29,149,0.45),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150 sm:p-4"
-      >
-        {/* Soft colour behind the frosted tiles is what makes the glass read as glass. */}
-        <span aria-hidden="true" className="pointer-events-none absolute -left-16 -top-24 -z-10 h-60 w-60 rounded-full bg-orange-400/40 blur-3xl" />
-        <span aria-hidden="true" className="pointer-events-none absolute -right-12 top-1/2 -z-10 h-64 w-64 -translate-y-1/2 rounded-full bg-fuchsia-500/30 blur-3xl" />
-        <span aria-hidden="true" className="pointer-events-none absolute -bottom-28 left-1/3 -z-10 h-60 w-80 rounded-full bg-sky-400/35 blur-3xl" />
-        <div className={`grid gap-3 ${kpiCols}`}>
-          {kpis.map((k, i) => (
-            <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>
-              <KpiTile {...k} flat />
-            </div>
-          ))}
-        </div>
+      <section aria-label="Overview" className={`grid gap-4 ${kpiCols}`}>
+        {kpis.map((k, i) => (
+          <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>
+            <KpiTile {...k} />
+          </div>
+        ))}
       </section>
 
       {Array.isArray(pipeline) && pipeline.length > 0 && <PressPipeline stages={pipeline} />}

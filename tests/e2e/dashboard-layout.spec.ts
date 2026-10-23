@@ -34,7 +34,7 @@ test.describe.serial("dashboard layout (scratch database only)", () => {
     await context.close();
   });
 
-  test("one Add transaction button, and the figures in one card under the period picker", async ({ browser }) => {
+  test("one Add transaction button, and the figures under the period picker", async ({ browser }) => {
     const { context, page } = await open(browser);
     await page.goto("/dashboard/overview");
     await expect(page.getByRole("button", { name: "Add transaction" })).toBeVisible();
