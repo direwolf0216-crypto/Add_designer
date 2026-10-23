@@ -19,7 +19,15 @@ const nextConfig: NextConfig = {
     staleTimes: { static: 300 },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // Images and fonts in /public are kept by browsers for a week (and used while a fresh copy is
+    // fetched for a month after), instead of being re-checked on every visit (~0.35 s each from India).
+    // Replacing one of these files under the same name can take up to a week to reach everyone.
+    const longCache = [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/assets/:path*", headers: longCache },
+      { source: "/fonts/:path*", headers: longCache },
+    ];
   },
   async redirects() {
     // The jobs pages were merged into one workspace at /jobs (board / list / schedule, my / all).

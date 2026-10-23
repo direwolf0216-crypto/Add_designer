@@ -1,5 +1,6 @@
 "use client";
 
+import { clearAppCaches } from "@/lib/client/appCache";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -409,7 +410,7 @@ export default function TopNavigation() {
               <div className="fixed md:absolute top-[80px] md:top-[calc(100%+10px)] left-4 right-4 md:left-auto md:right-0 md:w-[320px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-gray-100 p-5 z-50 max-h-[calc(100dvh-100px)] md:max-h-[70dvh] overflow-y-auto no-scrollbar">
                 <div className="flex justify-between items-center mb-5 shrink-0">
                   <button
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={() => void clearAppCaches().finally(() => signOut({ callbackUrl: '/login' }))}
                     className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
                   >
                     <i className="ph ph-sign-out text-[1.1rem]"></i> Sign Out

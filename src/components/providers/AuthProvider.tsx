@@ -1,6 +1,8 @@
 "use client";
 
 import { SessionProvider, signOut, useSession } from "next-auth/react";
+import type { Session } from "next-auth";
+import { clearAppCaches } from "@/lib/client/appCache";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { homePathFor, permissionForPath } from "@/lib/permissions";
@@ -39,7 +41,7 @@ function RevokedSessionGuard() {
   }, [status, update]);
   useEffect(() => {
     if (revoked && !PUBLIC.some((p) => pathname.startsWith(p))) {
-      void signOut({ callbackUrl: `/login?callbackUrl=${encodeURIComponent(pathname)}` });
+      void clearAppCaches().finally(() => signOut({ callbackUrl: `/login?callbackUrl=${encodeURIComponent(pathname)}` }));
     }
   }, [revoked, pathname]);
   return null;
@@ -47,11 +49,14 @@ function RevokedSessionGuard() {
 
 export default function AuthProvider({
   children,
+  session,
 }: {
   children: React.ReactNode;
+  /** The session read on the server with the page, so the app doesn't have to ask for it first. */
+  session?: Session | null;
 }) {
   return (
-    <SessionProvider refetchInterval={SESSION_REFRESH_SECONDS}>
+    <SessionProvider session={session ?? undefined} refetchInterval={SESSION_REFRESH_SECONDS}>
       <RevokedSessionGuard />
       {children}
     </SessionProvider>

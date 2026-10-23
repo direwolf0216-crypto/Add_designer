@@ -7,9 +7,13 @@ import "@/styles/icons/phosphor-bold.css";
 import "@/styles/icons/phosphor-fill.css";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import AppToaster from "@/components/ui/app-toaster";
 import BootLoader from "@/components/motion/BootLoader";
+import SavedDataProvider from "@/components/providers/SavedDataProvider";
+import ServiceWorker from "@/components/providers/ServiceWorker";
 
 // All app fonts load once here via next/font (self-hosted, no render-blocking @import).
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -37,15 +41,19 @@ export default async function RootLayout({
   // its inline scripts while rendering dynamically (a prerendered page would ship nonce-less scripts the
   // policy then blocks). Reading the headers here opts the whole app in.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // Sent with the page: the signed-in user (and their permissions) are known at once, so screens gated
+  // by permissions don't wait for a round trip to /api/auth/session on every load.
+  const session = await getServerSession(authOptions).catch(() => null);
   return (
     <html lang="en" className={cn("font-sans", inter.variable, display.variable, brandScript.variable, brandAccent.variable)}>
 
       <body className={cn("flex h-[100dvh] fixed inset-0 w-full overflow-hidden bg-slate-50 text-slate-900 antialiased", inter.className)}>
         <BootLoader nonce={nonce} />
-        <AuthProvider>
-          {children}
+        <AuthProvider session={session}>
+          <SavedDataProvider>{children}</SavedDataProvider>
           <AppToaster />
         </AuthProvider>
+        <ServiceWorker />
       </body>
     </html>
   );
