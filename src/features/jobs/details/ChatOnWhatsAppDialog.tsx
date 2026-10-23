@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -139,7 +140,7 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
           )}
           {chat && (
             <>
-              <div className="grid gap-2" role="radiogroup" aria-label="Message">
+              <GlideGroup active={current} pillClassName="rounded-xl border border-emerald-300 bg-emerald-50" className="grid gap-2" role="radiogroup" aria-label="Message">
                 {[...messages, { kind: "custom", label: "Write your own", hint: "Start from a blank message", text: "" }].map((m) => {
                   const active = current === m.kind;
                   return (
@@ -148,8 +149,9 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
                       type="button"
                       role="radio"
                       aria-checked={active}
+                      data-pill-key={m.kind}
                       onClick={() => choose(m.kind)}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${active ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-white hover:border-emerald-200"}`}
+                      className={`relative z-10 flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors duration-300 ${active ? "border-transparent" : "border-gray-200 hover:border-emerald-200"}`}
                     >
                       <i className={`ph-bold ${ICONS[m.kind] ?? "ph-chat-circle"} text-lg ${active ? "text-emerald-600" : "text-slate-400"}`} aria-hidden="true"></i>
                       <span className="min-w-0 flex-1">
@@ -164,7 +166,7 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
                     </button>
                   );
                 })}
-              </div>
+              </GlideGroup>
               <label className="block pt-1">
                 <span className="mb-1 block text-[0.68rem] font-extrabold uppercase tracking-wider text-slate-400">Message</span>
                 <textarea

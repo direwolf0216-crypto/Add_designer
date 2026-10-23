@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -130,7 +131,7 @@ export default function QueueView({ data }: { data: WorkspaceData }) {
     <div className="flex flex-col gap-4">
       {/* Team switcher + what the team is holding */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Team" className="inline-flex flex-wrap gap-1 rounded-2xl bg-slate-900/5 p-1 ring-1 ring-slate-900/5">
+        <GlideGroup role="tablist" aria-label="Team" active={team.id} pillClassName="rounded-xl bg-white shadow-sm" className="inline-flex flex-wrap gap-1 rounded-2xl bg-slate-900/5 p-1 ring-1 ring-slate-900/5">
           {queue.teams.map((t) => {
             const active = t.id === team.id;
             return (
@@ -140,14 +141,17 @@ export default function QueueView({ data }: { data: WorkspaceData }) {
                 aria-selected={active}
                 href={hrefWith({ team: t.id })}
                 scroll={false}
-                className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-bold transition-all ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                prefetch={true}
+                data-nav-scope="jobs-view"
+                data-pill-key={t.id}
+                className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-bold transition-colors duration-300 ${active ? "text-slate-900" : "text-slate-500 hover:text-slate-800"}`}
               >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
                 {t.name}
               </Link>
             );
           })}
-        </div>
+        </GlideGroup>
         <div className="flex flex-wrap gap-2">
           {team.stages.map((s) => {
             const hex = stageHex(stageColor(s));

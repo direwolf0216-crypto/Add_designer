@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import { useState } from "react";
 import { invalidateAll } from "@/lib/swr";
 import useSWR from "swr";
@@ -179,7 +180,7 @@ export default function RecycleBin() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+          <GlideGroup active={sourceFilter} pillClassName="rounded-lg bg-white shadow-sm" className="flex bg-slate-100 p-1 rounded-xl">
             {[
               { label: 'All Sources', val: '' },
               { label: 'Jobs', val: 'job' },
@@ -187,13 +188,14 @@ export default function RecycleBin() {
             ].map(tab => (
               <button
                 key={tab.label}
+                data-pill-key={tab.val}
                 onClick={() => { setSourceFilter(tab.val); setPage(0); setSelectedIds(new Set()); }}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${sourceFilter === tab.val ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`relative z-10 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors duration-300 ${sourceFilter === tab.val ? 'text-orange-600' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 {tab.label}
               </button>
             ))}
-          </div>
+          </GlideGroup>
 
           {!isAdmin ? null : confirmEmptyBin ? (
              <div className="flex items-center gap-2">

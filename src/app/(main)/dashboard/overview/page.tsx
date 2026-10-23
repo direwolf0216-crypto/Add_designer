@@ -131,7 +131,7 @@ function DashboardMetrics({
     <div className={`flex flex-col gap-6 ${reveal}`}>
       <section aria-label="Overview" className={`grid gap-4 ${kpiCols}`}>
         {kpis.map((k, i) => (
-          <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>
+          <div key={k.label} className="animate-rise h-full" style={{ ['--i' as string]: i }}>
             <KpiTile {...k} />
           </div>
         ))}

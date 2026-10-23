@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { TransactionFilterDraft } from "@/lib/transactions/filters";
 import DatePickerInput from "@/components/ui/DatePickerInput";
@@ -51,24 +52,23 @@ export function TransactionFiltersDialog({ open, onOpenChange, value: tempFilter
               <i className="ph-bold ph-arrows-left-right text-orange-500"></i>
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Transaction Type</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <GlideGroup active={tempFilters.type || 'ALL'} pillClassName={tempFilters.type === 'INCOME' ? 'rounded-xl bg-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)]' : tempFilters.type === 'EXPENSE' ? 'rounded-xl bg-rose-500 shadow-[0_4px_12px_rgba(239,68,68,0.3)]' : 'rounded-xl bg-slate-800 shadow-[0_4px_12px_rgba(0,0,0,0.2)]'} className="grid grid-cols-3 gap-2">
               {[{v: 'ALL', l: 'All'}, {v: 'INCOME', l: 'Income'}, {v: 'EXPENSE', l: 'Expense'}].map(opt => (
                 <button
                   key={opt.v}
                   type="button"
+                  data-pill-key={opt.v}
                   onClick={() => onChange({...tempFilters, type: opt.v})}
-                  className={`h-11 rounded-xl font-bold text-sm transition-all border-2 ${
+                  className={`relative z-10 h-11 rounded-xl font-bold text-sm transition-colors duration-300 border-2 ${
                     tempFilters.type === opt.v
-                      ? opt.v === 'INCOME' ? 'bg-emerald-500 text-white border-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)]'
-                      : opt.v === 'EXPENSE' ? 'bg-rose-500 text-white border-rose-500 shadow-[0_4px_12px_rgba(239,68,68,0.3)]'
-                      : 'bg-slate-800 text-white border-slate-800 shadow-[0_4px_12px_rgba(0,0,0,0.2)]'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      ? 'text-white border-transparent'
+                      : 'text-slate-500 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   {opt.l}
                 </button>
               ))}
-            </div>
+            </GlideGroup>
           </div>
 
           {/* Payment Mode */}
@@ -77,7 +77,7 @@ export function TransactionFiltersDialog({ open, onOpenChange, value: tempFilter
               <i className="ph-bold ph-credit-card text-orange-500"></i>
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Payment Mode</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <GlideGroup active={tempFilters.paymentMode || 'ALL'} pillClassName="rounded-xl bg-orange-500 shadow-[0_4px_12px_rgba(249,115,22,0.3)]" className="grid grid-cols-3 gap-2">
               {[
                 {v: 'ALL', l: 'All', icon: 'ph-bold ph-stack'},
                 {v: 'UPI', l: 'UPI', icon: 'ph-bold ph-device-mobile'},
@@ -88,17 +88,18 @@ export function TransactionFiltersDialog({ open, onOpenChange, value: tempFilter
                 <button
                   key={opt.v}
                   type="button"
+                  data-pill-key={opt.v}
                   onClick={() => onChange({...tempFilters, paymentMode: opt.v})}
-                  className={`h-11 rounded-xl font-bold text-sm transition-all border-2 flex items-center justify-center gap-1.5 ${
+                  className={`relative z-10 h-11 rounded-xl font-bold text-sm transition-colors duration-300 border-2 flex items-center justify-center gap-1.5 ${
                     tempFilters.paymentMode === opt.v
-                      ? 'bg-orange-500 text-white border-orange-500 shadow-[0_4px_12px_rgba(249,115,22,0.3)]'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      ? 'text-white border-transparent'
+                      : 'text-slate-500 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <i className={`${opt.icon} text-sm`}></i> {opt.l}
                 </button>
               ))}
-            </div>
+            </GlideGroup>
           </div>
 
           {/* Amount Range */}

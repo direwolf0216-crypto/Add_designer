@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,9 +24,10 @@ function RoleItem({ r, on, onSelect }: { r: RoleSummary; on: boolean; onSelect: 
         type="button"
         onClick={onSelect}
         aria-current={on}
-        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors ${on ? "bg-slate-900 text-white shadow-md" : "text-slate-700 hover:bg-slate-100/80"}`}
+        data-pill-key={r.key}
+        className={`relative z-10 flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors duration-300 ${on ? "text-white" : "text-slate-700 hover:bg-slate-100/80"}`}
       >
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${on ? "bg-white/15" : "bg-white text-slate-500 ring-1 ring-slate-200"}`}>
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${on ? "bg-white/15" : "bg-white text-slate-500 ring-1 ring-slate-200"}`}>
           <i className={`ph-bold ${roleIcon(r)} text-[15px]`} aria-hidden="true"></i>
         </span>
         <span className="min-w-0 flex-1">
@@ -111,7 +113,7 @@ export default function RolesPermissions() {
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr]">
-        <nav aria-label="Roles" className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/80 p-2.5 lg:sticky lg:top-4">
+        <GlideGroup as="nav" aria-label="Roles" active={selected?.key} pillClassName="rounded-2xl bg-slate-900 shadow-md" className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/80 p-2.5 lg:sticky lg:top-4">
           <div>
             <p className="px-3 pt-1 pb-1.5 text-[0.65rem] font-extrabold uppercase tracking-wider text-slate-400">Built in</p>
             <ul className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 lg:flex lg:flex-col">
@@ -131,7 +133,7 @@ export default function RolesPermissions() {
               </button>
             )}
           </div>
-        </nav>
+        </GlideGroup>
 
         {selected && draft && (
           <section key={selected.key} className="animate-rise relative flex flex-col gap-5 rounded-3xl border border-slate-200/80 bg-white/80 p-5 backdrop-blur md:p-6">

@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import { useState } from "react";
 import { getFieldTypeDef } from "@/lib/layout-builder/fieldTypes";
 import type { FormField, FormLayout } from "@/lib/layout-builder/types";
@@ -86,23 +87,24 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
           </div>
 
           <div className="px-3 pt-3 pb-0 border-b border-gray-100">
-            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="tablist">
+            <GlideGroup active={tab} pillClassName="rounded-lg bg-white shadow-sm" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="tablist">
               {tabs.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   role="tab"
                   aria-selected={tab === t.id}
+                  data-pill-key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`relative rounded-lg py-1.5 text-[0.78rem] font-bold transition-colors ${
-                    tab === t.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                  className={`relative z-10 rounded-lg py-1.5 text-[0.78rem] font-bold transition-colors duration-300 ${
+                    tab === t.id ? "text-slate-900" : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
                   {t.label}
                   {t.dot && <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-violet-500"></span>}
                 </button>
               ))}
-            </div>
+            </GlideGroup>
             <div className="h-3"></div>
           </div>
 

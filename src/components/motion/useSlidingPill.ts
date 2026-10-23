@@ -15,7 +15,7 @@ export function useSlidingPill<T extends HTMLElement>(activeKey: string | null |
     const el = ref.current;
     if (!el) return;
     const place = (glide: boolean) => {
-      const item = activeKey ? el.querySelector<HTMLElement>(`[data-pill-key="${CSS.escape(activeKey)}"]`) : null;
+      const item = activeKey != null ? el.querySelector<HTMLElement>(`[data-pill-key="${CSS.escape(activeKey)}"]`) : null;
       if (!item) return setBox(null);
       const c = el.getBoundingClientRect();
       const r = item.getBoundingClientRect();
@@ -43,7 +43,9 @@ export function useSlidingPill<T extends HTMLElement>(activeKey: string | null |
         width: box.w,
         height: box.h,
         transform: `translate(${box.x}px, ${box.y}px)`,
-        transition: box.glide ? "transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), width 0.45s cubic-bezier(0.22, 1, 0.36, 1), height 0.45s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+        transition: box.glide
+          ? "transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), width 0.45s cubic-bezier(0.22, 1, 0.36, 1), height 0.45s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease"
+          : "none",
         pointerEvents: "none",
       }
     : undefined;

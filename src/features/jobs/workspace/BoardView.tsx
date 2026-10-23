@@ -116,7 +116,10 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
               <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-600 ring-1 ring-slate-200">{col.count}</span>
             </header>
 
-            <div className={`flex max-h-[calc(100dvh-22rem)] min-h-[120px] flex-col overflow-y-auto pr-0.5 ${wide ? "gap-3" : "gap-2.5"}`}>
+            {/* Room inside the scroller for a card's hover lift and soft shadow (a scroller clips
+                whatever reaches past its edge, which drew the shadow as a hard-edged box); the
+                negative margins keep the column's layout where it was. */}
+            <div className={`-mx-2 -mt-2 -mb-4 flex max-h-[calc(100dvh-22rem+1.5rem)] min-h-[120px] flex-col overflow-y-auto px-2 pt-2 pb-5 ${wide ? "gap-3" : "gap-2.5"}`}>
               {col.jobs.map((job, i) => (
                 <div key={job.id} className="animate-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
                   <JobCard job={job} today={data.today} stages={data.stages} onMove={canMove ? move : undefined} draggable={canMove} size={wide ? "lg" : "md"} />

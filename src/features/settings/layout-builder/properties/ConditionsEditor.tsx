@@ -1,5 +1,6 @@
 "use client";
 
+import GlideGroup from "@/components/motion/GlideGroup";
 import CustomDropdown from "@/components/ui/CustomDropdown";
 import CustomMultiDropdown from "@/components/ui/CustomMultiDropdown";
 import DatePickerInput from "@/components/ui/DatePickerInput";
@@ -97,13 +98,13 @@ export default function ConditionsEditor({ layout, fieldId, rule, onChange }: Co
       {conditions.length > 1 && (
         <div className="flex items-center gap-1.5 text-[0.75rem] font-semibold text-slate-600">
           When
-          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+          <GlideGroup active={match} pillClassName="rounded-md bg-white shadow-sm" className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
             {(["all", "any"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => commit(conditions, m)} className={`rounded-md px-2.5 py-1 text-[0.72rem] font-bold transition-colors ${match === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>
+              <button key={m} type="button" data-pill-key={m} onClick={() => commit(conditions, m)} className={`relative z-10 rounded-md px-2.5 py-1 text-[0.72rem] font-bold transition-colors duration-300 ${match === m ? "text-slate-900" : "text-slate-500"}`}>
                 {m}
               </button>
             ))}
-          </div>
+          </GlideGroup>
           of these hold
         </div>
       )}

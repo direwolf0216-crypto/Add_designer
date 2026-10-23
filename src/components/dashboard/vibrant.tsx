@@ -67,7 +67,8 @@ export function KpiTile({ icon, tone, label, value, caption, valueClass, extra }
   extra?: ReactNode;
 }) {
   return (
-    <div className="dashboard-card group flex min-w-0 flex-col gap-3 p-4 transition-transform duration-200 hover:-translate-y-0.5 2xl:p-5">
+    // A soft, layered shadow so each figure lifts off the glass panel; it deepens on hover.
+    <div className="dashboard-card group flex h-full min-w-0 flex-col gap-3 p-4 !shadow-[0_2px_6px_-2px_rgba(15,23,42,0.08),0_18px_38px_-20px_rgba(15,23,42,0.32)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:!shadow-[0_4px_10px_-4px_rgba(15,23,42,0.1),0_26px_48px_-22px_rgba(15,23,42,0.42)] 2xl:p-5">
       <div className="flex min-w-0 items-center gap-4">
         <IconTile icon={icon} tone={tone} size="lg" />
         <div className="min-w-0">
