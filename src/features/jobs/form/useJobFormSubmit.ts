@@ -24,6 +24,7 @@ import { entryValidationErrors, globalFieldsOf, jobDetailsSection, missingEntryF
 import { findRoleField } from "@/lib/forms/roles";
 import { fieldNameFor } from "@/lib/forms/fieldMap";
 import type { JobFormState } from "./useJobFormState";
+import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 
 const FLASH_CLASSES = ["bg-red-50", "p-2", "rounded-xl", "transition-colors", "duration-500"];
 
@@ -47,6 +48,7 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
   const { form, job, layoutSchema, repeatableData, financialRates, installments } = state;
   const { setError, clearErrors } = form;
   const router = useRouter();
+  const { openJobDetails } = useGlobalForm();
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const onSubmit = async (data: JobFormData) => {
@@ -145,7 +147,7 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       // The job's category column follows the field with the Job category role (the built-in id maps to "category").
       const categoryField = findRoleField(layoutSchema, "category");
       const categoryKey = categoryField ? fieldNameFor(JOB_FORM_FIELD_MAP, categoryField.id) : "category";
-      let created = 0;
+      const createdIds: string[] = [];
       for (const j of jobs) {
         const data: Record<string, unknown> = { ...values, ...j.globals, package: String(j.packageAmount), category: (j.entry[categoryKey] as string | undefined) || (j.entry.category as string | undefined) || (values[categoryKey as keyof typeof values] as string | undefined) || (values.category as string | undefined) || "" };
         if (discountKey && jobs.length > 1) data[discountKey] = String(Math.max(0, j.lineTotal - j.packageAmount));
@@ -166,18 +168,24 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
         const result = await saveJobAction(formData);
         if (!(result.success && result.data)) {
           const reason = !result.success ? result.errors?._form?.[0] : undefined;
-          toast.error(jobs.length > 1 ? `Job ${j.index + 1} could not be saved${created ? ` (${created} saved)` : ""}. ${reason ?? "Please check its fields."}` : reason ?? "Failed to save job. Please check your inputs.");
+          toast.error(jobs.length > 1 ? `Job ${j.index + 1} could not be saved${createdIds.length ? ` (${createdIds.length} saved)` : ""}. ${reason ?? "Please check its fields."}` : reason ?? "Failed to save job. Please check your inputs.");
           invalidateAll();
           router.refresh();
           setIsSubmittingLocal(false);
           return;
         }
-        created++;
+        createdIds.push((result.data as { id: string }).id);
       }
-      toast.success(job ? "Job updated successfully!" : created > 1 ? `Created ${created} jobs` : "Job created successfully!");
+      const created = createdIds.length;
+      toast.success(
+        job ? "Job updated successfully!" : created > 1 ? `Created ${created} jobs` : "Job created successfully!",
+        !job && created > 1 ? { description: "Showing the first one; the others are linked under “Same order”." } : undefined
+      );
       invalidateAll();
-      router.refresh();
       onSaved();
+      // A new job opens on its details page (the first one when the form made several).
+      if (!job && createdIds[0]) openJobDetails(createdIds[0]);
+      else router.refresh();
       setIsSubmittingLocal(false);
       return;
     }
@@ -197,8 +205,10 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
     if (result.success && result.data) {
       toast.success(job ? "Job updated successfully!" : "Job created successfully!");
       invalidateAll();
-      router.refresh();
       onSaved();
+      const newId = (result.data as { id?: string }).id;
+      if (!job && newId) openJobDetails(newId);
+      else router.refresh();
     } else {
       toast.error((!result.success ? result.errors?._form?.[0] : undefined) ?? "Failed to save job. Please check your inputs.");
     }

@@ -193,7 +193,9 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 isGeneratingInvoice={mutations.isGeneratingInvoice}
                 onEdit={() => {
                   openJobForm(job.id, undefined);
-                  closeJobDetails();
+                  // On the job's own page the form opens over it and the page shows the saved changes;
+                  // the pop-up version steps aside for the form.
+                  if (!standaloneJobId) closeJobDetails();
                 }}
                 onDelete={() => setIsDeleteConfirmOpen(true)}
                 onExport={exportPdf}
