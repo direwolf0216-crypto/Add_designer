@@ -1,5 +1,6 @@
 "use client";
 
+import type { PointerEvent } from "react";
 import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AssigneeAvatars from "@/features/jobs/assignees/AssigneeAvatars";
@@ -14,9 +15,10 @@ type Props = {
   job: WorkspaceJob;
   today: string;
   stages?: StageOption[];
-  /** Enables dragging and the "Move to" menu. */
+  /** Enables the "Move to" menu. */
   onMove?: (jobId: string, stage: string) => void;
-  draggable?: boolean;
+  /** Enables dragging the card between board columns (pointer down on the card). */
+  onDragStart?: (e: PointerEvent<HTMLElement>) => void;
   showStage?: boolean;
   /** What the viewer's team calls this stage (defaults to the stage itself). */
   stageLabel?: string;
@@ -27,7 +29,8 @@ type Props = {
 // "Ready for Delivery" is still open; only Delivered and Cancelled are closed.
 const CLOSED = /^delivered$|cancel/i;
 
-export default function JobCard({ job, today, stages = [], onMove, draggable = false, showStage = false, stageLabel, size = "md" }: Props) {
+export default function JobCard({ job, today, stages = [], onMove, onDragStart, showStage = false, stageLabel, size = "md" }: Props) {
+  const draggable = Boolean(onDragStart);
   const lg = size === "lg";
   const amount = job.amount ?? 0;
   const balance = job.balance ?? 0;
@@ -40,19 +43,13 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
 
   return (
     <article
-      draggable={draggable}
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/job-id", job.id);
-        e.dataTransfer.effectAllowed = "move";
-        e.currentTarget.classList.add("opacity-50");
-      }}
-      onDragEnd={(e) => e.currentTarget.classList.remove("opacity-50")}
+      onPointerDown={onDragStart}
       data-priority={job.priority}
-      className={`group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white ${lg ? "p-5" : "p-3.5"} shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white ${lg ? "p-5" : "p-3.5"} shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab select-none [-webkit-touch-callout:none]" : ""}`}
       style={tint ? { borderColor: `${priorityHex}${tint.border}`, backgroundImage: `linear-gradient(135deg, ${priorityHex}${tint.wash} 0%, #ffffff 58%)` } : undefined}
     >
       {tint && <span className="pointer-events-none absolute inset-y-3 left-0 w-1 rounded-r-full" style={{ backgroundColor: `${priorityHex}${tint.bar}` }} aria-hidden="true" />}
-      <Link href={`/jobs/details/${job.id}`} className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label={`Open ${job.jobNumber ?? "job"} for ${job.clientName}`} />
+      <Link href={`/jobs/details/${job.id}`} draggable={false} className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label={`Open ${job.jobNumber ?? "job"} for ${job.clientName}`} />
 
       <div className="pointer-events-none relative z-10 flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -62,6 +59,7 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
         {onMove && stages.length > 0 && (
           <Popover>
             <PopoverTrigger
+              data-no-drag
               className="pointer-events-auto -mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-opacity hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100"
               aria-label="Move to stage"
             >

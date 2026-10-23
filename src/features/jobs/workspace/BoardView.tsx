@@ -8,6 +8,7 @@ import { updateJobTrackingAction } from "@/app/actions";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { WorkspaceData, WorkspaceJob } from "@/lib/jobs/workspace";
 import JobCard from "./JobCard";
+import { useCardDrag } from "./useCardDrag";
 import { stageHex, stageIcon } from "./stageStyle";
 import { useWorkspaceUrl } from "./url";
 import { CANCELLATION_KEY, isCancelStage } from "@/lib/jobs/cancellation";
@@ -34,6 +35,7 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
     setColumns(data.board ?? []);
   }
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const { scrollerRef, onCardPointerDown } = useCardDrag({ onTarget: setDropTarget, onDrop: (jobId, stage) => move(jobId, stage) });
   // Moving a card to a Cancelled column asks for the (optional) cancellation charge first.
   const [cancelling, setCancelling] = useState<{ jobId: string; toStage: string } | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -75,6 +77,7 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
   return (
     <>
     <div
+      ref={scrollerRef}
       className={
         wide
           ? "-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:grid md:gap-5 md:overflow-visible md:px-0"
@@ -89,19 +92,7 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
           <section
             key={col.stage}
             aria-label={`${col.stage}, ${col.count} jobs`}
-            onDragOver={(e) => {
-              if (!canMove) return;
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              setDropTarget(col.stage);
-            }}
-            onDragLeave={() => setDropTarget((t) => (t === col.stage ? null : t))}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDropTarget(null);
-              const id = e.dataTransfer.getData("text/job-id");
-              if (id) move(id, col.stage);
-            }}
+            data-board-column={col.stage}
             className={`flex w-[290px] shrink-0 snap-start flex-col rounded-3xl border p-3 transition-colors ${wide ? "md:w-auto md:min-w-0 md:p-4" : "md:w-[300px]"} ${isTarget ? "border-dashed bg-white/90" : "border-slate-200/70 bg-slate-50/70 backdrop-blur"}`}
             style={isTarget ? { borderColor: hex } : undefined}
           >
@@ -122,7 +113,7 @@ export default function BoardView({ data }: { data: WorkspaceData }) {
             <div className={`-mx-2 -mt-2 -mb-4 flex max-h-[calc(100dvh-22rem+1.5rem)] min-h-[120px] flex-col overflow-y-auto px-2 pt-2 pb-5 ${wide ? "gap-3" : "gap-2.5"}`}>
               {col.jobs.map((job, i) => (
                 <div key={job.id} className="animate-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
-                  <JobCard job={job} today={data.today} stages={data.stages} onMove={canMove ? move : undefined} draggable={canMove} size={wide ? "lg" : "md"} />
+                  <JobCard job={job} today={data.today} stages={data.stages} onMove={canMove ? move : undefined} onDragStart={canMove ? (e) => onCardPointerDown(e, job.id, col.stage) : undefined} size={wide ? "lg" : "md"} />
                 </div>
               ))}
               {col.jobs.length === 0 && (
