@@ -25,6 +25,17 @@
   10% { transform: scaleX(0.45); }
   100% { transform: scaleX(0.92); }
 }
+/* A slow switch: the printer over the dimmed page (under the top bar), fading in softly. */
+.printer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  animation: printer-in 0.25s ease both;
+}
+@keyframes printer-in {
+  from { opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .active { animation: none; transform: scaleX(0.6); }
   .done { transition: opacity 0.2s ease; }

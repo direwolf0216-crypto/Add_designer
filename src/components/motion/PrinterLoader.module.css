@@ -10,6 +10,9 @@
   /* Wait a beat before showing, so quick navigations never flash the loader. */
   animation: pl-in 0.35s ease 0.16s both;
 }
+.immediate {
+  animation-delay: 0s;
+}
 
 .scene {
   position: relative;

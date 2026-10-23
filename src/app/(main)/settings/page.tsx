@@ -258,7 +258,7 @@ function SettingsPage() {
 
 function SettingsPageWrapperContent() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading settings...</div>}>
+    <Suspense fallback={<PrinterLoader label="Printing your settings" />}>
       <SettingsPage />
     </Suspense>
   );

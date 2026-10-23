@@ -2094,3 +2094,8 @@ html[data-arriving] .animate-slide-up {
 @keyframes vt-sidebar-out {
   to { transform: translateX(-40%); opacity: 0; }
 }
+
+/* A slow switch's printer hands over to the new page's own loader without a gap (NavProgress). */
+html[data-printing] [data-printer-loader] {
+  animation-delay: 0s;
+}

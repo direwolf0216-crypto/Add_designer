@@ -1,12 +1,17 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
+import PrinterLoader from "./PrinterLoader";
 import s from "./NavProgress.module.css";
 
 const SHOW_AFTER = 120; // instant (prefetched) switches never flash the bar
 const GIVE_UP_AFTER = 8_000; // a switch that never lands (cancelled, offline) stops the bar
 const START_EVENT = "nav-progress:start";
+// Pages have no route loading screen: the current page stays (dimmed) until the next one is ready,
+// then they crossfade once. A switch that takes longer than this brings the printer over it at once.
+const PRINTER_AFTER = 300;
 // From the click until a while after the new page is in, entrance animations finish at once
 // (html[data-arriving]): the page crossfade is the entrance, and a card still fading in mid-crossfade
 // would let the background show through (a flash).
@@ -31,13 +36,23 @@ function Bar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const ref = useRef<HTMLDivElement>(null);
-  const timers = useRef<{ show?: number; stop?: number; arrived?: number }>({});
+  const timers = useRef<{ show?: number; stop?: number; arrived?: number; printer?: number }>({});
+  const [printer, setPrinter] = useState(false);
+  // The new page (or tab) is in: the printer goes (during render, not in an effect).
+  const here = `${pathname}?${searchParams}`;
+  const [shownFor, setShownFor] = useState(here);
+  if (shownFor !== here) {
+    setShownFor(here);
+    if (printer) setPrinter(false);
+  }
 
-  const finish = useCallback(() => {
+  const settle = useCallback(() => {
     const el = ref.current;
     window.clearTimeout(timers.current.show);
     window.clearTimeout(timers.current.stop);
+    window.clearTimeout(timers.current.printer);
     delete document.documentElement.dataset.navigating;
+    if (document.documentElement.dataset.printing) window.setTimeout(() => delete document.documentElement.dataset.printing, 800);
     window.clearTimeout(timers.current.arrived);
     if (document.documentElement.dataset.arriving) {
       timers.current.arrived = window.setTimeout(() => delete document.documentElement.dataset.arriving, ARRIVING_FOR);
@@ -47,6 +62,11 @@ function Bar() {
       el.classList.add(s.done);
     }
   }, []);
+  // Stopped without arriving (gave up, back / forward): settle and drop the printer.
+  const finish = useCallback(() => {
+    settle();
+    setPrinter(false);
+  }, [settle]);
 
   useEffect(() => {
     const el = ref.current;
@@ -65,6 +85,14 @@ function Bar() {
         document.documentElement.dataset.navigating = scope;
       }, SHOW_AFTER);
       timers.current.stop = window.setTimeout(finish, GIVE_UP_AFTER);
+      window.clearTimeout(timers.current.printer);
+      if (scope === "page")
+        timers.current.printer = window.setTimeout(() => {
+          // While the printer is up (and just after), the new page's own loader appears without its
+          // usual wait, so one printer hands over to the other with no blink.
+          document.documentElement.dataset.printing = "true";
+          setPrinter(true);
+        }, PRINTER_AFTER);
     };
     const onClick = (e: MouseEvent) => {
       const a = internalLink(e);
@@ -89,10 +117,23 @@ function Bar() {
 
   // The new page (or tab) is in: finish the bar.
   useEffect(() => {
-    finish();
-  }, [pathname, searchParams, finish]);
+    settle();
+  }, [pathname, searchParams, settle]);
 
-  return <div ref={ref} className={s.bar} aria-hidden="true" />;
+  const main = typeof document !== "undefined" ? document.querySelector("main") : null;
+  // Under the top bar, in the same place a page's own loader sits, so a hand-over doesn't jump.
+  const top = main?.querySelector("[data-app-topbar]")?.getBoundingClientRect().height ?? 0;
+  return (
+    <>
+      <div ref={ref} className={s.bar} aria-hidden="true" />
+      {printer && main && createPortal(
+          <div className={`${s.printer} p-4 md:p-6 xl:p-8`} style={{ top }}>
+            <PrinterLoader label="Printing your page" immediate />
+          </div>,
+          main
+        )}
+    </>
+  );
 }
 
 /** A thin colour bar along the top while a page or tab switch is on its way. */

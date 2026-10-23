@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, ViewTransition, useState } from "react";
 import { useSlidingPill } from "@/components/motion/useSlidingPill";
+import PrinterLoader from "@/components/motion/PrinterLoader";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -75,7 +76,7 @@ function TransactionsLayoutContent({ children }: { children: React.ReactNode }) 
 
 export default function TransactionsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="p-10 text-center text-slate-500">Loading...</div>}>
+    <Suspense fallback={<PrinterLoader label="Printing your ledger" />}>
       <TransactionsLayoutContent>{children}</TransactionsLayoutContent>
     </Suspense>
   );
