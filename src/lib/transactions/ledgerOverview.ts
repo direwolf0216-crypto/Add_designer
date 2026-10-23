@@ -13,13 +13,15 @@ import { splitByPaymentMode } from "@/lib/transactions/paymentModes";
  * this week against last week. Used by GET /api/transactions/overview and by the ledger page, which
  * sends it with the page so the figures appear without waiting for the app's scripts.
  */
-export async function loadLedgerOverview(user: SessionUser) {
+export async function loadLedgerOverview(user: SessionUser, weekOf?: string | null) {
   const scope = await transactionJobScope(user);
   const today = businessDayRange();
   const todayWhere: Prisma.TransactionWhereInput = { date: { gte: today.start, lte: today.end }, deletedAt: null, AND: [scope] };
   // Current Mon..Sun week plus the previous week (IST calendar days), for the weekly cards.
   const todayIso = toBusinessISODate();
-  const weekRange = businessRangeFromISO(addIsoDays(mondayOf(todayIso), -7), addIsoDays(mondayOf(todayIso), 6));
+  // The week shown: the one holding `weekOf` (yyyy-MM-dd, no later than this week), else this week.
+  const anchor = weekOf && /^\d{4}-\d{2}-\d{2}$/.test(weekOf) && !Number.isNaN(Date.parse(weekOf)) && weekOf <= todayIso ? weekOf : todayIso;
+  const weekRange = businessRangeFromISO(addIsoDays(mondayOf(anchor), -7), addIsoDays(mondayOf(anchor), 6));
 
   const [todayTransactions, todayTypeAgg, weekRows, todayModeAgg] = await Promise.all([
     prisma.transaction.findMany({ where: todayWhere, orderBy: { date: "desc" }, take: 200 }),
@@ -43,6 +45,6 @@ export async function loadLedgerOverview(user: SessionUser) {
     todayExpense,
     todayNet: round2(todayIncome - todayExpense),
     todayByMode: splitByPaymentMode(todayModeAgg.map((r) => ({ type: r.type, paymentMode: r.paymentMode, amount: r._sum.amount }))),
-    week: buildWeekSummary(weekRows, todayIso),
+    week: buildWeekSummary(weekRows, todayIso, anchor),
   };
 }

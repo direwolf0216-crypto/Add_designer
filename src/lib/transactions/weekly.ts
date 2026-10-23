@@ -43,8 +43,9 @@ export function mondayOf(iso: string): string {
  * Summarise `rows` (covering at least the previous and current week) into the current Mon..Sun week,
  * the previous week's totals and this week's expense categories.
  */
-export function buildWeekSummary(rows: Row[], todayIso: string): WeekSummary {
-  const monday = mondayOf(todayIso);
+export function buildWeekSummary(rows: Row[], todayIso: string, anchorIso: string = todayIso): WeekSummary {
+  // The week shown is the one holding `anchorIso` (today by default); "today" and "future" stay real.
+  const monday = mondayOf(anchorIso);
   const prevMonday = addIsoDays(monday, -7);
   const days: WeekDay[] = LABELS.map((label, i) => {
     const date = addIsoDays(monday, i);

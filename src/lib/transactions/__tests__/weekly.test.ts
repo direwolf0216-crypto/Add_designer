@@ -34,4 +34,19 @@ describe("weekly summary", () => {
       { category: "Rent", amount: 40 },
     ]);
   });
+
+  it("shows a chosen past week (and the week before it), with today still today", () => {
+    const rows: Parameters<typeof buildWeekSummary>[0] = [
+      { amount: 500, type: "INCOME", date: ist("2026-10-14"), category: "Xerox" }, // chosen week (Wed)
+      { amount: 80, type: "EXPENSE", date: ist("2026-10-18"), category: "Rent" }, // chosen week (Sun)
+      { amount: 300, type: "INCOME", date: ist("2026-10-06"), category: "Xerox" }, // the week before
+      { amount: 100, type: "INCOME", date: ist("2026-10-21"), category: "Xerox" }, // this week: not in it
+    ];
+    const s = buildWeekSummary(rows, "2026-10-21", "2026-10-15");
+    expect(s.days[0].date).toBe("2026-10-12");
+    expect(s.days[6].date).toBe("2026-10-18");
+    expect(s.days.some((d) => d.isToday || d.isFuture)).toBe(false);
+    expect(s.totals).toEqual({ income: 500, expense: 80, net: 420 });
+    expect(s.previous).toEqual({ income: 300, expense: 0, net: 300 });
+  });
 });

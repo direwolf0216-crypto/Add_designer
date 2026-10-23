@@ -19,6 +19,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { format, parseISO } from "date-fns";
 import type { WeekSummary } from "@/lib/transactions/weekly";
 import PrinterLoader from "@/components/motion/PrinterLoader";
+import WeekChip from "@/features/transactions/overview/WeekChip";
+import { useState } from "react";
 import { useRevealAfterLoad } from "@/components/motion/useRevealAfterLoad";
 import { emptyModeSplit } from "@/lib/transactions/paymentModes";
 
@@ -26,7 +28,9 @@ const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net
 
 function OverviewPageContent({ initialData }: { initialData?: TransactionsOverviewData }) {
   const { openTransactionForm, openTransactionDetails } = useGlobalForm();
-  const { data, deleteTransaction } = useTransactionsOverview(initialData);
+  // The Weekly performance cards follow the week chosen in the chip (null = this week).
+  const [weekOf, setWeekOf] = useState<string | null>(null);
+  const { data, deleteTransaction } = useTransactionsOverview(initialData, weekOf);
   const { checkPermission } = usePermissions();
   const canEdit = checkPermission("edit_transactions");
   const canDelete = checkPermission("delete_transactions");
@@ -85,12 +89,9 @@ function OverviewPageContent({ initialData }: { initialData?: TransactionsOvervi
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mb-4">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-950 tracking-tight">Weekly performance</h2>
-          <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">Expenses, income and net movement for this week</p>
+          <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">Expenses, income and net movement for the week</p>
         </div>
-        <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm backdrop-blur">
-          <i className="ph-bold ph-calendar-blank text-indigo-500" aria-hidden="true"></i>
-          This week · {rangeLabel}
-        </span>
+        <WeekChip weekOf={weekOf} rangeLabel={rangeLabel} onChange={setWeekOf} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-5 mb-8 items-stretch md:[&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">

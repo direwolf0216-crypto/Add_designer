@@ -23,12 +23,17 @@ export interface TransactionsOverviewData {
 }
 
 /** Today's ledger data and a delete that updates the cache. */
-export function useTransactionsOverview(initialData?: TransactionsOverviewData) {
+export function useTransactionsOverview(initialData?: TransactionsOverviewData, weekOf?: string | null) {
   // The same key the sidebar warms on hover (useWarmPageData), so a warmed ledger opens instantly.
-  const overviewKey = useMemo(() => ledgerOverviewKey(), []);
+  // A chosen week (yyyy-MM-dd inside it) changes only the weekly cards; today's figures stay.
+  const overviewKey = useMemo(() => `${ledgerOverviewKey()}${weekOf ? `&week=${weekOf}` : ""}`, [weekOf]);
 
   // The ledger page sends today's figures with the page, so they show at once.
-  const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher, { fallbackData: initialData, revalidateOnMount: !initialData });
+  const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher, {
+    fallbackData: weekOf ? undefined : initialData,
+    revalidateOnMount: weekOf ? true : !initialData,
+    keepPreviousData: true,
+  });
 
   /** Delete a transaction (or a whole `grp_…` group) and drop it from the cached overview. Throws on failure. */
   const deleteTransaction = async (id: string) => {
