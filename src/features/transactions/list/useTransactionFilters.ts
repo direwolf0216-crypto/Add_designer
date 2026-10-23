@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   applyDraftToQuery,
   clearedQuery,
@@ -14,15 +14,15 @@ import {
 
 /**
  * The list's filters live in the URL. This reads them as typed values and exposes setters that push
- * the next query string (so back/forward and shared links keep working).
+ * the next query string (so back/forward and shared links keep working). The page reads them only in
+ * the browser, so the address bar updates without a server round trip and the list answers at once.
  */
 export function useTransactionFilters() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const filters = readTransactionFilters(searchParams);
   // Changes whenever any filter changes; used to reset pagination.
   const filterKey = searchParams.toString();
-  const push = (query: string) => router.push(`?${query}`);
+  const push = (query: string) => window.history.pushState(null, "", `?${query}`);
 
   return {
     filters,

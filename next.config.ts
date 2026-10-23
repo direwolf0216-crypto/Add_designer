@@ -11,6 +11,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  experimental: {
+    // Fully prefetched pages (the sidebar's, the Jobs tabs) open instantly from the client cache; keep
+    // that cache to 30 s (default 5 min) so a switch never shows data more than half a minute old.
+    staleTimes: { static: 30 },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

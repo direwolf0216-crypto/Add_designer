@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useCallback, useMemo } from "react";
+import { useState, Suspense, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -9,16 +9,27 @@ import PageReveal from "@/components/motion/PageReveal";
 import PrinterLoader from "@/components/motion/PrinterLoader";
 import { useConfirmSettingsLeave } from "@/lib/settings/leaveGuard";
 
-// Each settings tab is code-split; only the open tab's bundle is downloaded.
+// Each settings tab is code-split; the open tab's bundle comes first and the rest download in the
+// background once the page is idle, so switching tabs never waits on a download.
 const tabLoading = () => <PrinterLoader label="Printing your settings" />;
-const UserManagement = dynamic(() => import("@/components/settings/UserManagement"), { loading: tabLoading });
-const RolesPermissions = dynamic(() => import("@/components/settings/RolesPermissions"), { loading: tabLoading });
-const LayoutsFieldsBuilder = dynamic(() => import("@/components/settings/LayoutsFieldsBuilder"), { loading: tabLoading });
-const RecycleBin = dynamic(() => import("@/components/settings/RecycleBin"), { loading: tabLoading });
-const TeamsSettings = dynamic(() => import("@/components/settings/TeamsSettings"), { loading: tabLoading });
-const BusinessDetails = dynamic(() => import("@/components/settings/BusinessDetails"), { loading: tabLoading });
-const PricingRules = dynamic(() => import("@/components/settings/PricingRules"), { loading: tabLoading });
-const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
+const TAB_CODE = {
+  users: () => import("@/components/settings/UserManagement"),
+  permissions: () => import("@/components/settings/RolesPermissions"),
+  layouts: () => import("@/components/settings/LayoutsFieldsBuilder"),
+  "recycle-bin": () => import("@/components/settings/RecycleBin"),
+  teams: () => import("@/components/settings/TeamsSettings"),
+  business: () => import("@/components/settings/BusinessDetails"),
+  pricing: () => import("@/components/settings/PricingRules"),
+  "google-drive": () => import("@/components/settings/integrations/GoogleDriveIntegration"),
+};
+const UserManagement = dynamic(TAB_CODE.users, { loading: tabLoading });
+const RolesPermissions = dynamic(TAB_CODE.permissions, { loading: tabLoading });
+const LayoutsFieldsBuilder = dynamic(TAB_CODE.layouts, { loading: tabLoading });
+const RecycleBin = dynamic(TAB_CODE["recycle-bin"], { loading: tabLoading });
+const TeamsSettings = dynamic(TAB_CODE.teams, { loading: tabLoading });
+const BusinessDetails = dynamic(TAB_CODE.business, { loading: tabLoading });
+const PricingRules = dynamic(TAB_CODE.pricing, { loading: tabLoading });
+const GoogleDriveIntegration = dynamic(TAB_CODE["google-drive"], { loading: tabLoading });
 
 const GROUPS = [
   {
@@ -108,7 +119,6 @@ const SidebarContent = ({ groups, activeSection, onSectionSwitch, isCollapsed = 
 
 function SettingsPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const activeSection = (searchParams.get("section") as SectionId) ?? "users";
   // The top bar's menu button (phones) navigates to ?menu=open; the sheet also opens from that.
@@ -124,38 +134,34 @@ function SettingsPage() {
     if (menuRequested) {
       const next = new URLSearchParams(searchParams.toString());
       next.delete("menu");
-      router.replace(`?${next.toString()}`, { scroll: false });
+      window.history.replaceState(null, "", `?${next.toString()}`);
     }
-  }, [menuRequested, router, searchParams]);
+  }, [menuRequested, searchParams]);
   const [isCollapsed, setIsCollapsed] = useStoredBoolean('settingsPanelCollapsed');
 
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
   
-  // For transition animations
-  const [displayedSection, setDisplayedSection] = useState<SectionId>(activeSection);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  // Sync displayed section with active section if it changes externally
-  if (activeSection !== displayedSection && !isTransitioning) {
-    setDisplayedSection(activeSection);
-  }
-
   const confirmLeave = useConfirmSettingsLeave();
 
-  // Handle section switch with animation
+  // Download the other tabs' code once the page is idle.
+  useEffect(() => {
+    const load = () => Object.values(TAB_CODE).forEach((f) => void f());
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(load, { timeout: 2500 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(load, 800); // Safari has no requestIdleCallback
+    return () => clearTimeout(t);
+  }, []);
+
+  // Switching tabs is instant: the address bar updates without a server round trip (Next keeps
+  // useSearchParams in sync), and the new tab eases in.
   const handleSectionSwitch = useCallback(async (id: SectionId) => {
     if (id === activeSection) return;
     if (!(await confirmLeave())) return;
-    setIsTransitioning(true);
     setIsMobileMenuOpen(false);
-    
-    router.push(`?section=${id}`, { scroll: false });
-    
-    setTimeout(() => {
-      setDisplayedSection(id);
-      setIsTransitioning(false);
-    }, 150); // Delay half the transition duration to swap components
-  }, [activeSection, router, confirmLeave]);
+    window.history.pushState(null, "", `?section=${id}`);
+  }, [activeSection, confirmLeave]);
 
   const groupsMemo = useMemo(() => GROUPS, []);
 
@@ -209,20 +215,15 @@ function SettingsPage() {
 
       {/* Content Area */}
       <div className="flex-1 min-w-0">
-        <div 
-          className={`transition-[opacity,transform] duration-300 ease-in-out ${
-            // No transform at rest: a transform here would become the containing block for fixed children (bottom sheets).
-            isTransitioning ? "opacity-0 translate-x-2" : "opacity-100"
-          }`}
-        >
-          {displayedSection === "users" && <UserManagement />}
-          {displayedSection === "permissions" && <RolesPermissions />}
-          {displayedSection === "layouts" && <LayoutsFieldsBuilder />}
-          {displayedSection === "recycle-bin" && <RecycleBin />}
-          {displayedSection === "google-drive" && <GoogleDriveIntegration />}
-          {displayedSection === "business" && <BusinessDetails />}
-          {displayedSection === "pricing" && <PricingRules />}
-          {displayedSection === "teams" && <TeamsSettings />}
+        <div key={activeSection} className="animate-tab-in">
+          {activeSection === "users" && <UserManagement />}
+          {activeSection === "permissions" && <RolesPermissions />}
+          {activeSection === "layouts" && <LayoutsFieldsBuilder />}
+          {activeSection === "recycle-bin" && <RecycleBin />}
+          {activeSection === "google-drive" && <GoogleDriveIntegration />}
+          {activeSection === "business" && <BusinessDetails />}
+          {activeSection === "pricing" && <PricingRules />}
+          {activeSection === "teams" && <TeamsSettings />}
         </div>
       </div>
       

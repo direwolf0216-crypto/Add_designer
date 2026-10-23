@@ -1,0 +1,31 @@
+/* Grows quickly at first, then creeps, so it never looks stuck; completes and fades on arrival. */
+.bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 160;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #f97316, #ec4899 45%, #8b5cf6);
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.55);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  opacity: 0;
+}
+.active {
+  opacity: 1;
+  animation: nav-grow 8s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+.done {
+  transform: scaleX(1);
+  opacity: 0;
+  transition: transform 0.18s ease-out, opacity 0.3s ease 0.15s;
+}
+@keyframes nav-grow {
+  0% { transform: scaleX(0); }
+  10% { transform: scaleX(0.45); }
+  100% { transform: scaleX(0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .active { animation: none; transform: scaleX(0.6); }
+  .done { transition: opacity 0.2s ease; }
+}

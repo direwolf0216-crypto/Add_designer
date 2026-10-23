@@ -5,6 +5,7 @@ import useSWR, { mutate } from "swr";
 import type { TransactionRecord } from "@/lib/transactions/types";
 import type { WeekSummary } from "@/lib/transactions/weekly";
 import type { ModeSplit } from "@/lib/transactions/paymentModes";
+import { ledgerOverviewKey } from "@/lib/warmPageData";
 
 // Intentionally not the shared `fetcher`: this page has always rendered whatever JSON comes back
 // (falling back to zero totals) rather than surfacing a fetch error.
@@ -27,12 +28,8 @@ export interface TransactionsOverviewData {
 
 /** Year-to-date overview data and a delete that updates the cache. */
 export function useTransactionsOverview() {
-  const queryStr = useMemo(() => {
-    const todayDate = new Date();
-    const yearStart = new Date(todayDate.getFullYear(), 0, 1);
-    return `?startDate=${yearStart.toISOString()}`;
-  }, []);
-  const overviewKey = `/api/transactions/overview${queryStr}`;
+  // The same key the sidebar warms on hover (useWarmPageData), so a warmed ledger opens instantly.
+  const overviewKey = useMemo(() => ledgerOverviewKey(), []);
 
   const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher);
 

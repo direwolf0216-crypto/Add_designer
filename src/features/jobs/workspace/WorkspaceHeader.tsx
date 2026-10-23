@@ -21,10 +21,14 @@ const VIEWS = [
 ] as const;
 
 function Segmented<T extends string>({ value, options, hrefFor, label, compact = false }: { value: T; options: { id: T; label: string; icon?: string; badge?: number }[]; hrefFor: (id: T) => string; label: string; /** Icons only below `sm` (labels stay for screen readers). */ compact?: boolean }) {
+  // The clicked tab lights up at once; the real value takes over when the new view arrives.
+  const [picked, setPicked] = useState<{ from: T; to: T } | null>(null);
+  if (picked && picked.from !== value) setPicked(null);
+  const shown = picked ? picked.to : value;
   return (
     <div role="tablist" aria-label={label} className="inline-flex rounded-2xl bg-slate-900/5 p-1 ring-1 ring-slate-900/5 backdrop-blur">
       {options.map((o) => {
-        const active = o.id === value;
+        const active = o.id === shown;
         return (
           <Link
             key={o.id}
@@ -32,8 +36,14 @@ function Segmented<T extends string>({ value, options, hrefFor, label, compact =
             aria-selected={active}
             href={hrefFor(o.id)}
             scroll={false}
+            // Full prefetch: every tab's view is ready before it's clicked (kept fresh by staleTimes).
+            prefetch={true}
+            data-nav-scope="jobs-view"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && o.id !== value) setPicked({ from: value, to: o.id });
+            }}
             title={compact ? o.label : undefined}
-            className={`relative inline-flex items-center gap-1.5 rounded-xl py-1.5 text-sm font-bold transition-all ${compact ? "px-2.5 sm:px-3" : "px-3"} ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+            className={`relative inline-flex items-center gap-1.5 rounded-xl py-1.5 text-sm font-bold transition-all duration-200 ${compact ? "px-2.5 sm:px-3" : "px-3"} ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
           >
             {o.icon && <i className={`ph-bold ${o.icon} ${compact ? "text-[15px]" : ""}`} aria-hidden="true"></i>}
             <span className={compact ? "sr-only sm:not-sr-only" : undefined}>{o.label}</span>

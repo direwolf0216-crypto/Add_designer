@@ -1988,3 +1988,26 @@ html:has([data-boot-loader="on"]) [data-printer-loader]:not([data-boot-loader] [
     background-color: rgb(15 23 42 / 0.35);
   }
 }
+
+/* While a page or tab switch is on its way (NavProgress), what it will replace dims slightly, so the
+   click answers at once; the new content then crossfades in. */
+[data-nav-dim] {
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+html[data-navigating="page"] [data-nav-dim="page"],
+html[data-navigating="jobs-view"] [data-nav-dim="jobs-view"] {
+  opacity: 0.55;
+  filter: saturate(0.85);
+}
+/* A settings (or other in-page) tab's content easing in. No transform at rest, so fixed children
+   (bottom sheets) keep the viewport as their containing block. */
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.animate-tab-in {
+  animation: tab-in 0.24s var(--motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-in { animation: none; }
+  html[data-navigating] [data-nav-dim] { filter: none !important; }
+}

@@ -17,6 +17,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import PageReveal from "@/components/motion/PageReveal";
 import { formatINR } from "@/lib/money";
 import PrinterLoader from "@/components/motion/PrinterLoader";
+import { DASHBOARD_OVERVIEW_KEY } from "@/lib/warmPageData";
 
 // recharts is heavy; keep it out of the initial dashboard bundle.
 const RevenueChart = dynamic(() => import("@/components/dashboard/RevenueChart"), {
@@ -252,7 +253,7 @@ function OverviewPageContent() {
   }, [dateRange]);
 
   // Keep the last period's figures on screen while the next one loads (no layout flash).
-  const { data, error, isLoading, mutate } = useSWR(`/api/dashboard/overview${query}`, fetcher, { keepPreviousData: true });
+  const { data, error, isLoading, mutate } = useSWR(`${DASHBOARD_OVERVIEW_KEY}${query}`, fetcher, { keepPreviousData: true });
   const { total: overdueCount } = useOverdueJobs();
 
   const handleRangeChange = (range: DateRange | null, label?: string) => {

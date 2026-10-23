@@ -6,9 +6,16 @@ import { usePathname } from "next/navigation";
 import { useMobileNav } from "../providers/MobileNavProvider";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useState } from "react";
+import { useWarmPageData } from "@/lib/warmPageData";
 
 export default function Sidebar() {
-  const pathname = usePathname() || "";
+  const currentPath = usePathname() || "";
+  // The clicked item lights up at once, before its page arrives; the real path takes over after.
+  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
+  if (pending && pending.from !== currentPath) setPending(null);
+  const pathname = pending ? pending.to : currentPath;
+  const warm = useWarmPageData();
   const { isSidebarOpen, closeSidebar } = useMobileNav();
   const [isCollapsed, setIsCollapsed] = useStoredBoolean('sidebar_collapsed');
   const { checkPermission, isAdmin } = usePermissions();
@@ -137,6 +144,12 @@ export default function Sidebar() {
                 <Link
                   href={item.path}
                   prefetch={true}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !isActive) setPending({ from: currentPath, to: item.path });
+                  }}
+                  onMouseEnter={() => warm(item.path)}
+                  onFocus={() => warm(item.path)}
+                  onTouchStart={() => warm(item.path)}
                   title={isCollapsed ? item.name : undefined}
                   className={`
                     ${isCollapsed ? 'flex flex-col items-center justify-center p-3 gap-1.5 w-[76px] h-[76px] rounded-[1.3rem]'
