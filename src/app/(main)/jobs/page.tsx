@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import PageReveal from "@/components/motion/PageReveal";
-import PageSkeleton from "@/components/motion/PageSkeleton";
+import PrinterLoader from "@/components/motion/PrinterLoader";
 import { requirePageUser } from "@/lib/auth/session";
 import { loadJobsWorkspace } from "@/lib/jobs/workspace";
 import JobsWorkspace from "@/features/jobs/workspace/JobsWorkspace";
@@ -12,7 +12,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const data = await loadJobsWorkspace(user, await searchParams);
   return (
     <PageReveal>
-      <Suspense fallback={<PageSkeleton variant="board" />}>
+      <Suspense fallback={<PrinterLoader />}>
         <JobsWorkspace data={data} />
       </Suspense>
     </PageReveal>

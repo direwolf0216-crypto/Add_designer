@@ -1,5 +1,5 @@
-import PageSkeleton from "@/components/motion/PageSkeleton";
+import PrinterLoader from "@/components/motion/PrinterLoader";
 
 export default function Loading() {
-  return <PageSkeleton variant="dashboard" />;
+  return <PrinterLoader />;
 }
