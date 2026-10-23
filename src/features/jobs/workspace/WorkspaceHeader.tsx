@@ -13,6 +13,7 @@ import { saveTablesPdf } from "@/lib/export/pdf";
 import { toLocalISODate } from "@/lib/dates";
 import { useWorkspaceUrl } from "./url";
 import FiltersMenu from "./FiltersMenu";
+import RevealLabel from "@/components/motion/RevealLabel";
 
 const VIEWS = [
   { id: "board", label: "Board", icon: "ph-kanban" },
@@ -124,19 +125,21 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
             <button
               type="button"
               onClick={() => openJobForm()}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-[filter,box-shadow] hover:shadow-xl hover:brightness-105"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 px-4 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-[filter,box-shadow] hover:shadow-xl hover:brightness-105"
             >
               <i className="ph-bold ph-plus" aria-hidden="true"></i>
               New job
             </button>
           )}
+          <FiltersMenu data={data} />
           <Popover>
             <PopoverTrigger
               disabled={exporting}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+              aria-label="Export"
+              className="group inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-500/15 disabled:opacity-50"
             >
-              <i className={`ph-bold ${exporting ? "ph-circle-notch animate-spin" : "ph-download-simple"}`} aria-hidden="true"></i>
-              Export
+              <i className={`ph-bold text-[16px] ${exporting ? "ph-circle-notch animate-spin" : "ph-download-simple"}`} aria-hidden="true"></i>
+              <RevealLabel>Export</RevealLabel>
             </PopoverTrigger>
             <PopoverContent align="end" className="!w-48 !rounded-2xl !p-1.5">
               {(["csv", "pdf"] as const).map((k) => (
@@ -169,7 +172,6 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
           </span>
         )}
         <div className="flex items-center gap-2">
-          <FiltersMenu data={data} />
           <Segmented
             label="View"
             compact

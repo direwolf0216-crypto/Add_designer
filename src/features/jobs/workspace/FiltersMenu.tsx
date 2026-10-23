@@ -1,5 +1,6 @@
 "use client";
 
+import RevealLabel from "@/components/motion/RevealLabel";
 import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import DatePickerInput from "@/components/ui/DatePickerInput";
@@ -104,13 +105,14 @@ export default function FiltersMenu({ data }: { data: WorkspaceData }) {
       }}
     >
       <PopoverTrigger
-        className={`group inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm sm:px-3.5 font-bold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-500/15 ${
-          count ? "bg-slate-900 text-white shadow-sm" : "bg-slate-900/5 text-slate-600 ring-1 ring-slate-900/5 hover:text-slate-900"
+        aria-label={count ? `Filters, ${count} applied` : "Filters"}
+        className={`group inline-flex h-10 shrink-0 items-center rounded-xl px-3 text-sm font-bold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-500/15 ${
+          count ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
         }`}
       >
-        <i className="ph-bold ph-sliders-horizontal text-[15px]" aria-hidden="true"></i>
-        <span className="sr-only sm:not-sr-only">Filters</span>
-        {count > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[0.65rem] font-black text-white">{count}</span>}
+        <i className="ph-bold ph-sliders-horizontal text-[16px]" aria-hidden="true"></i>
+        <RevealLabel>Filters</RevealLabel>
+        {count > 0 && <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[0.65rem] font-black text-white">{count}</span>}
       </PopoverTrigger>
 
       <PopoverContent align="end" className="!w-[min(92vw,320px)] !gap-0 !rounded-2xl !p-1.5 !shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)]">
