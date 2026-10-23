@@ -2099,3 +2099,15 @@ html[data-arriving] .animate-slide-up {
 html[data-printing] [data-printer-loader] {
   animation-delay: 0s;
 }
+
+/* A dialog grows out of the button that opened it (transform-origin set from the press) and shrinks
+   back towards it. The `scale` property composes with the dialog's centring transform. */
+@keyframes dialog-pop {
+  from { opacity: 0; scale: 0.6; }
+}
+@keyframes dialog-unpop {
+  to { opacity: 0; scale: 0.7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="dialog-content"] { animation-duration: 0.01s !important; }
+}

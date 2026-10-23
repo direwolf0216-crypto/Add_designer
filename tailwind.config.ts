@@ -42,6 +42,9 @@ const config: Config = {
       animation: {
         heartbeat: 'heartbeat 1.5s ease-in-out infinite',
         shimmer: 'shimmer 1.5s infinite',
+        // Dialogs grow out of the button that opened them and shrink back (keyframes in globals.css).
+        'dialog-pop': 'dialog-pop 0.22s cubic-bezier(0.2, 0.9, 0.25, 1) both',
+        'dialog-unpop': 'dialog-unpop 0.15s cubic-bezier(0.4, 0, 1, 1) both',
       },
       borderRadius: {
         card: "20px",

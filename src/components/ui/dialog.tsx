@@ -39,6 +39,27 @@ function DialogOverlay({
   )
 }
 
+// Where the last tap or click happened, so a dialog it opens can grow out of that spot.
+let lastPress: { x: number; y: number; at: number } | null = null
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointerdown",
+    (e) => {
+      lastPress = { x: e.clientX, y: e.clientY, at: performance.now() }
+    },
+    { capture: true, passive: true }
+  )
+}
+
+/** Grow the dialog from the button that opened it (a press within the last second), else its centre. */
+function originFromPress(el: HTMLElement | null) {
+  if (!el) return
+  if (!lastPress || performance.now() - lastPress.at > 1000) return
+  const r = el.getBoundingClientRect()
+  if (!r.width || !r.height) return
+  el.style.transformOrigin = `${Math.round(lastPress.x - r.left)}px ${Math.round(lastPress.y - r.top)}px`
+}
+
 function DialogContent({
   className,
   children,
@@ -53,10 +74,12 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-[150] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Opens by growing out of the button that was pressed (dialog-pop), closes back towards it.
+          "fixed top-1/2 left-1/2 z-[150] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm data-open:animate-dialog-pop data-closed:animate-dialog-unpop",
           className
         )}
         {...props}
+        ref={originFromPress}
       >
         {children}
         {showCloseButton && (
