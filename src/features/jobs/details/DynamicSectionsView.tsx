@@ -1,7 +1,8 @@
 import { Image as ImageIcon, LayoutList, Printer, UserCircle, Users, Wallet } from "lucide-react";
 import FieldRenderer from "@/components/forms/FieldRenderer";
 import type { FieldMap, FormLayout } from "@/lib/forms/types";
-import { dynamicFieldValue, resolveDynamicSections, type DetailsJob } from "@/lib/jobs/resolveJobFields";
+import { dynamicFieldValue, isClientSection, resolveDynamicSections, type DetailsJob } from "@/lib/jobs/resolveJobFields";
+import { isBlankValue } from "@/lib/display/blank";
 import { DetailsCard } from "./DetailsCard";
 
 const noop = () => {};
@@ -21,9 +22,19 @@ function getSectionIcon(title: string | undefined) {
  * repeatable entries listed one after another). Visibility rules are not applied here.
  */
 export default function DynamicSectionsView({ job, layout, fieldMap }: { job: DetailsJob; layout: FormLayout | null; fieldMap: FieldMap }) {
+  // Only filled-in fields are shown; a section with none left isn't shown, and client sections
+  // (e.g. the address) are part of the Client Information card instead.
+  const sections = resolveDynamicSections(job, layout)
+    .filter(({ section }) => section.isRepeatable || !isClientSection(section.title))
+    .map((s) => {
+      const globalFields = s.globalFields.filter((f) => !isBlankValue(dynamicFieldValue(job, f, fieldMap, job.customData)));
+      const itemFields = s.itemFields.filter((f) => s.entries.some((e) => !isBlankValue(dynamicFieldValue(job, f, fieldMap, e))));
+      return { ...s, globalFields, itemFields };
+    })
+    .filter((s) => s.globalFields.length > 0 || s.itemFields.length > 0);
   return (
     <>
-      {resolveDynamicSections(job, layout).map(({ section, globalFields, itemFields, entries }) => (
+      {sections.map(({ section, globalFields, itemFields, entries }) => (
         <DetailsCard key={section.id} icon={getSectionIcon(section.title)} iconBg="bg-slate-50" title={section.title} className="col-span-1 lg:col-span-2">
           {/* Render Global Fields */}
           {globalFields.length > 0 && (
@@ -38,9 +49,11 @@ export default function DynamicSectionsView({ job, layout, fieldMap }: { job: De
           {itemFields.length > 0 &&
             entries.map((entry, index) => (
               <div key={index} className={`grid grid-cols-1 md:grid-cols-2 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-50 border-t border-slate-50 pt-2 ${index > 0 ? "mt-4 border-t-2 border-slate-100" : ""}`}>
-                {itemFields.map((field) => (
-                  <FieldRenderer key={field.id} readOnly field={field} name={field.id} value={dynamicFieldValue(job, field, fieldMap, entry)} onChange={noop} variant="job" />
-                ))}
+                {itemFields
+                  .filter((field) => !isBlankValue(dynamicFieldValue(job, field, fieldMap, entry)))
+                  .map((field) => (
+                    <FieldRenderer key={field.id} readOnly field={field} name={field.id} value={dynamicFieldValue(job, field, fieldMap, entry)} onChange={noop} variant="job" />
+                  ))}
               </div>
             ))}
         </DetailsCard>

@@ -1,3 +1,4 @@
+import { isBlankValue } from "@/lib/display/blank";
 import type { ReactNode } from "react";
 
 /** White card with an icon badge and title, as used by every block of the job details view. */
@@ -27,7 +28,9 @@ export function DetailsCard({
 }
 
 /** Label on the left, bold value on the right. */
+/** A label and its value; a blank value (nothing, N/A, nil, a dash or zero) leaves the row out. */
 export function InfoRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+  if ((typeof children === "string" || typeof children === "number" || children == null) && isBlankValue(children)) return null;
   return (
     <div className="flex justify-between items-center py-3">
       <span className="text-sm text-slate-500 font-medium">{label}</span>

@@ -315,6 +315,64 @@ test.describe.serial("pricing negative end to end (scratch database only)", () =
     await context.close();
   });
 
+  test("switching a line to a category whose form hides Size drops the old size everywhere", async ({ browser }) => {
+    const { context, page, api } = await as(browser, "admin");
+    const client = `Neg Switch ${RUN}`;
+    // Size is shown only for Flex Printing (as many shops set it up), for this test only.
+    const original = await (await api.get("/api/settings/layouts/JOB_FORM")).json();
+    const schema = structuredClone(original.schema);
+    const sizeField = schema.sections.find((s: { id: string }) => s.id === "sec_job_event").fields.find((f: { id: string }) => f.id === "fld_size");
+    sizeField.visibilityRule = { match: "all", conditions: [{ fieldId: "fld_b_job_category", operator: "EQUALS", values: ["Flex Printing"] }] };
+    sizeField.mandatory = false;
+    const put = (sc: unknown) => api.put("/api/settings/layouts", { data: { formKey: "JOB_FORM", name: original.name, description: original.description ?? undefined, schema: sc, action: "publish" } });
+    expect((await put(schema)).ok()).toBe(true);
+    try {
+      await page.goto("/jobs");
+      await page.getByRole("button", { name: /new job|add new job/i }).first().click();
+      const dialog = page.getByRole("dialog");
+      await dialog.locator("#field-container-title input").fill(client);
+      await dialog.locator("#field-container-phone input").fill("9876543210");
+      const due = dialog.locator("#field-container-fld_due_date-0");
+      await due.locator("div.cursor-pointer").first().click();
+      await due.getByText("28", { exact: true }).last().click();
+      const category = dialog.locator("#field-container-category-0 button").first();
+      const rateRow = dialog.locator(`[data-testid="rate-row"][data-rate-key="${SEC}_0"]`);
+
+      await choose(page, category, "Flex Printing");
+      await dialog.locator("#field-container-fld_size-0").getByLabel("Size").fill("3*5");
+      await dialog.locator("#field-container-fld_qty-0 input").fill("2");
+      await expect(rateRow).toContainText("3*5");
+
+      // Standee hides Size: the size typed for Flex must not linger in the row, the details or the save.
+      await choose(page, category, "Standee");
+      await expect(dialog.locator("#field-container-fld_size-0")).toHaveCount(0);
+      await expect(rateRow).not.toContainText("3*5");
+      await expect(rateRow).toContainText("Qty: 2");
+      await expect(rateRow.getByTestId("rate-line-total")).toHaveText("₹ 900");
+      // Back to Flex: the old size doesn't come back.
+      await choose(page, category, "Flex Printing");
+      await expect(dialog.locator("#field-container-fld_size-0").getByLabel("Size")).toHaveValue("");
+      await choose(page, category, "Standee");
+
+      await dialog.getByRole("button", { name: "Create Job" }).click();
+      await expect(page.getByText("Job created successfully!")).toBeVisible({ timeout: 60_000 });
+      const [job] = await jobsFor(api, client);
+      const entry = JSON.parse(String(job.customData[SEC]))[0];
+      expect(entry.category).toBe("Standee");
+      expect(entry.fld_size ?? "").toBe("");
+      expect(job.order?.package).toBe(900);
+
+      // The details page shows no size, and nothing as N/A.
+      await page.goto(`/jobs/details/${job.id}`);
+      await expect(page.getByText("Standee").first()).toBeVisible();
+      await expect(page.getByText("3*5")).toHaveCount(0);
+      await expect(page.getByText("N/A", { exact: true })).toHaveCount(0);
+    } finally {
+      await put(original.schema);
+      await context.close();
+    }
+  });
+
   test("a job form save altered in transit is refused and saves nothing", async ({ browser }) => {
     const { context, page, api } = await as(browser, "admin");
     const client = `Neg Tamper ${RUN}`;

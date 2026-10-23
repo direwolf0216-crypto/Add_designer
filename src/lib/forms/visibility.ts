@@ -124,3 +124,33 @@ export function isVisibleIn(
 
 /** A rule with no live condition (empty or incomplete) is treated as absent. */
 export const hasConditions = (rule: VisibilityRule | null | undefined) => ruleConditions(rule).some((c) => !!c.fieldId);
+
+/**
+ * The entry without values of fields its rules now hide (e.g. a Size typed for Flex, after the
+ * category changes to Invitations where Size isn't shown), so a hidden value is never kept, shown
+ * or saved. Repeats until stable, since hiding one field can hide another that depends on it.
+ */
+export function withoutHiddenValues<T extends Record<string, unknown>>(
+  entry: T,
+  fields: { id: string; visibilityRule?: VisibilityRule | null }[],
+  context: Record<string, unknown>,
+  fieldMap: FieldMap,
+  nameOf: (fieldId: string) => string
+): T {
+  let out: Record<string, unknown> = entry;
+  for (let pass = 0; pass < fields.length + 1; pass++) {
+    let changed = false;
+    for (const f of fields) {
+      if (!hasConditions(f.visibilityRule)) continue;
+      const name = nameOf(f.id);
+      if (!(name in out) || out[name] === "" || out[name] == null) continue;
+      if (!isVisibleIn(f.visibilityRule, { ...context, ...out }, fieldMap)) {
+        out = { ...out };
+        delete out[name];
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return out as T;
+}

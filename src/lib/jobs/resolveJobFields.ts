@@ -2,6 +2,7 @@
 // layout, financials, spec line items, the dynamic sections to list and the status timeline.
 // Pure: no React.
 
+import { displayText } from "@/lib/display/blank";
 import type { ValueLookup } from "@/lib/forms/visibility";
 import { isAreaPricing, isPricingUnit, lineMultiplier, pricingRuleFor, pricingUnitLabel, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
 import type { FieldMap, FormField, FormLayout, FormSection } from "@/lib/forms/types";
@@ -358,4 +359,23 @@ export function buildStatusSteps(layout: FormLayout | null | undefined): StatusS
     else if (lower.includes("completed") || lower.includes("done")) { icon = "ph-fill ph-check-circle"; color = "text-emerald-500"; }
     return { label, value: label, icon, color };
   });
+}
+
+/** A layout section about the customer (its fields belong in the Client Information card). */
+export const isClientSection = (title: string | undefined) => /client|customer|contact/i.test(title ?? "");
+
+/**
+ * The customer's other details from the layout's client sections (e.g. an Address field in a
+ * "Client Info" section), shown inside the Client Information card. Blank values are left out.
+ */
+export function clientExtraRows(job: DetailsJob, layout: FormLayout | null | undefined, fieldMap: FieldMap): { id: string; label: string; value: string }[] {
+  const rows: { id: string; label: string; value: string }[] = [];
+  for (const { section, globalFields } of resolveDynamicSections(job, layout)) {
+    if (section.isRepeatable || !isClientSection(titleOf(section) as string)) continue;
+    for (const field of globalFields) {
+      const value = displayText(dynamicFieldValue(job, field, fieldMap, job.customData));
+      if (value) rows.push({ id: field.id, label: field.name, value });
+    }
+  }
+  return rows;
 }

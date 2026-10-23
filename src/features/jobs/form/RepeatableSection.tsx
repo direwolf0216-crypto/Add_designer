@@ -1,7 +1,7 @@
 "use client";
 
 import FieldRenderer from "@/components/forms/FieldRenderer";
-import { isVisibleIn } from "@/lib/forms/visibility";
+import { isVisibleIn, withoutHiddenValues } from "@/lib/forms/visibility";
 import LockedField from "@/components/forms/fields/LockedField";
 import { JOB_FORM_FIELD_MAP, allFields, fieldNameFor } from "@/lib/forms/fieldMap";
 import type { FormField, FormSection } from "@/lib/forms/types";
@@ -35,13 +35,18 @@ export default function RepeatableSection({ section }: { section: FormSection })
     setRepeatableData((prev) => {
       const arr = [...(prev[secKey] || [])];
       if (!arr[index]) arr[index] = {};
-      arr[index] = { ...arr[index], [fieldName]: value };
+      // A value whose field this change hides (a Flex size after switching to Invitations) goes.
+      arr[index] = withoutHiddenValues({ ...arr[index], [fieldName]: value }, section.fields, form.getValues() as Record<string, unknown>, JOB_FORM_FIELD_MAP, entryName);
       return { ...prev, [secKey]: arr };
     });
     // The first job's dates/status also drive the flat form values (availability, record date, edit mode).
     if (index === 0 && globalFields.some((f) => globalName(f) === fieldName)) form.setValue(fieldName as never, value as never);
   };
   const globalName = (f: FormField) => (statusF && f.id === statusF.id ? "status" : toFieldName(f.id));
+  const entryName = (id: string) => {
+    const f = globalFields.find((g) => g.id === id);
+    return f ? globalName(f) : toFieldName(id);
+  };
 
   const removeEntry = (index: number) => {
     const count = entries.length;

@@ -13,8 +13,8 @@ export default function JobSpecsCard({ entries, showAmounts = true }: { entries:
             {entries.length > 1 && <div className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider py-2">Item {index + 1}</div>}
 
             {entry.category && <InfoRow label="Category">{entry.category}</InfoRow>}
-            <InfoRow label="Size">{entry.size || "N/A"}</InfoRow>
-            <InfoRow label="Quantity">{entry.quantity || "N/A"}</InfoRow>
+            <InfoRow label="Size">{entry.size}</InfoRow>
+            <InfoRow label="Quantity">{entry.quantity}</InfoRow>
             {showAmounts && entry.rateLabel !== "N/A" && <InfoRow label="Rate">{entry.rateLabel}</InfoRow>}
             {showAmounts && entry.repricedSince && (
               <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-700">

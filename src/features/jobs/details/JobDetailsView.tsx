@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import { usePermissions } from "@/hooks/usePermissions";
 import { JOB_DETAILS_FIELD_MAP } from "@/lib/forms/fieldMap";
-import { resolveFinancials, resolveJobSummary, resolveSpecEntries } from "@/lib/jobs/resolveJobFields";
+import { clientExtraRows, resolveFinancials, resolveJobSummary, resolveSpecEntries } from "@/lib/jobs/resolveJobFields";
 import ClientCard from "./ClientCard";
 import DeleteJobDialog from "./DeleteJobDialog";
 import DynamicSectionsView from "./DynamicSectionsView";
@@ -119,7 +119,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6">
-            <ClientCard job={job} onWhatsApp={() => setWhatsAppOpen(true)} />
+            <ClientCard job={job} onWhatsApp={() => setWhatsAppOpen(true)} extras={clientExtraRows(job, layoutSchema, JOB_DETAILS_FIELD_MAP)} />
             {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} cancellation={isCancelled ? readCancellation(job.customData) ?? { charge: 0, reason: "", at: "" } : null} />}
           </div>
 
