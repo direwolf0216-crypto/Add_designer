@@ -13,6 +13,7 @@ import { saveTablesPdf } from "@/lib/export/pdf";
 import { toLocalISODate } from "@/lib/dates";
 import { useWorkspaceUrl } from "./url";
 import FiltersMenu from "./FiltersMenu";
+import JobSearch from "./JobSearch";
 import RevealLabel from "@/components/motion/RevealLabel";
 
 const VIEWS = [
@@ -131,6 +132,7 @@ export default function WorkspaceHeader({ data }: { data: WorkspaceData }) {
               New job
             </button>
           )}
+          <JobSearch data={data} />
           <FiltersMenu data={data} />
           <Popover>
             <PopoverTrigger

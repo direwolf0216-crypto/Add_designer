@@ -1,7 +1,7 @@
 "use client";
 
 import RevealLabel from "@/components/motion/RevealLabel";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { useAssignableUsers } from "@/features/jobs/assignees/AssigneePicker";
@@ -41,25 +41,12 @@ function useDraft(value: string[]) {
   return [draft, setDraft] as const;
 }
 
-/** One "Filters" button: job search plus Stage / Category / Due / Assignee, each drilling into its own list. URL-backed. */
+/** One "Filters" button: Stage / Category / Due / Assignee, each drilling into its own list. URL-backed. (Search is JobSearch.) */
 export default function FiltersMenu({ data }: { data: WorkspaceData }) {
   const { update } = useWorkspaceUrl();
   const { params } = data;
   const [open, setOpen] = useState(false);
   const [pane, setPane] = useState<Pane | null>(null);
-
-  // Search lives here (not in the popup) so a pending debounce survives the popup closing.
-  const [q, setQ] = useState(params.q);
-  const [lastQ, setLastQ] = useState(params.q);
-  if (lastQ !== params.q) {
-    setLastQ(params.q);
-    setQ(params.q);
-  }
-  useEffect(() => {
-    if (q === params.q) return;
-    const t = setTimeout(() => update({ q: q.trim() || null, more: null }), 300);
-    return () => clearTimeout(t);
-  }, [q, params.q, update]);
 
   const [stages, setStages] = useDraft(params.stages);
   const [categories, setCategories] = useDraft(params.categories);
@@ -85,13 +72,12 @@ export default function FiltersMenu({ data }: { data: WorkspaceData }) {
     { id: "due", label: "Due date", icon: "ph-calendar-blank", summary: dueSummary },
     ...(showAssignee ? [{ id: "assignee" as const, label: "Assignee", icon: "ph-user", summary: summarize(assigneeOptions, params.assignee ? [params.assignee] : []) }] : []),
   ];
-  const count = rows.filter((r) => r.summary).length + (params.q ? 1 : 0);
+  const count = rows.filter((r) => r.summary).length;
 
   const resetAll = () => {
-    setQ("");
     setStages([]);
     setCategories([]);
-    update({ q: null, stages: null, categories: null, assignee: null, from: null, to: null, more: null });
+    update({ stages: null, categories: null, assignee: null, from: null, to: null, more: null });
   };
 
   const paneTitle = rows.find((r) => r.id === pane)?.label;
@@ -118,19 +104,7 @@ export default function FiltersMenu({ data }: { data: WorkspaceData }) {
       <PopoverContent align="end" className="!w-[min(92vw,320px)] !gap-0 !rounded-2xl !p-1.5 !shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)]">
         {pane === null ? (
           <div key="root" className="animate-in fade-in-0 slide-in-from-left-2 duration-150">
-            <div className="relative p-1">
-              <i className="ph-bold ph-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400" aria-hidden="true"></i>
-              <input
-                type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Job #, client, phone…"
-                aria-label="Search within jobs"
-                autoFocus
-                className="h-9 w-full rounded-xl bg-slate-50 pl-9 pr-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-              />
-            </div>
-            <ul className="mt-1 flex flex-col">
+            <ul className="flex flex-col">
               {rows.map((r) => (
                 <li key={r.id}>
                   <button type="button" onClick={() => setPane(r.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-slate-50">
