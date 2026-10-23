@@ -23,6 +23,7 @@ import PageReveal from "@/components/motion/PageReveal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { format, parseISO } from "date-fns";
 import type { WeekSummary } from "@/lib/transactions/weekly";
+import PrinterLoader from "@/components/motion/PrinterLoader";
 
 const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net: 0 }, previous: { income: 0, expense: 0, net: 0 }, expensesByCategory: [] };
 
@@ -35,7 +36,7 @@ function OverviewPageContent() {
   const canDelete = checkPermission("delete_transactions");
 
   if (isLoading || !data) {
-    return <div className="flex justify-center items-center h-64"><div className="animate-pulse w-8 h-8 rounded-full bg-orange-500"></div></div>;
+    return <PrinterLoader label="Printing your ledger" />;
   }
 
   const {

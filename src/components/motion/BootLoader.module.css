@@ -1,0 +1,27 @@
+/* Full-screen printer loader while a page refresh or first load gets the app ready. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: rgba(248, 250, 252, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* Appear only if getting ready takes a moment, so quick loads never flash it. */
+  animation: boot-in 0.3s ease 0.2s both;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+.done {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+}
+@keyframes boot-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay { animation-duration: 0s; transition: none; }
+}

@@ -6,10 +6,11 @@ import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import PageReveal from "@/components/motion/PageReveal";
+import PrinterLoader from "@/components/motion/PrinterLoader";
 import { useConfirmSettingsLeave } from "@/lib/settings/leaveGuard";
 
 // Each settings tab is code-split; only the open tab's bundle is downloaded.
-const tabLoading = () => <div className="h-40 animate-pulse rounded-2xl bg-white/60" aria-busy="true" />;
+const tabLoading = () => <PrinterLoader label="Printing your settings" />;
 const UserManagement = dynamic(() => import("@/components/settings/UserManagement"), { loading: tabLoading });
 const RolesPermissions = dynamic(() => import("@/components/settings/RolesPermissions"), { loading: tabLoading });
 const LayoutsFieldsBuilder = dynamic(() => import("@/components/settings/LayoutsFieldsBuilder"), { loading: tabLoading });

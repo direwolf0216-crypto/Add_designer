@@ -29,7 +29,10 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
   // The invoice message is prepared on demand (it may create the invoice): its text, link and number.
   const [invoice, setInvoice] = useState<{ id: string; number: string; text: string } | null>(null);
   const [preparingInvoice, setPreparingInvoice] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  // The PDF is fetched as soon as the invoice is ready: browsers only allow the share sheet straight
+  // after a tap, so Share PDF must not wait for a download.
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfError, setPdfError] = useState(false);
 
   const messages = chat?.messages ?? [];
   const current = kind ?? messages[0]?.kind ?? "custom";
@@ -38,7 +41,10 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
   const choose = async (k: string) => {
     setKind(k);
     if (k !== "invoice") return setText(k === "custom" ? "" : messages.find((m) => m.kind === k)?.text ?? "");
-    if (invoice) return setText(invoice.text);
+    if (invoice) {
+      if (!pdfFile) void loadPdf(invoice.id, invoice.number);
+      return setText(invoice.text);
+    }
     setText("");
     setPreparingInvoice(true);
     try {
@@ -46,6 +52,7 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
       if (res.success && "text" in res) {
         setInvoice({ id: res.invoiceId, number: res.invoiceNumber, text: res.text });
         setText(res.text);
+        void loadPdf(res.invoiceId, res.invoiceNumber);
         // The job has an invoice now: refresh the list so its hint names it.
         void mutate();
       } else {
@@ -63,31 +70,37 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
     setText(null);
     // Next time, prepare the invoice message afresh (amounts may have changed).
     setInvoice(null);
+    setPdfFile(null);
+    setPdfError(false);
+  };
+  const loadPdf = async (invoiceId: string, invoiceNumber: string) => {
+    setPdfFile(null);
+    setPdfError(false);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/pdf`);
+      if (!res.ok) throw new Error();
+      setPdfFile(new File([await res.blob()], `${invoiceNumber}.pdf`, { type: "application/pdf" }));
+    } catch {
+      setPdfError(true);
+    }
   };
   /** Attach the invoice PDF itself through the device's share sheet (WhatsApp on phones); download it where files can't be shared. */
-  const sharePdf = async () => {
-    if (!invoice) return;
-    setSharing(true);
-    try {
-      const res = await fetch(`/api/invoices/${invoice.id}/pdf`);
-      if (!res.ok) throw new Error("Couldn't load the invoice PDF");
-      const file = new File([await res.blob()], `${invoice.number}.pdf`, { type: "application/pdf" });
-      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: invoice.number, text: shown });
-      } else {
-        const url = URL.createObjectURL(file);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.name;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 10_000);
-        toast.success(`Saved ${file.name}`, { description: "Attach it in the WhatsApp chat, or send the link in the message." });
-      }
-    } catch (e) {
-      if ((e as Error).name !== "AbortError") toast.error((e as Error).message || "Couldn't share the PDF");
-    } finally {
-      setSharing(false);
+  const sharePdf = () => {
+    if (!pdfFile) return;
+    // Called synchronously from the tap, with the file already in hand, so the browser allows it.
+    if (typeof navigator.canShare === "function" && navigator.canShare({ files: [pdfFile] })) {
+      navigator.share({ files: [pdfFile], title: pdfFile.name.replace(/\.pdf$/, ""), text: shown }).catch((e: Error) => {
+        if (e.name !== "AbortError") toast.error("Couldn't open the share sheet", { description: e.message });
+      });
+      return;
     }
+    const url = URL.createObjectURL(pdfFile);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = pdfFile.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    toast.success(`Saved ${pdfFile.name}`, { description: "Attach it in the WhatsApp chat, or send the link in the message." });
   };
   const copy = async () => {
     try {
@@ -168,15 +181,27 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
                   <p className="min-w-0 text-[0.75rem] text-emerald-900">
                     <span className="font-bold">{invoice.number}</span> · the link opens the PDF without an account for 90 days.
                   </p>
-                  <button
-                    type="button"
-                    onClick={sharePdf}
-                    disabled={sharing}
-                    className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50 disabled:opacity-60"
-                  >
-                    <i className={`ph-bold ${sharing ? "ph-circle-notch animate-spin" : "ph-file-pdf"}`} aria-hidden="true"></i>
-                    Share PDF
-                  </button>
+                  {pdfError ? (
+                    <button
+                      type="button"
+                      onClick={() => loadPdf(invoice.id, invoice.number)}
+                      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50"
+                    >
+                      <i className="ph-bold ph-arrow-clockwise" aria-hidden="true"></i>
+                      Retry PDF
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={sharePdf}
+                      disabled={!pdfFile}
+                      aria-busy={!pdfFile || undefined}
+                      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50 disabled:cursor-progress disabled:opacity-60"
+                    >
+                      <i className={`ph-bold ${pdfFile ? "ph-file-pdf" : "ph-circle-notch animate-spin"}`} aria-hidden="true"></i>
+                      {pdfFile ? "Share PDF" : "Preparing PDF"}
+                    </button>
+                  )}
                 </div>
               )}
               <p className="text-[0.7rem] text-slate-400">Opens the chat in your WhatsApp with this text typed in. Check it and press Send there.</p>

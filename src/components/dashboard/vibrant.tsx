@@ -65,14 +65,16 @@ export function KpiTile({ icon, tone, label, value, caption, valueClass, extra, 
   valueClass?: string;
   /** Rendered under the caption across the tile's full width, e.g. the Cash / UPI split chips. */
   extra?: ReactNode;
-  /** Inside a glass group: a lighter tile without its own glass card. */
+  /** Inside a glass group: a solid white tile on the frosted card. */
   flat?: boolean;
 }) {
   return (
     <div
       className={cn(
         "group flex h-full min-w-0 flex-col gap-3 p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 2xl:p-5",
-        flat ? "rounded-2xl bg-white/75 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.3)] ring-1 ring-white/90 hover:shadow-[0_12px_26px_-14px_rgba(15,23,42,0.35)]" : "dashboard-card"
+        flat
+          ? "rounded-2xl bg-white shadow-[0_10px_26px_-16px_rgba(15,23,42,0.35)] ring-1 ring-slate-900/[0.04] hover:shadow-[0_16px_32px_-16px_rgba(15,23,42,0.4)]"
+          : "dashboard-card"
       )}
     >
       <div className="flex min-w-0 items-center gap-4">

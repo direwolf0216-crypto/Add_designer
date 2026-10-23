@@ -28,6 +28,7 @@ import { usePricingRules } from "@/hooks/usePricingRules";
 import { useJobMutations } from "./useJobMutations";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
 import ChatOnWhatsAppDialog from "./ChatOnWhatsAppDialog";
+import PrinterLoader from "@/components/motion/PrinterLoader";
 
 export type { JobDetailsTab } from "./JobTabs";
 
@@ -135,9 +136,8 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const content = (
     <div className={`w-full bg-[#fcfcfc] flex flex-col relative print:!h-auto print:!max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none ${standaloneJobId ? "md:h-[calc(100dvh-8.5rem)] md:overflow-hidden rounded-3xl border border-slate-200/80 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]" : "overflow-hidden h-[100dvh] sm:h-[90dvh] max-h-[100dvh] sm:max-h-[90dvh] rounded-none sm:rounded-[2rem] shadow-2xl"}`}>
       {!job ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4" />
-          <p className="text-slate-500 font-medium">Loading job details...</p>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <PrinterLoader label="Printing the job details" />
         </div>
       ) : (
         <div className={`flex-1 flex flex-col w-full relative ${standaloneJobId ? "md:h-full md:overflow-hidden" : "h-full overflow-hidden"}`}>

@@ -8,6 +8,7 @@ import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { cn } from "@/lib/utils";
 import AppToaster from "@/components/ui/app-toaster";
+import BootLoader from "@/components/motion/BootLoader";
 
 // All app fonts load once here via next/font (self-hosted, no render-blocking @import).
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -38,6 +39,7 @@ export default async function RootLayout({
     <html lang="en" className={cn("font-sans", inter.variable, display.variable, brandScript.variable, brandAccent.variable)}>
 
       <body className={cn("flex h-[100dvh] fixed inset-0 w-full overflow-hidden bg-slate-50 text-slate-900 antialiased", inter.className)}>
+        <BootLoader />
         <AuthProvider>
           {children}
           <AppToaster />
