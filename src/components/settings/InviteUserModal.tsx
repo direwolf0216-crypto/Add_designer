@@ -188,7 +188,7 @@ export default function InviteUserModal({ onClose, onSuccess }: InviteUserModalP
                 {/* Phone */}
                 <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                    Mobile Number (For WhatsApp)
+                    Mobile Number
                   </label>
                   <input
                     type="tel"

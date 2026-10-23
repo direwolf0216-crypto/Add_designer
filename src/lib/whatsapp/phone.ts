@@ -1,7 +1,11 @@
-// Phone numbers as the gateway wants them: international digits with no "+", e.g. 917373787172.
+// Phone numbers and chat links for WhatsApp click-to-chat (wa.me), which opens the chat in the
+// shop's own WhatsApp with the message typed in, ready to send.
 
-/** Digits only, with the default country code (India) added to 10-digit local numbers; null when unusable. */
-export function normalizePhone(raw: unknown, defaultCountryCode = "91"): string | null {
+/** Country code added to 10-digit local numbers. */
+export const DEFAULT_COUNTRY_CODE = "91";
+
+/** International digits with no "+" (e.g. 917373787172), the default country code added to local numbers; null when unusable. */
+export function normalizePhone(raw: unknown, defaultCountryCode = DEFAULT_COUNTRY_CODE): string | null {
   if (typeof raw !== "string") return null;
   let digits = raw.replace(/\D/g, "");
   if (!digits) return null;
@@ -13,8 +17,13 @@ export function normalizePhone(raw: unknown, defaultCountryCode = "91"): string 
   return digits;
 }
 
-/** The gateway's chat id for an individual number. */
-export const chatIdFor = (phone: string) => `${phone}@c.us`;
+/** "917373787172" → "+91 73737 87172" for display (other countries just get a leading +). */
+export function formatPhone(digits: string): string {
+  return digits.startsWith("91") && digits.length === 12 ? `+91 ${digits.slice(2, 7)} ${digits.slice(7)}` : `+${digits}`;
+}
 
-/** Phone digits from a chat id or sender id the gateway reports ("917373787172@c.us" → "917373787172"). */
-export const phoneFromChatId = (chatId: unknown) => (typeof chatId === "string" ? chatId.split("@")[0].replace(/\D/g, "") || null : null);
+/** The wa.me link that opens a chat with `phone` (normalised digits), with `text` typed in. */
+export function waChatUrl(phone: string, text = ""): string {
+  const body = text.trim();
+  return `https://wa.me/${phone}${body ? `?text=${encodeURIComponent(body)}` : ""}`;
+}

@@ -32,7 +32,7 @@ export default function JobHeaderActions({
   onDelete: () => void;
   onExport: () => void;
   onInvoice: () => void;
-  /** Opens the Send on WhatsApp dialog; absent when the customer has no phone or the user may not edit. */
+  /** Opens the Chat on WhatsApp dialog (click-to-chat with a ready-made message). */
   onWhatsApp?: () => void;
   /** Rendered first in the row (assignees avatar stack). */
   assigneesSlot?: ReactNode;
@@ -59,7 +59,7 @@ export default function JobHeaderActions({
           </button>
         )}
         {onWhatsApp && (
-          <button onClick={onWhatsApp} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Send on WhatsApp" aria-label="Send on WhatsApp">
+          <button onClick={onWhatsApp} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Chat on WhatsApp" aria-label="Chat on WhatsApp">
             <MessageCircle className="w-4 h-4" />
           </button>
         )}

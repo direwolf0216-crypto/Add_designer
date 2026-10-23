@@ -178,7 +178,7 @@ export default function EditUserModal({ user, onClose, onSuccess, isCurrentUser 
             {/* Phone */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Mobile Number (For WhatsApp)
+                Mobile Number
               </label>
               <input
                 type="tel"

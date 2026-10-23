@@ -27,8 +27,7 @@ import { useJob } from "./useJob";
 import { usePricingRules } from "@/hooks/usePricingRules";
 import { useJobMutations } from "./useJobMutations";
 import { layoutWithoutMoney } from "@/lib/jobs/amounts";
-import SendWhatsAppDialog from "./SendWhatsAppDialog";
-import { WHATSAPP_UI_ENABLED } from "@/lib/whatsapp/flags";
+import ChatOnWhatsAppDialog from "./ChatOnWhatsAppDialog";
 
 export type { JobDetailsTab } from "./JobTabs";
 
@@ -117,7 +116,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6">
-            <ClientCard job={job} />
+            <ClientCard job={job} onWhatsApp={() => setWhatsAppOpen(true)} />
             {canSeeAmounts && <FinancialsCard financials={resolveFinancials(job)} cancellation={isCancelled ? readCancellation(job.customData) ?? { charge: 0, reason: "", at: "" } : null} />}
           </div>
 
@@ -200,7 +199,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
                 onDelete={() => setIsDeleteConfirmOpen(true)}
                 onExport={exportPdf}
                 onInvoice={mutations.generateInvoice}
-                onWhatsApp={WHATSAPP_UI_ENABLED && canEditJobs && job.client?.phone ? () => setWhatsAppOpen(true) : undefined}
+                onWhatsApp={() => setWhatsAppOpen(true)}
                 assigneesSlot={<JobAssignees job={job} teamUsers={teamUsers} />}
               />
             </div>
@@ -214,16 +213,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
         </div>
       )}
 
-      {WHATSAPP_UI_ENABLED && job?.client?.phone && (
-        <SendWhatsAppDialog
-          open={whatsAppOpen}
-          jobId={job.id}
-          customerName={job.client.name || job.title || "the customer"}
-          customerPhone={job.client.phone}
-          balanceDue={resolveFinancials(job).dueAmount}
-          onClose={() => setWhatsAppOpen(false)}
-        />
-      )}
+      {job && <ChatOnWhatsAppDialog open={whatsAppOpen} jobId={job.id} onClose={() => setWhatsAppOpen(false)} />}
       <DeleteJobDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen} onConfirm={mutations.deleteJob} isDeleting={mutations.isDeleting} />
     </div>
   );

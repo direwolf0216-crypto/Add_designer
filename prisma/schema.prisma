@@ -176,7 +176,6 @@ model User {
   customRoleId       String?
   customRole         CustomRole?        @relation(fields: [customRoleId], references: [id], onDelete: Restrict)
   status             UserStatus         @default(ACTIVE)
-  whatsappNotifs     Boolean            @default(false)
   notificationPrefs  Json?
   accounts           Account[]
   createdJobs        Job[]              @relation("JobCreatedBy")
@@ -573,29 +572,5 @@ model TeamMember {
 
   @@id([teamId, userId])
   @@index([userId])
-}
-
-/// Every WhatsApp message sent through the OpenWA gateway or received from it, for the settings log and delivery status.
-model WhatsAppMessage {
-  id         String   @id @default(cuid())
-  /// OUT (sent by the app) or IN (received from a customer).
-  direction  String
-  /// Why it was sent: job_created, stage_changed, payment_due, assigned, handoff, manual, inbound.
-  kind       String
-  /// Phone in international digits, e.g. 917373787172.
-  phone      String
-  chatId     String
-  body       String
-  status     String   @default("queued")
-  providerId String?
-  error      String?
-  jobId      String?
-  userId     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([jobId, createdAt])
-  @@index([providerId])
-  @@index([createdAt])
 }
 

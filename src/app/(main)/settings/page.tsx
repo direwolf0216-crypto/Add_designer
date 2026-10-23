@@ -6,7 +6,6 @@ import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import PageReveal from "@/components/motion/PageReveal";
-import { WHATSAPP_UI_ENABLED } from "@/lib/whatsapp/flags";
 import { useConfirmSettingsLeave } from "@/lib/settings/leaveGuard";
 
 // Each settings tab is code-split; only the open tab's bundle is downloaded.
@@ -19,7 +18,6 @@ const TeamsSettings = dynamic(() => import("@/components/settings/TeamsSettings"
 const BusinessDetails = dynamic(() => import("@/components/settings/BusinessDetails"), { loading: tabLoading });
 const PricingRules = dynamic(() => import("@/components/settings/PricingRules"), { loading: tabLoading });
 const GoogleDriveIntegration = dynamic(() => import("@/components/settings/integrations/GoogleDriveIntegration"), { loading: tabLoading });
-const WhatsAppIntegration = dynamic(() => import("@/components/settings/integrations/WhatsAppIntegration"), { loading: tabLoading });
 
 const GROUPS = [
   {
@@ -42,7 +40,6 @@ const GROUPS = [
     label: "Integrations",
     items: [
       { id: "google-drive", label: "Google Drive", icon: "ph-google-logo" },
-      ...(WHATSAPP_UI_ENABLED ? [{ id: "whatsapp" as const, label: "WhatsApp", icon: "ph-whatsapp-logo" }] : []),
     ]
   },
   {
@@ -222,7 +219,6 @@ function SettingsPage() {
           {displayedSection === "layouts" && <LayoutsFieldsBuilder />}
           {displayedSection === "recycle-bin" && <RecycleBin />}
           {displayedSection === "google-drive" && <GoogleDriveIntegration />}
-          {WHATSAPP_UI_ENABLED && displayedSection === "whatsapp" && <WhatsAppIntegration />}
           {displayedSection === "business" && <BusinessDetails />}
           {displayedSection === "pricing" && <PricingRules />}
           {displayedSection === "teams" && <TeamsSettings />}
