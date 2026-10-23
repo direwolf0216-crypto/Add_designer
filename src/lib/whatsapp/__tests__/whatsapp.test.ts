@@ -60,4 +60,14 @@ describe("whatsapp templates", () => {
     expect(CHAT_TEMPLATES.jobCreatedNoAmounts).not.toMatch(/\{(total|paid|balance)\}/);
     expect(CHAT_TEMPLATES.stageChanged).not.toMatch(/\{(total|paid|balance)\}/);
   });
+
+  it("sends the invoice link on its own line, with the balance or a thank-you when paid", () => {
+    const base = { customer: "Rahul", job: "#J-1", shop: "Add designer", invoice: "INV-0007", link: "https://x.app/api/public/invoice/t", total: "₹1,000", paid: "₹400", balance: "₹600", upi: "shop@okhdfc" };
+    expect(renderTemplate(withoutMissing(CHAT_TEMPLATES.invoice, base), base)).toBe(
+      "Hi Rahul, here is your invoice INV-0007 from Add designer for job #J-1:\nhttps://x.app/api/public/invoice/t\nTotal ₹1,000, paid ₹400, balance ₹600. You can pay by UPI to shop@okhdfc. Thank you!"
+    );
+    const noUpi = { ...base, upi: "" };
+    expect(renderTemplate(withoutMissing(CHAT_TEMPLATES.invoice, noUpi), noUpi)).toMatch(/balance ₹600\. Thank you!$/);
+    expect(renderTemplate(CHAT_TEMPLATES.invoicePaid, { ...base, paid: "₹1,000", balance: "₹0" })).toMatch(/\nTotal ₹1,000, fully paid\. Thank you for your business!$/);
+  });
 });

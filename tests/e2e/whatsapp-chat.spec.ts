@@ -1,5 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { test, expect, type Browser } from "@playwright/test";
+import { test, expect, request as apiRequest, type Browser } from "@playwright/test";
 
 // Click-to-chat: a job's "Chat on WhatsApp" opens wa.me with a ready-made message filled from the job.
 // Nothing is sent by the server. WRITES data: scratch database only (E2E_SCRATCH_DB=1), with the admin
@@ -10,6 +12,7 @@ const scratch = process.env.E2E_SCRATCH_DB === "1";
 const baseURL = process.env.E2E_BASE_URL || "http://localhost:3000";
 const STATE = (who: string) => path.join(__dirname, `../../test-results/.wa-chat-${who}.json`);
 const RUN = Date.now();
+const python = process.env.E2E_PYTHON;
 
 async function logIn(browser: Browser, user: string, who: string) {
   const context = await browser.newContext({ baseURL });
@@ -62,6 +65,7 @@ test.describe.serial("chat on WhatsApp (scratch database only)", () => {
   let jobId = "";
   let badPhoneJobId = "";
   let staffJobId = "";
+  let paidJobId = "";
 
   test.beforeAll(async ({ browser }) => {
     const admin = await logIn(browser, email!, "admin");
@@ -73,6 +77,9 @@ test.describe.serial("chat on WhatsApp (scratch database only)", () => {
     const b = await admin.page.request.post("/api/jobs", { data: { ...jobBody(`WA Bad ${RUN}`, "12345"), packageAmount: 1000 } });
     expect(b.status()).toBe(201);
     badPhoneJobId = (await b.json()).id;
+    const paid = await admin.page.request.post("/api/jobs", { data: { ...jobBody(`WA Paid ${RUN}`, "9876543210"), installments: [{ amount: 1000, date: "2026-10-23", paymentMode: "UPI" }] } });
+    expect(paid.status()).toBe(201);
+    paidJobId = (await paid.json()).id;
     await admin.context.close();
     // Staff see only the jobs assigned to them, so the staff user creates their own.
     const staff = await logIn(browser, "staff@example.com", "staff");
@@ -158,6 +165,71 @@ test.describe.serial("chat on WhatsApp (scratch database only)", () => {
       await dialog.getByRole("radio", { name }).click();
       await expect(dialog.getByRole("textbox", { name: "Message" })).not.toHaveValue(/₹|balance|paid|total/i);
     }
+    await context.close();
+  });
+
+  test("sends the invoice as a link anyone can open, and as the PDF itself", async ({ browser }) => {
+    const { context, page } = await as(browser, "admin");
+    await page.goto(`/jobs/details/${jobId}`);
+    await page.getByRole("button", { name: "Chat on WhatsApp" }).click();
+    const dialog = page.getByRole("dialog", { name: "Chat on WhatsApp" });
+    const box = dialog.getByRole("textbox", { name: "Message" });
+    await expect(dialog.getByRole("radio", { name: /Invoice/ })).toContainText("Creates the invoice, then adds its link");
+    await dialog.getByRole("radio", { name: /Invoice/ }).click();
+    await expect(box).toHaveValue(new RegExp(`^Hi WA ${RUN}, here is your invoice INV-\\d{4} from Add designer for job .+:\\nhttp://localhost:3100/api/public/invoice/\\S+\\nTotal ₹1,000, paid ₹400, balance ₹600\\. You can pay by UPI to addesigner@okhdfc\\. Thank you!$`), { timeout: 30_000 });
+    const message = await box.inputValue();
+    const invoiceNumber = message.match(/INV-\d{4}/)![0];
+    const link = message.match(/http:\/\/\S+\/api\/public\/invoice\/\S+/)![0];
+    expect(new URL((await dialog.getByRole("link", { name: "Open WhatsApp" }).getAttribute("href"))!).searchParams.get("text")).toBe(message);
+    await expect(dialog).toContainText(`${invoiceNumber} · the link opens the PDF without an account for 90 days.`);
+
+    // The customer opens it without an account: the real invoice PDF.
+    const anon = await apiRequest.newContext();
+    const res = await anon.get(link);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("application/pdf");
+    expect(res.headers()["x-robots-tag"]).toContain("noindex");
+    const pdf = await res.body();
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    if (python) {
+      const file = test.info().outputPath("shared-invoice.pdf");
+      writeFileSync(file, pdf);
+      const text = execFileSync(python, ["-I", "-c", "import sys,pypdf;print(' '.join(p.extract_text() for p in pypdf.PdfReader(sys.argv[1]).pages))", file]).toString().replace(/(\d)\s+([.,]\d)/g, "$1$2");
+      expect(text).toContain(invoiceNumber);
+      expect(text).toContain(`WA ${RUN}`);
+      expect(text).toContain("Rs 600.00");
+    }
+    // A changed or truncated link opens nothing.
+    const tampered = link.slice(0, -1) + (link.endsWith("A") ? "B" : "A");
+    for (const bad of [tampered, link.replace(/\.[^.]+\.[^.]+$/, ".zz.x"), `${new URL(link).origin}/api/public/invoice/nope`]) {
+      const r = await anon.get(bad);
+      expect(r.status(), bad).toBe(404);
+      expect(await r.text()).toContain("This invoice link is invalid or has expired");
+    }
+    await anon.dispose();
+
+    // Share PDF: browsers that can't share files (desktop Chromium) download it instead.
+    const download = page.waitForEvent("download");
+    await dialog.getByRole("button", { name: "Share PDF" }).click();
+    expect((await download).suggestedFilename()).toBe(`${invoiceNumber}.pdf`);
+
+    // Reopening reuses the same invoice rather than making another.
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Chat on WhatsApp" }).click();
+    await expect(page.getByRole("dialog", { name: "Chat on WhatsApp" }).getByRole("radio", { name: /Invoice/ })).toContainText(`${invoiceNumber}, as a link and a PDF`);
+    await page.getByRole("dialog", { name: "Chat on WhatsApp" }).getByRole("radio", { name: /Invoice/ }).click();
+    await expect(page.getByRole("dialog", { name: "Chat on WhatsApp" }).getByRole("textbox", { name: "Message" })).toHaveValue(new RegExp(invoiceNumber), { timeout: 30_000 });
+    await context.close();
+  });
+
+  test("a fully paid job's invoice message thanks the customer instead of asking for money", async ({ browser }) => {
+    const { context, page } = await as(browser, "admin");
+    await page.goto(`/jobs/details/${paidJobId}`);
+    await page.getByRole("button", { name: "Chat on WhatsApp" }).click();
+    const dialog = page.getByRole("dialog", { name: "Chat on WhatsApp" });
+    await expect(dialog.getByRole("radio", { name: /Payment reminder/ })).toHaveCount(0);
+    await dialog.getByRole("radio", { name: /Invoice/ }).click();
+    await expect(dialog.getByRole("textbox", { name: "Message" })).toHaveValue(/\nTotal ₹1,000, fully paid\. Thank you for your business!$/, { timeout: 30_000 });
     await context.close();
   });
 });

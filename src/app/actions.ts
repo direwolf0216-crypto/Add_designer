@@ -12,7 +12,9 @@ import { getSessionUser, type SessionUser, userCan } from "@/lib/auth/session";
 import type { Permission } from "@/lib/permissions";
 import { isProductionDone, saveJob, softDeleteJob, updateJob, type InstallmentInput } from "@/lib/services/jobs";
 import { notifyAssigned } from "@/lib/services/assignments";
-import { jobChatMessages } from "@/lib/whatsapp/chat";
+import { headers } from "next/headers";
+import { invoiceChatMessage, jobChatMessages } from "@/lib/whatsapp/chat";
+import { invoiceLinkSecret, signInvoiceToken } from "@/lib/invoices/shareLink";
 import { recordJobActivity } from "@/lib/services/activity";
 import { assertJobVisible } from "@/lib/jobs/scope";
 import { parseAmount } from "@/lib/money";
@@ -319,41 +321,46 @@ export async function reorderQueueAction(teamId: string, items: { id: string; pr
   }
 }
 
+/** The job's invoice, created (with the next invoice number) when it has none; restores a deleted one. */
+async function ensureJobInvoice(jobId: string, actorId: string) {
+  const existingInvoice = await prisma.invoice.findFirst({ where: { jobId, deletedAt: undefined } });
+  if (existingInvoice) {
+    if (existingInvoice.deletedAt) {
+      return prisma.invoice.update({ where: { id: existingInvoice.id }, data: { deletedAt: null } });
+    }
+    return existingInvoice;
+  }
+
+  const job = await prisma.job.findUnique({ where: { id: jobId }, include: { order: true } });
+  if (!job || job.deletedAt) return null;
+
+  return prisma.$transaction(async (tx) => {
+    // Sequential, gap-free per counter row; never derived from a string sort of existing numbers.
+    const n = await nextCounter(tx, "invoice");
+    const amount = job.order?.package ?? 0;
+    const invoiceNumber = `INV-${String(n).padStart(4, "0")}`;
+    await recordJobActivity(tx, { jobId, actorId, type: "INVOICE_GENERATED", summary: `Generated invoice ${invoiceNumber}` });
+    return tx.invoice.create({
+      data: {
+        jobId,
+        invoiceNumber,
+        discount: 0,
+        lineItems: {
+          create: [{ description: `${job.category || "Standard"} Package`, quantity: 1, rate: amount, amount }],
+        },
+      },
+    });
+  });
+}
+
 export async function generateInvoiceAction(jobId: string) {
   const user = await authorize("create_transactions");
   if (isError(user)) return user;
 
   try {
     await assertJobVisible(jobId, user);
-    const existingInvoice = await prisma.invoice.findFirst({ where: { jobId, deletedAt: undefined } });
-    if (existingInvoice) {
-      if (existingInvoice.deletedAt) {
-        await prisma.invoice.update({ where: { id: existingInvoice.id }, data: { deletedAt: null } });
-      }
-      return { success: true, invoiceId: existingInvoice.id };
-    }
-
-    const job = await prisma.job.findUnique({ where: { id: jobId }, include: { order: true } });
-    if (!job || job.deletedAt) return { success: false, error: "Job not found" };
-
-    const invoice = await prisma.$transaction(async (tx) => {
-      // Sequential, gap-free per counter row; never derived from a string sort of existing numbers.
-      const n = await nextCounter(tx, "invoice");
-      const amount = job.order?.package ?? 0;
-      const invoiceNumber = `INV-${String(n).padStart(4, "0")}`;
-      await recordJobActivity(tx, { jobId, actorId: user.id, type: "INVOICE_GENERATED", summary: `Generated invoice ${invoiceNumber}` });
-      return tx.invoice.create({
-        data: {
-          jobId,
-          invoiceNumber,
-          discount: 0,
-          lineItems: {
-            create: [{ description: `${job.category || "Standard"} Package`, quantity: 1, rate: amount, amount }],
-          },
-        },
-      });
-    });
-
+    const invoice = await ensureJobInvoice(jobId, user.id);
+    if (!invoice) return { success: false, error: "Job not found" };
     return { success: true, invoiceId: invoice.id };
   } catch (e) {
     console.error("[generateInvoiceAction]", e);
@@ -371,11 +378,38 @@ export async function prepareWhatsAppChatAction(jobId: string) {
   if (isError(user)) return user;
   try {
     await assertJobVisible(jobId, user);
-    const chat = await jobChatMessages(jobId, { showAmounts: await userCan(user, "view_amounts") });
+    const [showAmounts, canInvoice] = await Promise.all([userCan(user, "view_amounts"), userCan(user, "create_transactions")]);
+    const chat = await jobChatMessages(jobId, { showAmounts, canInvoice });
     if (!chat) return { success: false as const, error: "Job not found" };
     return { success: true as const, ...chat };
   } catch (e) {
     console.error("[prepareWhatsAppChatAction]", e);
     return { success: false as const, error: e instanceof HttpError ? e.message : "Couldn't prepare the message" };
+  }
+}
+
+/**
+ * Chat on WhatsApp → Invoice: the job's invoice (created if it has none) and a message carrying a
+ * signed link the customer can open without an account. Needs the same rights as generating an
+ * invoice, plus seeing amounts.
+ */
+export async function prepareInvoiceMessageAction(jobId: string) {
+  const user = await authorize("create_transactions");
+  if (isError(user)) return user;
+  try {
+    if (!(await userCan(user, "view_amounts"))) return { success: false as const, error: "You don't have access to amounts" };
+    await assertJobVisible(jobId, user);
+    const invoice = await ensureJobInvoice(jobId, user.id);
+    if (!invoice) return { success: false as const, error: "Job not found" };
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+    const proto = h.get("x-forwarded-proto") ?? (/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? "http" : "https");
+    const url = `${proto}://${host}/api/public/invoice/${signInvoiceToken(invoice.id, invoiceLinkSecret())}`;
+    const text = await invoiceChatMessage(jobId, invoice.invoiceNumber, url);
+    if (!text) return { success: false as const, error: "Job not found" };
+    return { success: true as const, text, url, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber };
+  } catch (e) {
+    console.error("[prepareInvoiceMessageAction]", e);
+    return { success: false as const, error: e instanceof HttpError ? e.message : "Couldn't prepare the invoice" };
   }
 }

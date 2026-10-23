@@ -1,7 +1,7 @@
 // Ready-made WhatsApp messages for a job's customer, with {placeholders}. Staff pick one in the job's
 // "Chat on WhatsApp" dialog, can edit it, and send it from the shop's own WhatsApp (click-to-chat).
 
-export type ChatMessageKind = "stageChanged" | "paymentDue" | "jobCreated" | "jobCreatedNoAmounts";
+export type ChatMessageKind = "stageChanged" | "paymentDue" | "jobCreated" | "jobCreatedNoAmounts" | "invoice" | "invoicePaid";
 
 export const CHAT_TEMPLATES: Record<ChatMessageKind, string> = {
   stageChanged: "Hi {customer}, an update on job {job}: it is now {status}. Call {phone} if you have any questions. — {shop}",
@@ -9,6 +9,9 @@ export const CHAT_TEMPLATES: Record<ChatMessageKind, string> = {
   jobCreated: "Hi {customer}, thank you for your order with {shop}. Job {job} ({category}) is confirmed and due on {due}. Total {total}, paid {paid}, balance {balance}. We'll keep you posted.",
   // For staff who can't see amounts: the same confirmation without any money in it.
   jobCreatedNoAmounts: "Hi {customer}, thank you for your order with {shop}. Job {job} ({category}) is confirmed and due on {due}. We'll keep you posted.",
+  // {link} opens the invoice PDF without an account (a signed link that expires).
+  invoice: "Hi {customer}, here is your invoice {invoice} from {shop} for job {job}:\n{link}\nTotal {total}, paid {paid}, balance {balance}. You can pay by UPI to {upi}. Thank you!",
+  invoicePaid: "Hi {customer}, here is your invoice {invoice} from {shop} for job {job}:\n{link}\nTotal {total}, fully paid. Thank you for your business!",
 };
 
 /** Fills {placeholders}; unknown ones are left as typed so a typo is visible before sending. */

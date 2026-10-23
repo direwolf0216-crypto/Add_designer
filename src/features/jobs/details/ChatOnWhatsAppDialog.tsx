@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { prepareWhatsAppChatAction } from "@/app/actions";
+import { prepareInvoiceMessageAction, prepareWhatsAppChatAction } from "@/app/actions";
 import { formatPhone, waChatUrl } from "@/lib/whatsapp/phone";
 
 const ICONS: Record<string, string> = {
@@ -12,6 +12,7 @@ const ICONS: Record<string, string> = {
   paymentDue: "ph-currency-inr",
   jobCreated: "ph-check-circle",
   jobCreatedNoAmounts: "ph-check-circle",
+  invoice: "ph-receipt",
   custom: "ph-pencil-simple",
 };
 
@@ -21,23 +22,72 @@ const ICONS: Record<string, string> = {
  * the server; the person presses Send in WhatsApp.
  */
 export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: boolean; jobId: string; onClose: () => void }) {
-  const { data, isLoading } = useSWR(open ? ["whatsapp-chat", jobId] : null, () => prepareWhatsAppChatAction(jobId), { revalidateOnFocus: false });
+  const { data, isLoading, mutate } = useSWR(open ? ["whatsapp-chat", jobId] : null, () => prepareWhatsAppChatAction(jobId), { revalidateOnFocus: false });
   const chat = data && "phone" in data ? data : null;
   const [kind, setKind] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
+  // The invoice message is prepared on demand (it may create the invoice): its text, link and number.
+  const [invoice, setInvoice] = useState<{ id: string; number: string; text: string } | null>(null);
+  const [preparingInvoice, setPreparingInvoice] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const messages = chat?.messages ?? [];
   const current = kind ?? messages[0]?.kind ?? "custom";
   const shown = text ?? messages.find((m) => m.kind === current)?.text ?? "";
 
-  const choose = (k: string) => {
+  const choose = async (k: string) => {
     setKind(k);
-    setText(k === "custom" ? "" : messages.find((m) => m.kind === k)?.text ?? "");
+    if (k !== "invoice") return setText(k === "custom" ? "" : messages.find((m) => m.kind === k)?.text ?? "");
+    if (invoice) return setText(invoice.text);
+    setText("");
+    setPreparingInvoice(true);
+    try {
+      const res = await prepareInvoiceMessageAction(jobId);
+      if (res.success && "text" in res) {
+        setInvoice({ id: res.invoiceId, number: res.invoiceNumber, text: res.text });
+        setText(res.text);
+        // The job has an invoice now: refresh the list so its hint names it.
+        void mutate();
+      } else {
+        toast.error((res as { error?: string }).error || "Couldn't prepare the invoice");
+      }
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setPreparingInvoice(false);
+    }
   };
   const close = () => {
     onClose();
     setKind(null);
     setText(null);
+    // Next time, prepare the invoice message afresh (amounts may have changed).
+    setInvoice(null);
+  };
+  /** Attach the invoice PDF itself through the device's share sheet (WhatsApp on phones); download it where files can't be shared. */
+  const sharePdf = async () => {
+    if (!invoice) return;
+    setSharing(true);
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/pdf`);
+      if (!res.ok) throw new Error("Couldn't load the invoice PDF");
+      const file = new File([await res.blob()], `${invoice.number}.pdf`, { type: "application/pdf" });
+      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: invoice.number, text: shown });
+      } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        toast.success(`Saved ${file.name}`, { description: "Attach it in the WhatsApp chat, or send the link in the message." });
+      }
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") toast.error((e as Error).message || "Couldn't share the PDF");
+    } finally {
+      setSharing(false);
+    }
   };
   const copy = async () => {
     try {
@@ -92,7 +142,11 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
                         <span className="block text-sm font-bold text-slate-800">{m.label}</span>
                         <span className="block truncate text-[0.72rem] text-slate-500">{m.hint}</span>
                       </span>
-                      {active && <i className="ph-bold ph-check text-emerald-600" aria-hidden="true"></i>}
+                      {m.kind === "invoice" && preparingInvoice ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-label="Preparing the invoice" />
+                      ) : (
+                        active && <i className="ph-bold ph-check text-emerald-600" aria-hidden="true"></i>
+                      )}
                     </button>
                   );
                 })}
@@ -109,6 +163,22 @@ export default function ChatOnWhatsAppDialog({ open, jobId, onClose }: { open: b
                   className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
               </label>
+              {current === "invoice" && invoice && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+                  <p className="min-w-0 text-[0.75rem] text-emerald-900">
+                    <span className="font-bold">{invoice.number}</span> · the link opens the PDF without an account for 90 days.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={sharePdf}
+                    disabled={sharing}
+                    className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white px-2.5 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50 disabled:opacity-60"
+                  >
+                    <i className={`ph-bold ${sharing ? "ph-circle-notch animate-spin" : "ph-file-pdf"}`} aria-hidden="true"></i>
+                    Share PDF
+                  </button>
+                </div>
+              )}
               <p className="text-[0.7rem] text-slate-400">Opens the chat in your WhatsApp with this text typed in. Check it and press Send there.</p>
             </>
           )}
