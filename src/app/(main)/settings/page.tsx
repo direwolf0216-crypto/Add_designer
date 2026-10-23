@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, Suspense, useCallback, useEffect, useMemo } from "react";
+import { useState, Suspense, useCallback, useEffect, useMemo, startTransition, ViewTransition } from "react";
+import { useSlidingPill } from "@/components/motion/useSlidingPill";
 import { createPortal } from "react-dom";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -10,7 +11,7 @@ import PrinterLoader from "@/components/motion/PrinterLoader";
 import { useConfirmSettingsLeave } from "@/lib/settings/leaveGuard";
 import { useSession } from "next-auth/react";
 import { homePathFor } from "@/lib/permissions";
-import { startNavProgress } from "@/components/motion/NavProgress";
+import { markArriving, startNavProgress } from "@/components/motion/NavProgress";
 
 // Each settings tab is code-split; the open tab's bundle comes first and the rest download in the
 // background once the page is idle, so switching tabs never waits on a download.
@@ -84,8 +85,11 @@ const SidebarContent = ({ groups, activeSection, onSectionSwitch, isCollapsed = 
   useEffect(() => {
     router.prefetch(home);
   }, [router, home]);
+  // The orange highlight glides to the picked tab.
+  const { ref: pillRef, style: pillStyle } = useSlidingPill<HTMLDivElement>(activeSection);
   return (
-  <div className="flex flex-col h-full py-4 px-3 overflow-y-auto no-scrollbar overflow-x-hidden">
+  <div ref={pillRef} className="relative flex flex-col h-full py-4 px-3 overflow-y-auto no-scrollbar overflow-x-hidden">
+    {pillStyle && <span aria-hidden="true" data-sliding-pill className="rounded-xl bg-orange-50" style={pillStyle} />}
     <button 
       onClick={async () => {
         if (!(await confirmLeave())) return;
@@ -110,17 +114,18 @@ const SidebarContent = ({ groups, activeSection, onSectionSwitch, isCollapsed = 
             return (
               <button
                 key={item.id}
+                data-pill-key={item.id}
                 onClick={() => onSectionSwitch(item.id)}
                 title={isCollapsed ? item.label : undefined}
-                className={`flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-[0.85rem] font-semibold outline-none ${
+                className={`relative z-10 flex items-center gap-3 py-2.5 rounded-xl transition-colors duration-300 text-[0.85rem] font-semibold outline-none ${
                   isCollapsed ? 'justify-center px-0' : 'px-3'
                 } ${
-                  isActive 
-                    ? "bg-orange-50 text-orange-600" 
+                  isActive
+                    ? "text-orange-600"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                <i className={`${isActive ? "ph-fill" : "ph"} ${item.icon} text-lg shrink-0 ${isActive ? "text-orange-500" : "text-slate-400"}`}></i>
+                <i className={`${isActive ? "ph-fill" : "ph"} ${item.icon} text-lg shrink-0 transition-colors duration-300 ${isActive ? "text-orange-500" : "text-slate-400"}`}></i>
                 {!isCollapsed && <span className="truncate">{item.label}</span>}
               </button>
             );
@@ -134,7 +139,15 @@ const SidebarContent = ({ groups, activeSection, onSectionSwitch, isCollapsed = 
 function SettingsPage() {
   const searchParams = useSearchParams();
 
-  const activeSection = (searchParams.get("section") as SectionId) ?? "users";
+  const urlSection = (searchParams.get("section") as SectionId) ?? "users";
+  // The shown tab is switched inside a React transition (so it crossfades) and mirrored to the URL;
+  // back / forward (the URL changing on its own) follows too.
+  const [activeSection, setActiveSection] = useState<SectionId>(urlSection);
+  const [seenUrlSection, setSeenUrlSection] = useState<SectionId>(urlSection);
+  if (urlSection !== seenUrlSection) {
+    setSeenUrlSection(urlSection);
+    if (urlSection !== activeSection) setActiveSection(urlSection);
+  }
   // The top bar's menu button (phones) navigates to ?menu=open; the sheet also opens from that.
   const menuRequested = searchParams.get("menu") === "open";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(menuRequested);
@@ -174,6 +187,9 @@ function SettingsPage() {
     if (id === activeSection) return;
     if (!(await confirmLeave())) return;
     setIsMobileMenuOpen(false);
+    markArriving();
+    setSeenUrlSection(id);
+    startTransition(() => setActiveSection(id));
     window.history.pushState(null, "", `?section=${id}`);
   }, [activeSection, confirmLeave]);
 
@@ -229,7 +245,8 @@ function SettingsPage() {
 
       {/* Content Area */}
       <div className="flex-1 min-w-0">
-        <div key={activeSection} className="animate-tab-in">
+        <ViewTransition key={activeSection} name="settings-tab" share="page-xfade" enter="soft-in" exit="soft-out" default="none">
+        <div>
           {activeSection === "users" && <UserManagement />}
           {activeSection === "permissions" && <RolesPermissions />}
           {activeSection === "layouts" && <LayoutsFieldsBuilder />}
@@ -239,6 +256,7 @@ function SettingsPage() {
           {activeSection === "pricing" && <PricingRules />}
           {activeSection === "teams" && <TeamsSettings />}
         </div>
+        </ViewTransition>
       </div>
       
       {/* Add keyframes for inline animations */}

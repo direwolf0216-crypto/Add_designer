@@ -22,7 +22,15 @@ export function useSlidingPill<T extends HTMLElement>(activeKey: string | null |
       setBox((prev) => ({ x: r.left - c.left + el.scrollLeft, y: r.top - c.top + el.scrollTop, w: r.width, h: r.height, glide: glide && prev !== null }));
     };
     place(true);
-    const ro = new ResizeObserver(() => place(false));
+    // Only a real resize repositions without gliding (the observer also fires once on attach, which
+    // must not cancel the glide that just started).
+    let size = `${el.offsetWidth}x${el.offsetHeight}`;
+    const ro = new ResizeObserver(() => {
+      const next = `${el.offsetWidth}x${el.offsetHeight}`;
+      if (next === size) return;
+      size = next;
+      place(false);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, [activeKey]);

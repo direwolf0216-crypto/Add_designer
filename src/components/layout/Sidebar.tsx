@@ -53,8 +53,15 @@ export default function Sidebar() {
       setPill((prev) => ({ x: r.left - m.left, y: r.top - m.top, w: r.width, h: r.height, glide: glide && prev !== null }));
     };
     place(true);
-    // Collapsing or expanding the sidebar resizes the items: follow them without gliding.
-    const ro = new ResizeObserver(() => place(false));
+    // Collapsing or expanding the sidebar resizes the items: follow them without gliding. (The
+    // observer also fires once on attach; that must not cancel the glide that just started.)
+    let size = `${menu.offsetWidth}x${menu.offsetHeight}`;
+    const ro = new ResizeObserver(() => {
+      const next = `${menu.offsetWidth}x${menu.offsetHeight}`;
+      if (next === size) return;
+      size = next;
+      place(false);
+    });
     ro.observe(menu);
     return () => ro.disconnect();
   }, [activePath, isCollapsed]);

@@ -17,6 +17,14 @@ const PRINTER_AFTER = 300;
 // would let the background show through (a flash).
 const ARRIVING_FOR = 2500;
 
+let arrivingTimer: number | undefined;
+/** An in-page switch (a tab) about to crossfade: let its entrance animations finish at once. */
+export function markArriving() {
+  window.clearTimeout(arrivingTimer);
+  document.documentElement.dataset.arriving = "true";
+  arrivingTimer = window.setTimeout(() => delete document.documentElement.dataset.arriving, ARRIVING_FOR);
+}
+
 /** Start the bar for a navigation that isn't a link click (router.push from a button). */
 export function startNavProgress() {
   window.dispatchEvent(new Event(START_EVENT));
