@@ -132,6 +132,8 @@ export interface FormField {
   visibilityRule?: VisibilityRule | null;
   /** Required only while this rule holds (in addition to `mandatory`). */
   mandatoryRule?: VisibilityRule | null;
+  /** Single/multi-line text starts with a capital letter unless this is false. */
+  capitalize?: boolean;
   role?: FieldRole;
   validation?: FieldValidation;
   audience?: FieldAudience;

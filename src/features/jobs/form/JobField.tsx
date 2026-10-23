@@ -5,6 +5,7 @@ import FieldRenderer from "@/components/forms/FieldRenderer";
 import { IconWrap } from "@/components/forms/fields/FieldChrome";
 import TextField from "@/components/forms/fields/TextField";
 import { getFieldIcon } from "@/lib/forms/fieldIcon";
+import { capitalizeFirst, capitalizesFirst } from "@/lib/forms/capitalize";
 import LockedField from "@/components/forms/fields/LockedField";
 import { resolveFieldKind } from "@/lib/forms/fieldKind";
 import { JOB_FORM_FIELD_MAP, fieldNameFor } from "@/lib/forms/fieldMap";
@@ -52,7 +53,7 @@ export default function JobField({ field }: { field: FormField }) {
         <Autocomplete
           suggestions={LOCATION_SUGGESTIONS}
           value={watch(fieldName) || ""}
-          onChange={(val) => setValidated(val)}
+          onChange={(val) => setValidated(capitalizesFirst(field) ? capitalizeFirst(val) : val)}
           placeholder={field.placeholder || "e.g. Grand Hyatt, City"}
           error={isError}
           className="pl-11"
