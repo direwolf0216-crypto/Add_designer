@@ -22,7 +22,7 @@ export interface TransactionsOverviewData {
   week?: WeekSummary;
 }
 
-/** Year-to-date overview data, the transaction form layout, and a delete that updates the cache. */
+/** Year-to-date overview data and a delete that updates the cache. */
 export function useTransactionsOverview() {
   const queryStr = useMemo(() => {
     const todayDate = new Date();
@@ -32,7 +32,6 @@ export function useTransactionsOverview() {
   const overviewKey = `/api/transactions/overview${queryStr}`;
 
   const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher);
-  const { data: layoutRes } = useSWR('/api/settings/layouts/TRANSACTION_FORM', jsonFetcher);
 
   /** Delete a transaction (or a whole `grp_…` group) and drop it from the cached overview. Throws on failure. */
   const deleteTransaction = async (id: string) => {
@@ -56,5 +55,5 @@ export function useTransactionsOverview() {
     }, { revalidate: true });
   };
 
-  return { data, error, isLoading, layoutSchema: layoutRes?.schema, deleteTransaction };
+  return { data, error, isLoading, deleteTransaction };
 }

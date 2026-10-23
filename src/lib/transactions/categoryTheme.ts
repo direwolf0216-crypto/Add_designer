@@ -59,12 +59,6 @@ export const MODE_ICONS: Record<string, string> = {
   "Card": "ph-credit-card",
 };
 
-/** Categories the quick-add bar treats as income. Everything else opens the form as an expense. */
-export const QUICK_ADD_INCOME_CATEGORIES = [
-  "Printing Job", "Job Advance", "Passport Photo", "Frame Sales", "Design Charges", "Binding & Finishing",
-  "PP", "Xerox", "Printout", "E-Sevai", "Others",
-];
-
 /** Keyword-based Phosphor icon for any (possibly user-defined) category name. */
 export const getRelatableIcon = (cat: string) => {
   const lowerCat = cat.toLowerCase();

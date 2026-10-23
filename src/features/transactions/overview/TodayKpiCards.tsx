@@ -17,7 +17,7 @@ interface TodayKpiCardsProps {
 }
 
 const CARD =
-  "group relative flex h-[150px] flex-col justify-between overflow-hidden rounded-[22px] border border-slate-100/80 bg-white/90 p-5 shadow-[0_18px_45px_-20px_rgba(15,23,42,0.18)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_22px_50px_-20px_rgba(15,23,42,0.25)] group-focus-visible:ring-2 group-focus-visible:ring-orange-300";
+  "group relative flex h-[150px] flex-col justify-between overflow-hidden rounded-[22px] border border-slate-100/80 bg-white/90 p-5 shadow-[0_18px_45px_-20px_rgba(15,23,42,0.18)] backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-[0_22px_50px_-20px_rgba(15,23,42,0.25)] group-focus-visible:ring-2 group-focus-visible:ring-orange-300";
 const LABEL = "text-[0.65rem] font-extrabold uppercase tracking-[1px] text-slate-500";
 
 function Chip({ icon, iconClass, label, value }: { icon: string; iconClass: string; label: string; value: number }) {

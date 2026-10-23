@@ -3,17 +3,15 @@ import {
   DONUT_CIRCUMFERENCE,
   buildHeatmapSegments,
   buildNetTrend,
-  buildQuickAddCategories,
   buildTodaySegments,
   currentWeek,
   dailyFlows,
   indexOfMax,
-  layoutCategoryOptions,
   netForPaymentMode,
   sumByCategory,
   toCategoryShares,
 } from "../analytics";
-import { CATEGORY_ICONS, getConsistentColorClasses } from "../categoryTheme";
+import { getConsistentColorClasses } from "../categoryTheme";
 
 const tx = (type: string, category: string, amount: number, extra: Record<string, unknown> = {}) => ({
   id: `${type}-${category}-${amount}`,
@@ -127,26 +125,5 @@ describe("buildNetTrend", () => {
 
   it("falls back to seven zero days for an empty input", () => {
     expect(buildNetTrend([]).values).toEqual([0, 0, 0, 0, 0, 0, 0]);
-  });
-});
-
-describe("quick add categories", () => {
-  it("reads category options from the layout's fld_tx_category field (last match wins)", () => {
-    const schema = {
-      sections: [
-        { fields: [{ id: "fld_tx_category", options: ["A"] }, { id: "other", options: ["x"] }] },
-        { fields: [{ id: "fld_tx_category", options: ["Xerox", "Fuel"] }] },
-      ],
-    };
-    expect(layoutCategoryOptions(schema)).toEqual(["Xerox", "Fuel"]);
-    expect(layoutCategoryOptions(undefined)).toEqual([]);
-  });
-
-  it("classifies income categories and falls back to the built-in list", () => {
-    expect(buildQuickAddCategories(["Xerox", "Fuel"])).toEqual([
-      { label: "Xerox", icon: "ph-printer", color: getConsistentColorClasses("Xerox").text, bg: getConsistentColorClasses("Xerox").bg, type: "INCOME" },
-      { label: "Fuel", icon: "ph-gas-pump", color: "text-red-600", bg: "bg-red-50", type: "EXPENSE" },
-    ]);
-    expect(buildQuickAddCategories([]).map((c) => c.label)).toEqual(Object.keys(CATEGORY_ICONS));
   });
 });

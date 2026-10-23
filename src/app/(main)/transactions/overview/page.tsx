@@ -3,9 +3,7 @@
 import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import {
   buildHeatmapSegments,
-  buildQuickAddCategories,
   buildTodaySegments,
-  layoutCategoryOptions,
   netForPaymentMode,
   sumByCategory,
   toCategoryShares,
@@ -13,7 +11,6 @@ import {
 import { useTransactionsOverview } from "@/features/transactions/overview/useTransactionsOverview";
 import { TodayKpiCards } from "@/features/transactions/overview/TodayKpiCards";
 import { DonutBreakdownCard } from "@/features/transactions/overview/DonutBreakdownCard";
-import { QuickAddBar } from "@/features/transactions/overview/QuickAddBar";
 import { TodayLedger } from "@/features/transactions/overview/TodayLedger";
 import { ExpenseHeatmapCard } from "@/features/transactions/overview/ExpenseHeatmapCard";
 import { IncomeFlowChart } from "@/features/transactions/overview/IncomeFlowChart";
@@ -29,9 +26,8 @@ const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net
 
 function OverviewPageContent() {
   const { openTransactionForm, openTransactionDetails } = useGlobalForm();
-  const { data, isLoading, layoutSchema, deleteTransaction } = useTransactionsOverview();
+  const { data, isLoading, deleteTransaction } = useTransactionsOverview();
   const { checkPermission } = usePermissions();
-  const canCreate = checkPermission("create_transactions");
   const canEdit = checkPermission("edit_transactions");
   const canDelete = checkPermission("delete_transactions");
 
@@ -64,8 +60,6 @@ function OverviewPageContent() {
   const todayCashNet = netForPaymentMode(todayTransactions, 'cash');
   const todayUpiNet = netForPaymentMode(todayTransactions, 'upi');
 
-  const allCategoriesList = buildQuickAddCategories(layoutCategoryOptions(layoutSchema));
-
   return (
     <div className="animate-fade-in w-full">
       {/* KPI Cards — Always same row */}
@@ -85,9 +79,6 @@ function OverviewPageContent() {
         <DonutBreakdownCard variant="income" total={todayIncome} segments={todayIncomeSegments} />
         <DonutBreakdownCard variant="expense" total={todayExpense} segments={todayExpenseSegments} />
       </div>
-
-      {/* Quick Add Transaction */}
-      {canCreate && <QuickAddBar categories={allCategoriesList} onPick={(qa) => openTransactionForm(undefined, { category: qa.label, type: qa.type })} />}
 
       <TodayLedger
         today={today}

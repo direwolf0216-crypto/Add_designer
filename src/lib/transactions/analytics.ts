@@ -1,7 +1,5 @@
-// Pure analytics behind the transactions overview page (donuts, weekly flow, net trend, quick add).
+// Pure analytics behind the transactions overview page (donuts, weekly flow, net trend).
 import {
-  CATEGORY_ICONS,
-  QUICK_ADD_INCOME_CATEGORIES,
   getCategoryColorClasses,
   getCategoryIcon,
   getConsistentColorClasses,
@@ -154,43 +152,3 @@ export function buildNetTrend(netFlow: number[]): NetTrend {
 
 /** Index of the largest value (first one on ties); -1 for an empty list. */
 export const indexOfMax = (values: number[]) => values.indexOf(Math.max(...values));
-
-interface LayoutSchemaLike {
-  sections?: { fields: { id: string; options?: string[] }[] }[];
-}
-
-/** Category options configured on the transaction form layout (field `fld_tx_category`), if any. */
-export function layoutCategoryOptions(schema: LayoutSchemaLike | null | undefined): string[] {
-  let categories: string[] = [];
-  if (schema?.sections) {
-    for (const sec of schema.sections) {
-      for (const f of sec.fields) {
-        if (f.id === "fld_tx_category" && f.options) categories = f.options;
-      }
-    }
-  }
-  return categories;
-}
-
-export interface QuickAddCategory {
-  label: string;
-  icon: string;
-  color: string;
-  bg: string;
-  type: "INCOME" | "EXPENSE";
-}
-
-/** Quick-add buttons: the layout's categories, or the built-in icon map's categories when none are configured. */
-export function buildQuickAddCategories(layoutCategories: string[]): QuickAddCategory[] {
-  const base = layoutCategories.length > 0 ? layoutCategories : Object.keys(CATEGORY_ICONS);
-  return base.map((cat) => {
-    const classes = getCategoryColorClasses(cat);
-    return {
-      label: cat,
-      icon: getCategoryIcon(cat),
-      color: classes.text,
-      bg: classes.bg,
-      type: QUICK_ADD_INCOME_CATEGORIES.includes(cat) ? "INCOME" : "EXPENSE",
-    };
-  });
-}
