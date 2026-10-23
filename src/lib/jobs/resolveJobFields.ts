@@ -3,7 +3,7 @@
 // Pure: no React.
 
 import type { ValueLookup } from "@/lib/forms/visibility";
-import { lineMultiplier, pricingRuleFor, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
+import { isAreaPricing, isPricingUnit, lineMultiplier, pricingRuleFor, pricingUnitLabel, type PricingRules, type PricingUnit } from "@/lib/jobs/pricing";
 import type { FieldMap, FormField, FormLayout, FormSection } from "@/lib/forms/types";
 import { isSizeLayoutField, looksLikeSize } from "./size";
 import { findRoleField } from "@/lib/forms/roles";
@@ -172,12 +172,14 @@ export interface SpecEntry {
   quantity: any;
   /** Formatted rate ("₹ 1,200") or "N/A". */
   rateLabel: string;
-  /** "sqft" when the category is priced per square foot (Settings → Pricing). */
+  /** How the line was priced when saved: "piece" or an area unit such as "sqft" (Settings → Pricing). */
   unit: PricingUnit;
-  /** Area in sq ft parsed from the size, for per-sq-ft lines with a readable size. */
+  /** Area in the line's unit parsed from the size, for area-priced lines with a readable size. */
   area: number | null;
   /** The category's pricing unit has changed since this job was saved (edit and save to reprice). */
   repricedSince: boolean;
+  /** The category's unit in Settings → Pricing today. */
+  currentUnit: PricingUnit;
   /** rate × quantity, or null without a numeric rate. */
   total: number | null;
 }
@@ -244,18 +246,19 @@ export function resolveSpecEntries(job: DetailsJob, layout: FormLayout | null | 
     const current = pricingRuleFor(rules, cVal).unit;
     const savedKey = jdSec && jdSec.isRepeatable ? `rep_${jdSec.id}_${index}` : "";
     const saved = savedUnits[savedKey];
-    const unit: PricingUnit = saved === "sqft" || saved === "piece" ? saved : "piece";
+    const unit: PricingUnit = isPricingUnit(saved) ? saved : "piece";
     const { multiplier, area } = lineMultiplier(unit, qVal, sVal);
     const rateText = String(rVal).startsWith("₹") || rVal === "N/A" ? String(rVal) : `₹ ${parseFloat(String(rVal)).toLocaleString("en-IN")}`;
     return {
       category: cVal,
       size: sVal,
       quantity: qVal,
-      rateLabel: unit === "sqft" && rVal !== "N/A" ? `${rateText} / sq ft` : rateText,
+      rateLabel: isAreaPricing(unit) && rVal !== "N/A" ? `${rateText} / ${pricingUnitLabel(unit)}` : rateText,
       total: hasValidRate ? (parseFloat(String(rVal)) || 0) * multiplier : null,
       unit,
       area,
       repricedSince: hasValidRate && current !== unit,
+      currentUnit: current,
     };
   });
 }

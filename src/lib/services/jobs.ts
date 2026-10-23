@@ -6,7 +6,7 @@ import prisma, { type TxClient } from "@/lib/prisma";
 import { computeBalance, parseAmount, round2 } from "@/lib/money";
 import { newJobNumber, newTransactionRef, withUniqueRetry } from "@/lib/ids";
 import { calendarDateToUtc, recordInstantForDate } from "@/lib/dates";
-import { notFound } from "@/lib/api/http";
+import { badRequest, notFound } from "@/lib/api/http";
 import { type SessionUser, userCan } from "@/lib/auth/session";
 import { jobScope } from "@/lib/jobs/scope";
 import { diffJob, layoutFieldLabels, summarizeChanges, type JobSnapshot } from "@/lib/jobs/diffJob";
@@ -17,6 +17,7 @@ import { deriveJobTracking, statusIsStage, syncStatusWithStage, stageOptions } f
 import { notifyHandoff, recordHandoff } from "@/lib/services/teams";
 import { keepStoredMoney, moneyKeys } from "@/lib/jobs/amounts";
 import type { FormLayout } from "@/lib/forms/types";
+import { packageMismatch } from "@/lib/jobs/packageCheck";
 
 /** Statuses that mean printing is done and finishing work should start. */
 export const PRODUCTION_DONE_STATUSES = ["Printing Completed", "Completed"];
@@ -246,6 +247,11 @@ async function saveJobOnce(input: SaveJobInput, actor: Actor, seesAllJobs: boole
         ...stored,
         ...(seesAmounts ? input.customData : keepStoredMoney(input.customData, stored, moneyKeys(layout?.schema as FormLayout | null))),
       };
+      // The package must be what this save's own line items add up to (checked before anything is written).
+      if (seesAmounts) {
+        const mismatch = packageMismatch(round2(input.packageAmount), input.customData, layout?.schema as FormLayout | null);
+        if (mismatch) throw badRequest(mismatch);
+      }
       // Finishing work starts (as Pending) when printing is marked done, and is cleared otherwise.
       if (isProductionDone(input.status)) {
         if (!existing || !isProductionDone(existing.status) || !customData.fld_b_finishing_status) {
@@ -470,3 +476,4 @@ export async function updateJob(
   whatsappAfterJobSaved(result.job.id, { created: false, stageBefore: result.before.stage, stageAfter: result.job.stage });
   return result;
 }
+

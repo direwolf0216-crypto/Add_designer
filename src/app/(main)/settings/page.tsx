@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import PageReveal from "@/components/motion/PageReveal";
 import { WHATSAPP_UI_ENABLED } from "@/lib/whatsapp/flags";
+import { useConfirmSettingsLeave } from "@/lib/settings/leaveGuard";
 
 // Each settings tab is code-split; only the open tab's bundle is downloaded.
 const tabLoading = () => <div className="h-40 animate-pulse rounded-2xl bg-white/60" aria-busy="true" />;
@@ -63,10 +64,11 @@ interface SidebarContentProps {
 
 const SidebarContent = ({ groups, activeSection, onSectionSwitch, isCollapsed = false }: SidebarContentProps) => {
   const router = useRouter();
+  const confirmLeave = useConfirmSettingsLeave();
   return (
   <div className="flex flex-col h-full py-4 px-3 overflow-y-auto no-scrollbar overflow-x-hidden">
     <button 
-      onClick={() => router.push('/')} 
+      onClick={async () => { if (await confirmLeave()) router.push('/'); }} 
       className={`flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-slate-800 transition-colors mb-4 ${isCollapsed ? 'justify-center px-0' : ''}`}
       title={isCollapsed ? "Back" : undefined}
     >
@@ -140,9 +142,12 @@ function SettingsPage() {
     setDisplayedSection(activeSection);
   }
 
+  const confirmLeave = useConfirmSettingsLeave();
+
   // Handle section switch with animation
-  const handleSectionSwitch = useCallback((id: SectionId) => {
+  const handleSectionSwitch = useCallback(async (id: SectionId) => {
     if (id === activeSection) return;
+    if (!(await confirmLeave())) return;
     setIsTransitioning(true);
     setIsMobileMenuOpen(false);
     
@@ -152,7 +157,7 @@ function SettingsPage() {
       setDisplayedSection(id);
       setIsTransitioning(false);
     }, 150); // Delay half the transition duration to swap components
-  }, [activeSection, router]);
+  }, [activeSection, router, confirmLeave]);
 
   const groupsMemo = useMemo(() => GROUPS, []);
 

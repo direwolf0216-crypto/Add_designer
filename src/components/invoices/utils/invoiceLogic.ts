@@ -14,7 +14,7 @@ import { assets } from './assetRegistry';
 import { computeBalance, round2 } from '@/lib/money';
 import { businessTodayUtc } from '@/lib/dates';
 import { BUSINESS_DETAILS } from '@/lib/constants';
-import type { PricingRules } from '@/lib/jobs/pricing';
+import { pricingUnitLabel, type PricingRules } from '@/lib/jobs/pricing';
 
 type FullJob = Job & { client: Client; assignments?: { user: { name: string | null } }[] };
 type FullInvoice = Invoice & { lineItems: InvoiceLineItem[] };
@@ -96,7 +96,7 @@ function buildPrintInvoice(
       subTotal += lineTotal;
       return {
         description: present(s.category) || present(job.category) || 'Printing job',
-        size: s.area ? `${present(s.size)} (${s.area.toLocaleString('en-IN')} sq ft)` : present(s.size) || '—',
+        size: s.area ? `${present(s.size)} (${s.area.toLocaleString('en-IN')} ${pricingUnitLabel(s.unit)})` : present(s.size) || '—',
         qty: qtyText(s.quantity),
         rate: amount2(rate),
         amount: amount2(lineTotal),

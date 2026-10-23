@@ -12,7 +12,7 @@ export function GrandTotal() {
         <label className="text-[0.75rem] font-bold text-slate-600 uppercase tracking-[0.5px]">Grand Total</label>
       </div>
       <div className="flex h-[34px] sm:h-[42px] w-full rounded-[14px] bg-slate-50 border border-slate-200 px-4 items-center justify-end shadow-inner">
-        <span className="text-[1.15rem] font-black text-slate-800">₹ {packageAmount(form.watch("package")).toLocaleString("en-IN")}</span>
+        <span data-testid="grand-total" className="text-[1.15rem] font-black text-slate-800">₹ {packageAmount(form.watch("package")).toLocaleString("en-IN")}</span>
       </div>
     </div>
   );
@@ -29,7 +29,7 @@ export function OutstandingBalance() {
         </div>
         <span className="font-bold text-slate-800 text-[1.05rem]">Outstanding Balance</span>
       </div>
-      <span className="text-[1.6rem] font-black text-orange-600 tracking-tight">
+      <span data-testid="outstanding-balance" className="text-[1.6rem] font-black text-orange-600 tracking-tight">
         ₹ {outstandingBalance(form.watch("package"), installments).toLocaleString("en-IN")}
       </span>
     </div>

@@ -92,12 +92,15 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
         setIsSubmittingLocal(false);
         return;
       }
+    }
+    // Bounds and formats inside each Job Details entry (a negative quantity, say), when editing too.
+    if (jdSection) {
       const invalidInEntries = entryValidationErrors(layoutSchema, JOB_FORM_FIELD_MAP, entriesData, (rule, entry) =>
         isVisibleIn(rule, { ...(data as Record<string, unknown>), ...(entry ?? {}) }, JOB_FORM_FIELD_MAP)
       );
       if (invalidInEntries.length > 0) {
         const first = invalidInEntries[0];
-        toast.error(`Job ${first.index + 1}: ${first.message}`);
+        toast.error(perJob ? `Job ${first.index + 1}: ${first.message}` : `Item ${first.index + 1}: ${first.message}`);
         flashField(first.fieldName, first.index);
         setIsSubmittingLocal(false);
         return;
@@ -162,7 +165,8 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
         formData.set("assigneeIds", JSON.stringify(state.entryAssignees[j.index] ?? []));
         const result = await saveJobAction(formData);
         if (!(result.success && result.data)) {
-          toast.error(jobs.length > 1 ? `Job ${j.index + 1} could not be saved${created ? ` (${created} saved)` : ""}. Please check its fields.` : "Failed to save job. Please check your inputs.");
+          const reason = !result.success ? result.errors?._form?.[0] : undefined;
+          toast.error(jobs.length > 1 ? `Job ${j.index + 1} could not be saved${created ? ` (${created} saved)` : ""}. ${reason ?? "Please check its fields."}` : reason ?? "Failed to save job. Please check your inputs.");
           invalidateAll();
           router.refresh();
           setIsSubmittingLocal(false);
@@ -196,7 +200,7 @@ export function useJobFormSubmit(state: JobFormState, isVisible: IsVisible, onSa
       router.refresh();
       onSaved();
     } else {
-      toast.error("Failed to save job. Please check your inputs.");
+      toast.error((!result.success ? result.errors?._form?.[0] : undefined) ?? "Failed to save job. Please check your inputs.");
     }
     setIsSubmittingLocal(false);
   };

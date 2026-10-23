@@ -4,6 +4,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { parseJson, route } from "@/lib/api/http";
 import { requireAdmin, requireUser } from "@/lib/auth/session";
+import type { PricingRules } from "@/lib/jobs/pricing";
+import { pricingRulesSchema } from "@/lib/jobs/pricingSchema";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,7 @@ const DEFAULT_SETTINGS = {
     bannerTime2: "17:00"
   },
   // Per-category pricing (Settings → Pricing): { "Flex Printing": { unit: "sqft", defaultRate: 25 } }.
-  pricing_rules: {} as Record<string, { unit: "piece" | "sqft"; defaultRate?: number }>,
+  pricing_rules: {} as PricingRules,
 };
 
 const color = z.string().max(32);
@@ -56,7 +58,7 @@ const SETTING_SCHEMAS = {
     bannerTime1: time.optional(),
     bannerTime2: time.optional(),
   }),
-  pricing_rules: z.record(z.string().trim().min(1).max(100), z.object({ unit: z.enum(["piece", "sqft"]), defaultRate: z.number().nonnegative().max(10_000_000).optional() })),
+  pricing_rules: pricingRulesSchema,
   business_name: businessText,
   business_phone: businessText,
   business_email: businessText,

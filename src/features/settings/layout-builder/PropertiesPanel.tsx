@@ -116,7 +116,7 @@ export default function PropertiesPanel({ layout, field: selectedField, sectionI
                 {selectedField.type === "STATUS_PICKER" && <StatusOptionsEditor field={selectedField} onChange={onChange} />}
                 {selectedField.type === "SIZE" && <SizeUnitsEditor field={selectedField} layout={layout} onChange={onChange} />}
                 {/* Settings that live elsewhere but belong to this field, shown in place. */}
-                {layout.formKey === "JOB_FORM" && effectiveRole(layout.schema, selectedField) === "category" && <CategoryPricingCard field={selectedField} />}
+                {layout.formKey === "JOB_FORM" && effectiveRole(layout.schema, selectedField) === "category" && <CategoryPricingCard field={selectedField} layout={layout.schema} />}
                 {layout.formKey === "JOB_FORM" && selectedField.type === "STATUS_PICKER" && <StatusStagesCard field={selectedField} />}
               </>
             )}

@@ -84,7 +84,7 @@ export function splitIntoJobs(args: {
 
   const anyPriced = splits.some((s) => s.lineTotal > 0);
   const weights = anyPriced ? splits.map((s) => s.lineTotal) : splits.map((_, i) => (i === 0 ? 1 : 0));
-  const discountShares = splitProportionally(discount, weights);
+  const discountShares = splitProportionally(Math.max(0, discount), weights);
   const installmentShares = installments.map((inst) => splitProportionally(parseCurrency(inst.amount || "0"), weights));
 
   return splits.map((s, i) => {

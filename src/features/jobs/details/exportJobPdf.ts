@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { FieldMap, FormLayout } from "@/lib/forms/types";
-import type { PricingRules } from "@/lib/jobs/pricing";
+import { pricingUnitLabel, type PricingRules } from "@/lib/jobs/pricing";
 import { isCancelStage, readCancellation, refundDue } from "@/lib/jobs/cancellation";
 import {
   dynamicFieldValue,
@@ -121,7 +121,7 @@ export async function exportJobPdf(job: DetailsJob, layout: FormLayout | null, f
     const e = specs[0];
     table("Job details", e ? [
       ...(e.category ? [["Category", text(e.category)]] : []),
-      ["Size", e.area ? `${text(e.size)} (${e.area.toLocaleString("en-IN")} sq ft)` : text(e.size)],
+      ["Size", e.area ? `${text(e.size)} (${e.area.toLocaleString("en-IN")} ${pricingUnitLabel(e.unit)})` : text(e.size)],
       ["Quantity", text(e.quantity)],
       ...(showAmounts && e.rateLabel !== "N/A" ? [["Rate", e.rateLabel]] : []),
       ...(showAmounts && e.total !== null ? [["Total", money(e.total)]] : []),

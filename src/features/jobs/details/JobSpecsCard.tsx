@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
 import type { SpecEntry } from "@/lib/jobs/resolveJobFields";
+import { pricingUnitLabel } from "@/lib/jobs/pricing";
 import { DetailsCard, InfoRow } from "./DetailsCard";
 
 /** "Job Details": category, size, quantity, rate and total per line item (rate/total only with amounts). */
@@ -18,7 +19,7 @@ export default function JobSpecsCard({ entries, showAmounts = true }: { entries:
             {showAmounts && entry.repricedSince && (
               <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-700">
                 <i className="ph-bold ph-info mt-px shrink-0" aria-hidden="true"></i>
-                Priced {entry.unit === "sqft" ? "per sq ft" : "per piece"} when this job was saved. {entry.category || "This category"} is now priced {entry.unit === "sqft" ? "per piece" : "per sq ft"}; edit and save the job to reprice it.
+                Priced per {pricingUnitLabel(entry.unit)} when this job was saved. {entry.category || "This category"} is now priced per {pricingUnitLabel(entry.currentUnit)}; edit and save the job to reprice it.
               </p>
             )}
             {showAmounts && entry.total !== null && (

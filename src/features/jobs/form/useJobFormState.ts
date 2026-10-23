@@ -9,7 +9,7 @@ import { toLocalISODate } from "@/lib/dates";
 import { JOB_FORM_FIELD_MAP } from "@/lib/forms/fieldMap";
 import type { RepeatableData } from "@/lib/forms/types";
 import { jobToFormState, layoutDefaults, newInstallment } from "@/lib/jobs/formMapping";
-import { computeJobTotals, type FinancialRates, type Installment } from "@/lib/jobs/pricing";
+import { computeJobTotals, findDiscountKey, type FinancialRates, type Installment } from "@/lib/jobs/pricing";
 import { useJobFormData } from "./useJobFormData";
 import { usePricingRules } from "@/hooks/usePricingRules";
 
@@ -71,6 +71,9 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
   // Advance follows the installments, package follows line-item rates, due = package − advance.
   const packageValue = watch("package");
   const advanceValue = watch("advance");
+  // The discount changes the package too, so a new discount recomputes it (and is what gets saved).
+  const discountKey = findDiscountKey(watch(), layoutSchema, JOB_FORM_FIELD_MAP);
+  const discountValue = discountKey ? (watch(discountKey) as unknown) : undefined;
   useEffect(() => {
     const totals = computeJobTotals({
       values: watch(),
@@ -84,7 +87,7 @@ export function useJobFormState({ isOpen, jobToEditId, initialDate }: { isOpen: 
     if (totals.advance !== undefined) setValue("advance", totals.advance);
     if (totals.package !== undefined) setValue("package", totals.package);
     setValue("due", totals.due);
-  }, [packageValue, advanceValue, installments, setValue, watch, repeatableData, financialRates, layoutSchema, pricingRules]);
+  }, [packageValue, advanceValue, discountValue, installments, setValue, watch, repeatableData, financialRates, layoutSchema, pricingRules]);
 
   return {
     form,

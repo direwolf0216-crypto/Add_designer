@@ -85,9 +85,9 @@ describe("line items", () => {
     expect(lineItemTotal(undefined, "")).toBe(0);
   });
 
-  it("sums every entry for the line-items total (parseFloat rates, category not required)", () => {
-    // 100×3 + parseFloat("1,000")=1 ×1 + 7×5
-    expect(sumLineItems(repeatableData, rates, layout, map)).toBe(336);
+  it("sums every entry for the line-items total (grouped rates read whole, category not required)", () => {
+    // 100×3 + 1,000×1 + 7×5: the shown sum reads "1,000" like the package does
+    expect(sumLineItems(repeatableData, rates, layout, map)).toBe(1335);
   });
 
   it("finds the discount key by layout field name", () => {

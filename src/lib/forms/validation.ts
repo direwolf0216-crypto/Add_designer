@@ -19,7 +19,14 @@ const isBlank = (v: unknown) => v === undefined || v === null || v === "" || (Ar
  * The error for a value under the field's validation settings, or null. Blank values pass (required is
  * checked separately); a custom message replaces the default wording for any failed check.
  */
-export function validateFieldValue(field: Pick<FormField, "name" | "type" | "validation">, value: unknown): string | null {
+export function validateFieldValue(field: Pick<FormField, "name" | "type" | "validation"> & { role?: FormField["role"] }, value: unknown): string | null {
+  // A quantity multiplies money: it must be a plain non-negative number ("1,000" is fine), whatever the
+  // layout's own validation says.
+  if (field.role === "quantity" && !isBlank(value)) {
+    const q = String(value).trim().replace(/[\s,]/g, "");
+    if (/^-/.test(q) && /\d/.test(q)) return `${field.name} can't be negative`;
+    if (!/^(\d+\.?\d*|\.\d+)$/.test(q)) return `${field.name} must be a number`;
+  }
   const v = field.validation;
   if (!v || isBlank(value)) return null;
   const fail = (msg: string) => v.message?.trim() || msg;
