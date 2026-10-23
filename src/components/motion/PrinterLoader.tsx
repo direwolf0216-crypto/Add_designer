@@ -79,7 +79,7 @@ function BannerTile() {
 export default function PrinterLoader({ label = "Printing your page" }: { label?: string }) {
   return (
     <SkeletonExit>
-      <div className={s.root} role="status" aria-live="polite" aria-label={`${label}…`}>
+      <div className={s.root} data-printer-loader role="status" aria-live="polite" aria-label={`${label}…`}>
         <div className={s.scene} aria-hidden="true">
           <div className={s.stage}>
             {/* Soft contact shadow (static, so its blur is painted once). */}

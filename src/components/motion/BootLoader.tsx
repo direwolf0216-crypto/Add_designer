@@ -18,6 +18,7 @@ export default function BootLoader() {
     if (!el) return;
     const finish = () => {
       el.classList.add(s.done);
+      el.dataset.bootLoader = "off";
       window.setTimeout(() => setGone(true), 400);
     };
     // Wait for the page's own resources too, as the sample did; never longer than a few seconds.
@@ -32,7 +33,7 @@ export default function BootLoader() {
 
   if (gone) return null;
   return (
-    <div ref={ref} className={s.overlay} data-boot-loader>
+    <div ref={ref} className={s.overlay} data-boot-loader="on">
       <PrinterLoader />
     </div>
   );

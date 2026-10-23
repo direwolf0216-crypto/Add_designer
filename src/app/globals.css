@@ -1972,3 +1972,9 @@ button {
 html {
   overflow-x: clip;
 }
+
+/* While the full-screen startup loader is up, a page's own printer loader stays hidden, so only one
+   printer shows. Once the startup loader fades, the page's loader takes over if data is still coming. */
+html:has([data-boot-loader="on"]) [data-printer-loader]:not([data-boot-loader] [data-printer-loader]) {
+  visibility: hidden;
+}
