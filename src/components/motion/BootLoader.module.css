@@ -1,4 +1,5 @@
-/* Full-screen printer loader while a page refresh or first load gets the app ready. */
+/* Full-screen printer loader for the first moment of a page refresh or first load (until the HTML
+   is parsed; data-boot-loader="off" fades it out). */
 .overlay {
   position: fixed;
   inset: 0;
@@ -12,6 +13,7 @@
   animation: boot-in 0.3s ease 0.2s both;
   transition: opacity 0.35s ease, visibility 0.35s ease;
 }
+.overlay[data-boot-loader="off"],
 .done {
   opacity: 0 !important;
   visibility: hidden;

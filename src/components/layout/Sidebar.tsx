@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMobileNav } from "../providers/MobileNavProvider";
 import { useStoredBoolean } from "@/hooks/useStoredBoolean";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWarmPageData } from "@/lib/warmPageData";
 
 export default function Sidebar() {
@@ -16,6 +16,9 @@ export default function Sidebar() {
   if (pending && pending.from !== currentPath) setPending(null);
   const pathname = pending ? pending.to : currentPath;
   const warm = useWarmPageData();
+  // On a phone the drawer's links are off-screen, so Next never preloads them on sight; preload the
+  // pages once the app is idle so opening one from the drawer is quick.
+  const router = useRouter();
   const { isSidebarOpen, closeSidebar } = useMobileNav();
   const [isCollapsed, setIsCollapsed] = useStoredBoolean('sidebar_collapsed');
   const { checkPermission, isAdmin } = usePermissions();
@@ -33,6 +36,17 @@ export default function Sidebar() {
   ];
 
   const visibleNavItems = navItems.filter((item) => !item.permission || checkPermission(item.permission));
+  const navPaths = visibleNavItems.map((i) => i.path).join("|");
+  useEffect(() => {
+    const paths = navPaths.split("|").filter(Boolean);
+    const go = () => paths.forEach((p) => router.prefetch(p));
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(go, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(go, 1500);
+    return () => clearTimeout(t);
+  }, [navPaths, router]);
   const isItemActive = (item: (typeof navItems)[number]) =>
     pathname.startsWith(item.path) ||
     (item.name === "Jobs" && pathname.startsWith("/jobs")) ||
@@ -96,7 +110,7 @@ export default function Sidebar() {
           <div className="absolute bottom-[90px] left-1/2 -translate-x-1/2 w-[140%] pointer-events-none z-0">
             <div className="absolute bottom-[10%] left-1/2 -translate-x-1/2 w-[60%] h-[40%] bg-fuchsia-600/30 blur-[40px] rounded-full"></div>
             <div className="absolute bottom-[20%] left-1/2 -translate-x-1/2 w-[40%] h-[30%] bg-blue-600/40 blur-[30px] rounded-full"></div>
-            <img src="/assets/Printer.png" alt="Printer Graphic" className="relative z-10 w-full h-auto object-contain drop-shadow-2xl" />
+            <img src="/assets/Printer.webp" alt="" aria-hidden="true" decoding="async" loading="lazy" className="relative z-10 w-full h-auto object-contain drop-shadow-2xl" />
           </div>
         )}
 
@@ -117,7 +131,7 @@ export default function Sidebar() {
             <div className="absolute bottom-[-10%] left-1/2 -translate-x-1/2 w-[50%] h-[40%] bg-blue-500/30 blur-[20px] rounded-full z-0 pointer-events-none transition-opacity duration-500 group-hover:opacity-100 opacity-70"></div>
             <div className="absolute top-1/2 right-[15%] -translate-y-1/2 w-[30%] h-[60%] bg-yellow-500/20 blur-[25px] rounded-full z-0 pointer-events-none transition-opacity duration-500 group-hover:opacity-100 opacity-60"></div>
 
-            <Image unoptimized src="/assets/leftPanelLogo.png" alt="Logo" width={260} height={80} priority className="object-contain w-[240px] h-auto scale-125 origin-center drop-shadow-xl relative z-10" />
+            <Image unoptimized src="/assets/leftPanelLogo.webp" alt="Logo" width={260} height={80} className="object-contain w-[240px] h-auto scale-125 origin-center drop-shadow-xl relative z-10" />
           </div>
         )}
 
@@ -139,7 +153,7 @@ export default function Sidebar() {
               <div className="bg-[#050505] rounded-xl p-1.5 overflow-hidden">
                 <Image
                   unoptimized
-                  src="/assets/addSquare.png"
+                  src="/assets/addSquare.webp"
                   alt="Small Logo"
                   width={64}
                   height={64}
@@ -186,6 +200,8 @@ export default function Sidebar() {
                   prefetch={true}
                   onClick={(e) => {
                     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !isActive) setPending({ from: currentPath, to: item.path });
+                    // On a phone the drawer closes at once (not when the next page has arrived).
+                    closeSidebar();
                   }}
                   onMouseEnter={() => warm(item.path)}
                   onFocus={() => warm(item.path)}
@@ -244,7 +260,7 @@ export default function Sidebar() {
         {isCollapsed && (
           <div className="w-full mt-auto mb-6 flex justify-center relative">
             <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-blue-500/10 blur-xl rounded-full z-0"></div>
-            <img src="/assets/Printer.png" alt="Printer" className="w-[85px] h-auto object-contain relative z-10 drop-shadow-[0_0_10px_rgba(255,255,255,0.15)]" />
+            <img src="/assets/Printer.webp" alt="" aria-hidden="true" decoding="async" loading="lazy" className="w-[85px] h-auto object-contain relative z-10 drop-shadow-[0_0_10px_rgba(255,255,255,0.15)]" />
           </div>
         )}
 
@@ -254,6 +270,7 @@ export default function Sidebar() {
             <Link
               href="/settings"
               prefetch={true}
+              onClick={() => closeSidebar()}
               title={isCollapsed ? "Settings" : undefined}
               className={`
                 ${isCollapsed ? 'flex flex-col items-center justify-center p-3 gap-1.5 w-[76px] h-[76px] rounded-[1.3rem] bg-transparent border border-white/5 text-slate-400 hover:border-white/20 hover:text-slate-200 hover:bg-white/5'

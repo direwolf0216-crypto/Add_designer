@@ -26,7 +26,7 @@ export default function LegalShell({
       <header className="border-b border-slate-100 px-5 py-6 sm:px-10 sm:py-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/login" className="inline-flex items-center" aria-label="Back to sign in">
-            <Image unoptimized src="/assets/logo.png?v=2" alt={business.name} width={340} height={90} className="h-auto w-[170px] object-contain sm:w-[220px]" />
+            <Image unoptimized src="/assets/logo.webp" alt={business.name} width={340} height={90} className="h-auto w-[170px] object-contain sm:w-[220px]" />
           </Link>
           <nav aria-label="Legal pages" className="flex items-center gap-2 text-sm font-semibold">
             <Link href={otherHref} className="rounded-full border border-slate-200 px-3.5 py-1.5 text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900">

@@ -4,37 +4,36 @@ import { useEffect, useRef, useState } from "react";
 import PrinterLoader from "./PrinterLoader";
 import s from "./BootLoader.module.css";
 
+// Steps aside the moment the page's HTML has arrived (DOMContentLoaded), without waiting for images or
+// the app's scripts, so even on a slow (3G) connection the server-rendered page shows right away. A
+// tiny inline script does that before React loads; React then removes the overlay.
+const HIDE_WHEN_PARSED = `(function(){function h(){var e=document.querySelector('[data-boot-loader]');if(e)e.setAttribute('data-boot-loader','off')}if(document.readyState!=='loading')h();else document.addEventListener('DOMContentLoaded',h,{once:true});setTimeout(h,2500)})();`;
+
 /**
- * The printer loader over the whole screen from the first paint of a page refresh (or first visit)
- * until the app is ready, like the flex-printer-loader sample. It is in the server HTML, so it shows
- * before any script runs, fades out once the page is interactive, then leaves the DOM.
+ * The printer loader over the whole screen for the first moment of a page refresh (or first visit),
+ * until the page's HTML is in. It's in the server HTML, so it shows before any script runs.
  */
-export default function BootLoader() {
+export default function BootLoader({ nonce }: { nonce?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [gone, setGone] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const finish = () => {
-      el.classList.add(s.done);
-      el.dataset.bootLoader = "off";
-      window.setTimeout(() => setGone(true), 400);
-    };
-    // Wait for the page's own resources too, as the sample did; never longer than a few seconds.
-    if (document.readyState === "complete") finish();
-    else window.addEventListener("load", finish, { once: true });
-    const cap = window.setTimeout(finish, 6000);
-    return () => {
-      window.removeEventListener("load", finish);
-      window.clearTimeout(cap);
-    };
+    el.dataset.bootLoader = "off";
+    const t = window.setTimeout(() => setGone(true), 400);
+    return () => window.clearTimeout(t);
   }, []);
 
   if (gone) return null;
   return (
-    <div ref={ref} className={s.overlay} data-boot-loader="on">
-      <PrinterLoader />
-    </div>
+    <>
+      {/* The inline script flips this to "off" before React hydrates; that's expected. */}
+      <div ref={ref} className={s.overlay} data-boot-loader="on" suppressHydrationWarning>
+        <PrinterLoader />
+      </div>
+      {/* Carries the request's CSP nonce, or the policy would block it. */}
+      <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: HIDE_WHEN_PARSED }} />
+    </>
   );
 }

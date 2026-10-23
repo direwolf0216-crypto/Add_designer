@@ -104,7 +104,7 @@ function ResetPasswordForm() {
     <div className="bg-white/95 backdrop-blur-2xl w-full max-w-[460px] mx-auto rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 p-8 sm:p-10 relative overflow-hidden">
       <div className="flex justify-center mb-6">
         <div className="bg-slate-50/80 p-3 px-6 rounded-2xl border border-slate-100/80 shadow-sm flex items-center justify-center">
-          <Image unoptimized src="/assets/logo.png?v=2" alt="Add Designer Logo" width={340} height={90} className="w-[280px] sm:w-[320px] object-contain drop-shadow-sm" />
+          <Image unoptimized src="/assets/logo.webp" alt="Add Designer Logo" width={340} height={90} className="w-[280px] sm:w-[320px] object-contain drop-shadow-sm" />
         </div>
       </div>
 

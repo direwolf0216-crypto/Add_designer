@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Inter, Alex_Brush, Montserrat, Outfit } from "next/font/google";
-import "@phosphor-icons/web/fill";
-import "@phosphor-icons/web/regular";
-import "@phosphor-icons/web/bold";
+// Icons: trimmed Phosphor fonts holding only the icons the app uses (scripts/icons/build-icons.mjs).
+import "@/styles/icons/phosphor-regular.css";
+import "@/styles/icons/phosphor-bold.css";
+import "@/styles/icons/phosphor-fill.css";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { cn } from "@/lib/utils";
@@ -14,8 +15,9 @@ import BootLoader from "@/components/motion/BootLoader";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 // Page titles: the rounded geometric face the sign-in page uses.
 const display = Outfit({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display" });
-const brandScript = Alex_Brush({ subsets: ["latin"], weight: "400", variable: "--font-brand-script" });
-const brandAccent = Montserrat({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-brand-accent" });
+// The brand wordmark's faces are rarely on screen: not preloaded, fetched only when used.
+const brandScript = Alex_Brush({ subsets: ["latin"], weight: "400", variable: "--font-brand-script", preload: false });
+const brandAccent = Montserrat({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-brand-accent", preload: false });
 
 export const metadata: Metadata = {
   title: "ADD Designer - Printing Management",
@@ -34,12 +36,12 @@ export default async function RootLayout({
   // Every page renders per request: the proxy sets a per-request CSP nonce, and Next can only stamp it on
   // its inline scripts while rendering dynamically (a prerendered page would ship nonce-less scripts the
   // policy then blocks). Reading the headers here opts the whole app in.
-  await headers();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={cn("font-sans", inter.variable, display.variable, brandScript.variable, brandAccent.variable)}>
 
       <body className={cn("flex h-[100dvh] fixed inset-0 w-full overflow-hidden bg-slate-50 text-slate-900 antialiased", inter.className)}>
-        <BootLoader />
+        <BootLoader nonce={nonce} />
         <AuthProvider>
           {children}
           <AppToaster />

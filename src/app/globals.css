@@ -1920,8 +1920,8 @@ button {
 
 /* Printer: a specular sweep that runs across the machine itself (masked to the artwork). */
 .printer-sheen {
-  -webkit-mask-image: url("/assets/signin/printerSignin.png");
-  mask-image: url("/assets/signin/printerSignin.png");
+  -webkit-mask-image: url("/assets/signin/printerSignin.webp");
+  mask-image: url("/assets/signin/printerSignin.webp");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;

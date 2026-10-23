@@ -12,10 +12,6 @@ import { ledgerOverviewKey } from "@/lib/warmPageData";
 const jsonFetcher = (url: string) => fetch(url).then(res => res.json());
 
 export interface TransactionsOverviewData {
-  totalIncome?: number;
-  totalExpenses?: number;
-  expensesByCategory?: Record<string, number>;
-  recentTransactions?: TransactionRecord[];
   todayTransactions?: TransactionRecord[];
   todayIncome?: number;
   todayExpense?: number;
@@ -26,12 +22,13 @@ export interface TransactionsOverviewData {
   week?: WeekSummary;
 }
 
-/** Year-to-date overview data and a delete that updates the cache. */
-export function useTransactionsOverview() {
+/** Today's ledger data and a delete that updates the cache. */
+export function useTransactionsOverview(initialData?: TransactionsOverviewData) {
   // The same key the sidebar warms on hover (useWarmPageData), so a warmed ledger opens instantly.
   const overviewKey = useMemo(() => ledgerOverviewKey(), []);
 
-  const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher);
+  // The ledger page sends today's figures with the page, so they show at once.
+  const { data, error, isLoading } = useSWR<TransactionsOverviewData>(overviewKey, jsonFetcher, { fallbackData: initialData, revalidateOnMount: !initialData });
 
   /** Delete a transaction (or a whole `grp_…` group) and drop it from the cached overview. Throws on failure. */
   const deleteTransaction = async (id: string) => {
@@ -49,7 +46,6 @@ export function useTransactionsOverview() {
       if (!currentData) return currentData;
       return {
         ...currentData,
-        recentTransactions: currentData.recentTransactions!.filter(keep),
         todayTransactions: currentData.todayTransactions!.filter(keep),
       };
     }, { revalidate: true });

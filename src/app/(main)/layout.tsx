@@ -26,7 +26,7 @@ export default function MainLayout({
               <div
                 className="absolute inset-0 z-0 pointer-events-none"
                 style={{
-                  backgroundImage: 'url("/assets/saas_dashboard_bg.png")',
+                  backgroundImage: 'url("/assets/saas_dashboard_bg.webp")',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',

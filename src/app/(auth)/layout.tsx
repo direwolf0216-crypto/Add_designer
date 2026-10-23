@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="absolute bottom-0 right-0 w-[300px] sm:w-[550px] h-auto pointer-events-none z-0">
         <Image
           unoptimized
-          src="/assets/signin/rightBottom.png"
+          src="/assets/signin/rightBottom.webp"
           alt="Bottom Right Wave"
           width={600}
           height={600}

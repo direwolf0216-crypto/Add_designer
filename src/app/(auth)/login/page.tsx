@@ -207,7 +207,7 @@ function LoginForm() {
           >
             <Image 
               unoptimized 
-              src="/assets/signin/printerSignin.png" 
+              src="/assets/signin/printerSignin.webp" 
               alt="Laser Printer Graphic" 
               width={600} 
               height={400} 
@@ -243,7 +243,7 @@ function LoginForm() {
           {/* Top-Right Liquid Splash Decor */}
           <Image 
             unoptimized 
-            src="/assets/signin/singinPanelTopRight.png" 
+            src="/assets/signin/singinPanelTopRight.webp" 
             alt="Top Right Splash" 
             width={180} 
             height={180} 
@@ -253,7 +253,7 @@ function LoginForm() {
           {/* Bottom-Left Liquid Splash Decor */}
           <Image 
             unoptimized 
-            src="/assets/signin/singinPanelBottomLeft.png" 
+            src="/assets/signin/singinPanelBottomLeft.webp" 
             alt="Bottom Left Splash" 
             width={180} 
             height={180} 
@@ -268,7 +268,7 @@ function LoginForm() {
               <div className="mb-2 sm:mb-3">
                 <Image 
                   unoptimized 
-                  src="/assets/logo.png?v=2" 
+                  src="/assets/logo.webp" 
                   alt="Add Designer Logo" 
                   width={340} 
                   height={90} 
