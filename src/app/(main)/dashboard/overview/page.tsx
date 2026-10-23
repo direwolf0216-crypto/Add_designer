@@ -17,6 +17,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import PageReveal from "@/components/motion/PageReveal";
 import { formatINR } from "@/lib/money";
 import PrinterLoader from "@/components/motion/PrinterLoader";
+import { useRevealAfterLoad } from "@/components/motion/useRevealAfterLoad";
 import { DASHBOARD_OVERVIEW_KEY } from "@/lib/warmPageData";
 
 // recharts is heavy; keep it out of the initial dashboard bundle.
@@ -67,6 +68,7 @@ function DashboardMetrics({
   const { checkPermission } = usePermissions();
   const canViewAnalytics = checkPermission('view_export_analytics');
 
+  const reveal = useRevealAfterLoad(isLoading && !data);
   if (isLoading && !data) return <PrinterLoader label="Printing your dashboard" />;
   if (error || !data) {
     return (
@@ -126,7 +128,7 @@ function DashboardMetrics({
   const kpiCols = kpis.length === 4 ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4' : kpis.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6 ${reveal}`}>
       <section aria-label="Overview" className={`grid gap-4 ${kpiCols}`}>
         {kpis.map((k, i) => (
           <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>

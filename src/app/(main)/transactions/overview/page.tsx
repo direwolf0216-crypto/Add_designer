@@ -19,6 +19,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { format, parseISO } from "date-fns";
 import type { WeekSummary } from "@/lib/transactions/weekly";
 import PrinterLoader from "@/components/motion/PrinterLoader";
+import { useRevealAfterLoad } from "@/components/motion/useRevealAfterLoad";
 import { emptyModeSplit } from "@/lib/transactions/paymentModes";
 
 const EMPTY_WEEK: WeekSummary = { days: [], totals: { income: 0, expense: 0, net: 0 }, previous: { income: 0, expense: 0, net: 0 }, expensesByCategory: [] };
@@ -30,6 +31,7 @@ function OverviewPageContent() {
   const canEdit = checkPermission("edit_transactions");
   const canDelete = checkPermission("delete_transactions");
 
+  const reveal = useRevealAfterLoad(isLoading || !data);
   if (isLoading || !data) {
     return <PrinterLoader label="Printing your ledger" />;
   }
@@ -58,7 +60,7 @@ function OverviewPageContent() {
   const todayExpenseSegments = buildTodaySegments(toCategoryShares(sumByCategory(todayTransactions, 'EXPENSE'), todayExpense));
 
   return (
-    <div className="animate-fade-in w-full">
+    <div className={`w-full ${reveal}`}>
       {/* Today's income and expenses */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 mb-8 items-start">
         <DonutBreakdownCard variant="income" total={todayIncome} segments={todayIncomeSegments} />

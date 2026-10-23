@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRevealAfterLoad } from "@/components/motion/useRevealAfterLoad";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -61,6 +62,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
   const [activeTabId, setActiveTabId] = useState(DETAILS_TAB.id);
   const [isExporting, setIsExporting] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const reveal = useRevealAfterLoad(!job);
   const mutations = useJobMutations({
     job,
     layout: layoutSchema,
@@ -140,7 +142,7 @@ export default function JobDetailsView({ standaloneJobId, extraTabs = [] }: JobD
           <PrinterLoader label="Printing the job details" />
         </div>
       ) : (
-        <div className={`flex-1 flex flex-col w-full relative ${standaloneJobId ? "md:h-full md:overflow-hidden" : "h-full overflow-hidden"}`}>
+        <div className={`flex-1 flex flex-col w-full relative ${reveal} ${standaloneJobId ? "md:h-full md:overflow-hidden" : "h-full overflow-hidden"}`}>
           {/* Header */}
           {/* A div, not <header>: the print stylesheet hides headers, and this one names the job on the printout. */}
           <div className={`shrink-0 top-0 z-40 bg-[#fcfcfc] px-4 sm:px-6 md:px-8 py-4 border-b border-slate-100 flex flex-col gap-4 print:static print:border-0 print:px-0 ${standaloneJobId ? "md:sticky" : "sticky"}`}>

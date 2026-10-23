@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSlidingPill } from "@/components/motion/useSlidingPill";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,8 +26,10 @@ function Segmented<T extends string>({ value, options, hrefFor, label, compact =
   const [picked, setPicked] = useState<{ from: T; to: T } | null>(null);
   if (picked && picked.from !== value) setPicked(null);
   const shown = picked ? picked.to : value;
+  const { ref: pillRef, style: pillStyle } = useSlidingPill<HTMLDivElement>(shown);
   return (
-    <div role="tablist" aria-label={label} className="inline-flex rounded-2xl bg-slate-900/5 p-1 ring-1 ring-slate-900/5 backdrop-blur">
+    <div ref={pillRef} role="tablist" aria-label={label} className="relative inline-flex rounded-2xl bg-slate-900/5 p-1 ring-1 ring-slate-900/5 backdrop-blur">
+      {pillStyle && <span aria-hidden="true" data-sliding-pill className="rounded-xl bg-white shadow-sm" style={pillStyle} />}
       {options.map((o) => {
         const active = o.id === shown;
         return (
@@ -39,11 +42,12 @@ function Segmented<T extends string>({ value, options, hrefFor, label, compact =
             // Full prefetch: every tab's view is ready before it's clicked (kept fresh by staleTimes).
             prefetch={true}
             data-nav-scope="jobs-view"
+            data-pill-key={o.id}
             onClick={(e) => {
               if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && o.id !== value) setPicked({ from: value, to: o.id });
             }}
             title={compact ? o.label : undefined}
-            className={`relative inline-flex items-center gap-1.5 rounded-xl py-1.5 text-sm font-bold transition-all duration-200 ${compact ? "px-2.5 sm:px-3" : "px-3"} ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+            className={`relative z-10 inline-flex items-center gap-1.5 rounded-xl py-1.5 text-sm font-bold transition-colors duration-300 ${compact ? "px-2.5 sm:px-3" : "px-3"} ${active ? "text-slate-900" : "text-slate-500 hover:text-slate-800"}`}
           >
             {o.icon && <i className={`ph-bold ${o.icon} ${compact ? "text-[15px]" : ""}`} aria-hidden="true"></i>}
             <span className={compact ? "sr-only sm:not-sr-only" : undefined}>{o.label}</span>

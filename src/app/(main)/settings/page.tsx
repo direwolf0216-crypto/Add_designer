@@ -8,6 +8,9 @@ import dynamic from "next/dynamic";
 import PageReveal from "@/components/motion/PageReveal";
 import PrinterLoader from "@/components/motion/PrinterLoader";
 import { useConfirmSettingsLeave } from "@/lib/settings/leaveGuard";
+import { useSession } from "next-auth/react";
+import { homePathFor } from "@/lib/permissions";
+import { startNavProgress } from "@/components/motion/NavProgress";
 
 // Each settings tab is code-split; the open tab's bundle comes first and the rest download in the
 // background once the page is idle, so switching tabs never waits on a download.
@@ -74,10 +77,21 @@ interface SidebarContentProps {
 const SidebarContent = ({ groups, activeSection, onSectionSwitch, isCollapsed = false }: SidebarContentProps) => {
   const router = useRouter();
   const confirmLeave = useConfirmSettingsLeave();
+  // Back goes straight to the person's home page (not "/", which redirects through a server round
+  // trip and the app-wide loader), and that page is prefetched so the switch is instant.
+  const { data: session } = useSession();
+  const home = homePathFor(session?.user?.role, session?.user?.permissions);
+  useEffect(() => {
+    router.prefetch(home);
+  }, [router, home]);
   return (
   <div className="flex flex-col h-full py-4 px-3 overflow-y-auto no-scrollbar overflow-x-hidden">
     <button 
-      onClick={async () => { if (await confirmLeave()) router.push('/'); }} 
+      onClick={async () => {
+        if (!(await confirmLeave())) return;
+        startNavProgress();
+        router.push(home);
+      }}
       className={`flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-slate-800 transition-colors mb-4 ${isCollapsed ? 'justify-center px-0' : ''}`}
       title={isCollapsed ? "Back" : undefined}
     >

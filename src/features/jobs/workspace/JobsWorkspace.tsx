@@ -47,7 +47,7 @@ export default function JobsWorkspace({ data }: { data: WorkspaceData }) {
       <WorkspaceHeader data={data} />
       <StatsStrip data={data} />
       {/* Switching views crossfades; filtering within a view just updates in place. */}
-      <ViewTransition key={view} enter="page-enter" exit="page-exit" default="none">
+      <ViewTransition key={view} name="jobs-view" share="page-xfade" enter="page-enter" exit="page-exit" default="none">
         <div data-nav-dim="jobs-view">
           {empty && <NoJobs data={data} />}
           {!empty && view === "board" && <BoardView data={data} />}

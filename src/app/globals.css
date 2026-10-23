@@ -1704,6 +1704,7 @@ button {
   --motion-exit: 120ms;
   --motion-enter: 220ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-xfade: 320ms;
 }
 ::view-transition {
   pointer-events: none;
@@ -1716,6 +1717,38 @@ button {
     var(--motion-enter) var(--motion-ease) var(--motion-exit) both vt-fade,
     320ms var(--motion-ease) both vt-rise;
 }
+/* A switch between two pages (or two Jobs views): one soft crossfade of the pair. Both images fade
+   over the same time with the same curve and blend with plus-lighter, so together they always cover
+   the area fully: no dip to the background, no flicker. When the two pages start at different
+   heights (the ledger has its own tab row), the pair glides between them over the same time instead
+   of jumping; images keep their natural size (no stretching). */
+::view-transition-group(.page-xfade) {
+  animation-duration: var(--motion-xfade);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+::view-transition-image-pair(.page-xfade) {
+  isolation: isolate;
+}
+::view-transition-old(.page-xfade),
+::view-transition-new(.page-xfade) {
+  height: auto;
+  object-fit: none;
+  object-position: 50% 0;
+  mix-blend-mode: plus-lighter;
+  animation-duration: var(--motion-xfade);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+::view-transition-old(.page-xfade) {
+  animation-name: vt-fade-out;
+}
+::view-transition-new(.page-xfade) {
+  animation-name: vt-fade;
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 ::view-transition-old(.skeleton-exit) {
   animation: 100ms ease-out both vt-fade reverse;
 }
@@ -1724,13 +1757,28 @@ button {
   animation: none;
   z-index: 100;
 }
-::view-transition-old(app-sidebar),
-::view-transition-old(app-topbar) {
+::view-transition-old(app-sidebar) {
   display: none;
 }
-::view-transition-new(app-sidebar),
-::view-transition-new(app-topbar) {
+::view-transition-new(app-sidebar) {
   animation: none;
+}
+/* The top bar crossfades with the page: only its title differs, so that is all that visibly fades. */
+::view-transition-image-pair(app-topbar) {
+  isolation: isolate;
+}
+::view-transition-old(app-topbar),
+::view-transition-new(app-topbar) {
+  mix-blend-mode: plus-lighter;
+  animation-duration: var(--motion-xfade);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+::view-transition-old(app-topbar) {
+  animation-name: vt-fade-out;
+}
+::view-transition-new(app-topbar) {
+  animation-name: vt-fade;
 }
 @keyframes vt-fade {
   from { opacity: 0; }
@@ -2010,4 +2058,39 @@ html[data-navigating="jobs-view"] [data-nav-dim="jobs-view"] {
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-in { animation: none; }
   html[data-navigating] [data-nav-dim] { filter: none !important; }
+}
+
+/* Arriving on a page (see NavProgress): its mount entrances finish at once, so the new page is fully
+   there for the crossfade. Entrances that play later (a list loading in) are unaffected. */
+html[data-arriving] .animate-rise,
+html[data-arriving] .animate-fade-in,
+html[data-arriving] .animate-slide-up {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sliding-pill] { transition: none !important; }
+}
+/* A part of the page that comes and goes with a switch (the ledger's tab row): it fades in and out
+   over the same time as the page crossfade. */
+::view-transition-old(.soft-out) {
+  animation: var(--motion-xfade) cubic-bezier(0.4, 0, 0.2, 1) both vt-fade-out;
+}
+::view-transition-new(.soft-in) {
+  animation: var(--motion-xfade) cubic-bezier(0.4, 0, 0.2, 1) both vt-fade;
+}
+/* Settings hides the app sidebar on wide screens: leaving or entering Settings slides it in or out
+   with the page crossfade (only one of its two images exists then), instead of popping. */
+::view-transition-new(app-sidebar):only-child {
+  animation: var(--motion-xfade) cubic-bezier(0.4, 0, 0.2, 1) both vt-sidebar-in;
+}
+::view-transition-old(app-sidebar):only-child {
+  display: block;
+  animation: var(--motion-xfade) cubic-bezier(0.4, 0, 0.2, 1) both vt-sidebar-out;
+}
+@keyframes vt-sidebar-in {
+  from { transform: translateX(-40%); opacity: 0; }
+}
+@keyframes vt-sidebar-out {
+  to { transform: translateX(-40%); opacity: 0; }
 }

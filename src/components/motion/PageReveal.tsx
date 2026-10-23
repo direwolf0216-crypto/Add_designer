@@ -6,8 +6,10 @@ import { ViewTransition, type ReactNode } from "react";
  * Put it in each page (layouts persist, so enter/exit would never fire there).
  */
 export default function PageReveal({ children }: { children: ReactNode }) {
+  // Every page shares one name, so a switch pairs the old page with the new one and crossfades them
+  // as one image pair (blended, so the background never shows through mid-way: no flash).
   return (
-    <ViewTransition enter="page-enter" exit="page-exit" default="none">
+    <ViewTransition name="app-page" share="page-xfade" enter="page-enter" exit="page-exit" default="none">
       <div className="w-full">{children}</div>
     </ViewTransition>
   );
