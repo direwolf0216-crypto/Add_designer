@@ -159,7 +159,7 @@ export default function TopNavigation() {
 
 
   return (
-    <header className="relative flex items-center justify-between gap-3 px-4 md:px-6 xl:px-10 py-4 md:py-5 bg-transparent z-50">
+    <header className="relative z-50 flex items-center justify-between gap-3 border-b border-slate-900/[0.07] bg-transparent px-4 py-4 shadow-[0_1px_0_rgba(255,255,255,0.6)] md:px-6 md:py-5 xl:px-10">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"

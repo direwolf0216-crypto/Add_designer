@@ -89,8 +89,8 @@ export default function TransactionField({ field: rawField, form, errors, set, d
     variant: "transaction" as const,
   };
 
-  // Category is always a multi-select; several categories split the amount per category.
-  if (fieldName === "category" && field.type !== "DATE") {
+  // A multi-select category splits the amount per category; a single-choice one is a plain dropdown.
+  if (fieldName === "category" && field.type === "MULTI_SELECT") {
     return (
       <FieldShell
         label={field.name}

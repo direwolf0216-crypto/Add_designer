@@ -126,13 +126,16 @@ function DashboardMetrics({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className={`grid gap-4 ${kpiCols}`}>
-        {kpis.map((k, i) => (
-          <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>
-            <KpiTile {...k} />
-          </div>
-        ))}
-      </div>
+      {/* The period's figures together on one frosted glass card. */}
+      <section aria-label="Overview" className="rounded-[26px] border border-white/70 bg-white/40 p-3 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.4)] backdrop-blur-xl sm:p-4">
+        <div className={`grid gap-3 ${kpiCols}`}>
+          {kpis.map((k, i) => (
+            <div key={k.label} className="animate-rise" style={{ ['--i' as string]: i }}>
+              <KpiTile {...k} flat />
+            </div>
+          ))}
+        </div>
+      </section>
 
       {Array.isArray(pipeline) && pipeline.length > 0 && <PressPipeline stages={pipeline} />}
 
@@ -263,12 +266,17 @@ function OverviewPageContent() {
   return (
     <section id="view-dashboard" className="flex w-full flex-col gap-6">
       {/* The title sits in the top bar; this row holds the day's actions and the period. */}
-      <div className="flex flex-wrap items-center justify-end gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-2.5">
         <h1 className="sr-only">Dashboard</h1>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <QuickActions />
-          <DashboardDateRangePicker onRangeChange={handleRangeChange} />
-        </div>
+        <QuickActions />
+      </div>
+
+      {/* The period picker sits right above the figures it controls. */}
+      <div className="-mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[0.78rem] font-extrabold uppercase tracking-wider text-slate-500">
+          Overview <span className="font-bold normal-case tracking-normal text-slate-400">· {periodLabel}</span>
+        </h2>
+        <DashboardDateRangePicker onRangeChange={handleRangeChange} />
       </div>
 
       <Suspense fallback={<MetricsSkeleton />}>

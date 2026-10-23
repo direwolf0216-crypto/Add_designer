@@ -2,7 +2,7 @@ import React from 'react';
 import { useGlobalForm } from '@/components/providers/GlobalFormProvider';
 import { usePermissions } from '@/hooks/usePermissions';
 
-/** The dashboard's three everyday actions, sized to sit in the header row beside the period picker. */
+/** The dashboard's everyday actions: a new job, and one Add transaction (income or expense is picked in the form). */
 export default function QuickActions() {
   const { openJobForm, openTransactionForm } = useGlobalForm();
   const { checkPermission } = usePermissions();
@@ -25,24 +25,14 @@ export default function QuickActions() {
         </button>
       )}
       {canManageTransactions && (
-        <>
-          <button
-            type="button"
-            onClick={() => openTransactionForm(undefined, { type: 'EXPENSE' })}
-            className={`${base} border border-red-100 bg-red-50 text-red-500 hover:bg-red-100`}
-          >
-            <i className="ph-bold ph-receipt text-[17px]" aria-hidden="true"></i>
-            Expense
-          </button>
-          <button
-            type="button"
-            onClick={() => openTransactionForm(undefined, { type: 'INCOME' })}
-            className={`${base} border border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100`}
-          >
-            <i className="ph-bold ph-money text-[17px]" aria-hidden="true"></i>
-            Income
-          </button>
-        </>
+        <button
+          type="button"
+          onClick={() => openTransactionForm()}
+          className={`${base} bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40`}
+        >
+          <i className="ph-bold ph-arrows-down-up text-[17px]" aria-hidden="true"></i>
+          Add transaction
+        </button>
       )}
     </>
   );

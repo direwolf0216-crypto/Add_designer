@@ -56,7 +56,7 @@ export function GlassCard({
 }
 
 /** A KPI tile: gradient icon, small label, big bold value and a caption. */
-export function KpiTile({ icon, tone, label, value, caption, valueClass, extra }: {
+export function KpiTile({ icon, tone, label, value, caption, valueClass, extra, flat = false }: {
   icon: string;
   tone: Tone;
   label: string;
@@ -65,9 +65,16 @@ export function KpiTile({ icon, tone, label, value, caption, valueClass, extra }
   valueClass?: string;
   /** Rendered under the caption across the tile's full width, e.g. the Cash / UPI split chips. */
   extra?: ReactNode;
+  /** Inside a glass group: a lighter tile without its own glass card. */
+  flat?: boolean;
 }) {
   return (
-    <div className="dashboard-card group flex min-w-0 flex-col gap-3 p-4 transition-transform duration-200 hover:-translate-y-0.5 2xl:p-5">
+    <div
+      className={cn(
+        "group flex h-full min-w-0 flex-col gap-3 p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 2xl:p-5",
+        flat ? "rounded-2xl bg-white/75 shadow-[0_6px_18px_-12px_rgba(15,23,42,0.3)] ring-1 ring-white/90 hover:shadow-[0_12px_26px_-14px_rgba(15,23,42,0.35)]" : "dashboard-card"
+      )}
+    >
       <div className="flex min-w-0 items-center gap-4">
         <IconTile icon={icon} tone={tone} size="lg" />
         <div className="min-w-0">
