@@ -11,3 +11,14 @@ export const PRIORITY_STYLE: Record<Priority, { label: string; icon: string; hex
 };
 
 export const isPriority = (v: unknown): v is Priority => typeof v === "string" && (PRIORITIES as readonly string[]).includes(v);
+
+/**
+ * How strongly a job card is tinted with its priority colour (hex alpha for the border, the wash and
+ * the accent bar). Normal cards stay plain so the others stand out.
+ */
+export const PRIORITY_TINT: Record<Priority, { border: string; wash: string; bar: string } | null> = {
+  URGENT: { border: "66", wash: "1A", bar: "FF" },
+  HIGH: { border: "55", wash: "14", bar: "E6" },
+  NORMAL: null,
+  LOW: { border: "40", wash: "0D", bar: "99" },
+};

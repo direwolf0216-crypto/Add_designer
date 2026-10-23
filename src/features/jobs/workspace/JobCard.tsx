@@ -6,7 +6,7 @@ import AssigneeAvatars from "@/features/jobs/assignees/AssigneeAvatars";
 import Amount from "@/components/data/Amount";
 import type { WorkspaceJob } from "@/lib/jobs/workspace";
 import type { StageOption } from "@/lib/jobs/tracking";
-import { PRIORITY_STYLE } from "@/lib/jobs/priority";
+import { PRIORITY_STYLE, PRIORITY_TINT } from "@/lib/jobs/priority";
 import DueChip from "./DueChip";
 import { stageHex, stageIcon } from "./stageStyle";
 
@@ -34,6 +34,9 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
   const paidPct = amount > 0 ? Math.min(100, Math.round(((job.paid ?? 0) / amount) * 100)) : 0;
   const closed = CLOSED.test(job.stage);
   const stageColor = stages.find((s) => s.label === job.stage)?.color;
+  // Urgent, High and Low cards are tinted in their priority colour; Normal stays plain.
+  const tint = PRIORITY_TINT[job.priority];
+  const priorityHex = PRIORITY_STYLE[job.priority].hex;
 
   return (
     <article
@@ -44,8 +47,11 @@ export default function JobCard({ job, today, stages = [], onMove, draggable = f
         e.currentTarget.classList.add("opacity-50");
       }}
       onDragEnd={(e) => e.currentTarget.classList.remove("opacity-50")}
-      className={`group relative rounded-2xl border border-slate-200/80 bg-white ${lg ? "p-5" : "p-3.5"} shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      data-priority={job.priority}
+      className={`group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white ${lg ? "p-5" : "p-3.5"} shadow-[0_4px_16px_-10px_rgba(15,23,42,0.25)] transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_-14px_rgba(15,23,42,0.35)] ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={tint ? { borderColor: `${priorityHex}${tint.border}`, backgroundImage: `linear-gradient(135deg, ${priorityHex}${tint.wash} 0%, #ffffff 58%)` } : undefined}
     >
+      {tint && <span className="pointer-events-none absolute inset-y-3 left-0 w-1 rounded-r-full" style={{ backgroundColor: `${priorityHex}${tint.bar}` }} aria-hidden="true" />}
       <Link href={`/jobs/details/${job.id}`} className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label={`Open ${job.jobNumber ?? "job"} for ${job.clientName}`} />
 
       <div className="pointer-events-none relative z-10 flex items-start justify-between gap-2">
