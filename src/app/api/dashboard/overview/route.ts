@@ -168,7 +168,7 @@ export const GET = route(async (req) => {
 
   const periodIncome = round2(typeAgg.find((t) => t.type === "INCOME")?._sum.amount ?? 0);
   const periodExpense = round2(typeAgg.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
-  // Cash / UPI / other split of the same period, for the KPI tiles (matches the ledger's Net today card).
+  // Cash / UPI / other split of the same period, for the KPI tiles.
   const byMode = { cash: { income: 0, expense: 0 }, upi: { income: 0, expense: 0 }, other: { income: 0, expense: 0 } };
   for (const row of modeAgg) {
     const mode = (row.paymentMode || "").toLowerCase();

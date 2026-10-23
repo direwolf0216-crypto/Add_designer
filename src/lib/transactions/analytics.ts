@@ -83,13 +83,6 @@ export function buildTodaySegments(shares: CategoryShare[]): TodaySegment[] {
   });
 }
 
-/** Net (income minus expense) of transactions whose payment mode matches `mode`, case-insensitively. */
-export function netForPaymentMode(transactions: Tx[], mode: string): number {
-  return transactions
-    .filter((t) => t.paymentMode?.toLowerCase() === mode)
-    .reduce((acc, t) => acc + (t.type === "INCOME" ? t.amount : -t.amount), 0);
-}
-
 /** Monday..Sunday of the week containing `today` (local time), plus short en-IN weekday labels. */
 export function currentWeek(today: Date): { dates: Date[]; dayLabels: string[] } {
   const dates: Date[] = [];

@@ -7,7 +7,6 @@ import {
   currentWeek,
   dailyFlows,
   indexOfMax,
-  netForPaymentMode,
   sumByCategory,
   toCategoryShares,
 } from "../analytics";
@@ -57,19 +56,6 @@ describe("donut segments", () => {
     ]);
     expect(segs[0]).toMatchObject({ rotation: -90, dashoffset: DONUT_CIRCUMFERENCE / 2, color: getConsistentColorClasses("Xerox") });
     expect(segs[1].rotation).toBe(90);
-  });
-});
-
-describe("netForPaymentMode", () => {
-  it("nets income minus expense for an exact, case-insensitive mode", () => {
-    const list = [
-      tx("INCOME", "A", 100, { paymentMode: "Cash" }),
-      tx("EXPENSE", "B", 30, { paymentMode: "cash" }),
-      tx("INCOME", "C", 999, { paymentMode: "UPI" }),
-      tx("INCOME", "D", 5),
-    ];
-    expect(netForPaymentMode(list, "cash")).toBe(70);
-    expect(netForPaymentMode(list, "upi")).toBe(999);
   });
 });
 

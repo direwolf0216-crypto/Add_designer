@@ -4,12 +4,10 @@ import { useGlobalForm } from "@/components/providers/GlobalFormProvider";
 import {
   buildHeatmapSegments,
   buildTodaySegments,
-  netForPaymentMode,
   sumByCategory,
   toCategoryShares,
 } from "@/lib/transactions/analytics";
 import { useTransactionsOverview } from "@/features/transactions/overview/useTransactionsOverview";
-import { TodayKpiCards } from "@/features/transactions/overview/TodayKpiCards";
 import { DonutBreakdownCard } from "@/features/transactions/overview/DonutBreakdownCard";
 import { TodayLedger } from "@/features/transactions/overview/TodayLedger";
 import { ExpenseHeatmapCard } from "@/features/transactions/overview/ExpenseHeatmapCard";
@@ -49,7 +47,6 @@ function OverviewPageContent() {
   const weekCategories = Object.fromEntries(week.expensesByCategory.map((c) => [c.category, c.amount]));
   const donutSegments = buildHeatmapSegments(weekCategories, week.totals.expense);
   const highestExpenseCategory = donutSegments.length > 0 ? donutSegments[0] : null;
-  const elapsed = week.days.filter((d) => !d.isFuture);
   const rangeLabel = week.days.length
     ? `${format(parseISO(week.days[0].date), "d MMM")} – ${format(parseISO(week.days[6].date), "d MMM")}`
     : "";
@@ -57,24 +54,10 @@ function OverviewPageContent() {
   // Today's breakdowns.
   const todayIncomeSegments = buildTodaySegments(toCategoryShares(sumByCategory(todayTransactions, 'INCOME'), todayIncome));
   const todayExpenseSegments = buildTodaySegments(toCategoryShares(sumByCategory(todayTransactions, 'EXPENSE'), todayExpense));
-  const todayCashNet = netForPaymentMode(todayTransactions, 'cash');
-  const todayUpiNet = netForPaymentMode(todayTransactions, 'upi');
 
   return (
     <div className="animate-fade-in w-full">
-      {/* KPI Cards — Always same row */}
-      <TodayKpiCards
-        todayIncome={todayIncome}
-        todayExpense={todayExpense}
-        todayNet={todayNet}
-        todayCashNet={todayCashNet}
-        todayUpiNet={todayUpiNet}
-        highestExpenseCategory={highestExpenseCategory}
-        weekIncome={elapsed.map((d) => d.income)}
-        weekExpense={elapsed.map((d) => d.expense)}
-      />
-
-      {/* Row 2: Income & Expenses */}
+      {/* Today's income and expenses */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 mb-8 items-start">
         <DonutBreakdownCard variant="income" total={todayIncome} segments={todayIncomeSegments} />
         <DonutBreakdownCard variant="expense" total={todayExpense} segments={todayExpenseSegments} />

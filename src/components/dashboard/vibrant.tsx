@@ -92,7 +92,7 @@ export function HeaderLink({ href, children, tone = "orange" }: { href: string; 
   );
 }
 
-/** Small "Cash ₹x" style figure used under the KPI tiles (same look as the ledger's Net today card). */
+/** Small "Cash ₹x" style figure used under the KPI tiles. */
 export function ModeChip({ icon, iconClass, label, value, signed = false }: { icon: string; iconClass: string; label: string; value: number; /** Prefix positive values with "+" (net figures). */ signed?: boolean }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-slate-50/90 px-2.5 py-1.5 ring-1 ring-slate-100">
