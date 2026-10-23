@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 /** Job-form input wrapper: phosphor icon inside the left padding of the control. */
-export function IconWrap({ icon, hideIcon = false, children }: { icon: string; hideIcon?: boolean; children: ReactNode }) {
+export function IconWrap({ icon, hideIcon = false, top = false, children }: { icon: string; hideIcon?: boolean; /** Beside the first line (multi-line boxes) instead of centred. */ top?: boolean; children: ReactNode }) {
   return (
     <div className="relative">
       {!hideIcon && (
-        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 z-10">
+        <div className={`absolute inset-y-0 left-0 pl-3.5 flex pointer-events-none text-slate-400 z-10 ${top ? "items-start pt-[0.6rem]" : "items-center"}`}>
           <i className={`ph-bold ${icon} text-[1.1rem]`}></i>
         </div>
       )}

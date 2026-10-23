@@ -92,7 +92,7 @@ export default function FieldRenderer({ readOnly, ...props }: FieldRendererProps
 
   if (kind === "checkbox" || kind === "file") return control;
   return (
-    <IconWrap icon={getFieldIcon(field.name, field.type, field.role)} hideIcon={kind === "currency"}>
+    <IconWrap icon={getFieldIcon(field.name, field.type, field.role)} hideIcon={kind === "currency"} top={kind === "textarea"}>
       {control}
     </IconWrap>
   );
