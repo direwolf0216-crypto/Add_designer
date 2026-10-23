@@ -30,7 +30,9 @@
   position: absolute;
   inset: 0;
   z-index: 40;
-  pointer-events: none;
+  /* Blocks the dimmed page under it (only the sidebar and top bar stay usable). */
+  pointer-events: auto;
+  cursor: progress;
   animation: printer-in 0.25s ease both;
 }
 @keyframes printer-in {

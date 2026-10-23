@@ -2046,6 +2046,10 @@ html[data-navigating="page"] [data-nav-dim="page"],
 html[data-navigating="jobs-view"] [data-nav-dim="jobs-view"] {
   opacity: 0.55;
   filter: saturate(0.85);
+  /* What's being replaced can't be clicked while the next page or view loads (the sidebar and top
+     bar stay usable, so you can still go somewhere else). */
+  pointer-events: none;
+  user-select: none;
 }
 /* A settings (or other in-page) tab's content easing in. No transform at rest, so fixed children
    (bottom sheets) keep the viewport as their containing block. */
