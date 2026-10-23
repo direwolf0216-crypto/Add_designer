@@ -295,7 +295,8 @@ test.describe.serial("pricing negative end to end (scratch database only)", () =
     // An unreadable size on a per-area line prices per piece, never zero.
     await qty.fill("4");
     await size.fill("A4");
-    await expect(rateRow).toContainText("Priced per ft²: enter the size as width x height");
+    await expect(rateRow).toContainText("Add a size, e.g. 10 × 6");
+    await expect(rateRow.locator('[title^="Priced per ft²: enter the size as width x height"]')).toBeVisible();
     await expect(rateRow.getByTestId("rate-line-total")).toHaveText("₹ 100");
 
     // A grouped quantity; a discount larger than the job floors the total at zero.

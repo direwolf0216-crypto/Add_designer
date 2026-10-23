@@ -44,21 +44,32 @@ export default function LineItemRates() {
           const byArea = isAreaPricing(unit);
           const unitText = pricingUnitLabel(unit);
           return (
-          <div key={row.rateKey} data-testid="rate-row" data-rate-key={row.rateKey} className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/80 hover:bg-slate-50 transition-colors border border-slate-100/50 rounded-2xl p-2.5 sm:p-3">
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <div key={row.rateKey} data-testid="rate-row" data-rate-key={row.rateKey} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 bg-slate-50/80 hover:bg-slate-50 transition-colors border border-slate-100/50 rounded-2xl p-2.5 sm:p-3">
+            {/* Name and area on the left (shrinks and truncates), rate and total held together on the right. */}
+            <div className="flex min-w-0 flex-1 basis-[200px] items-center gap-3 sm:gap-4">
               <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-[14px] bg-white border border-slate-200/60 flex items-center justify-center shrink-0 shadow-sm ${byArea ? "text-violet-600" : "text-blue-600"}`}>
                 <i className={`ph-fill ${byArea ? "ph-ruler" : "ph-receipt"} text-[1.1rem] sm:text-[1.2rem]`}></i>
               </div>
               <div className="min-w-0">
                 <span className="block truncate text-[0.95rem] sm:text-[1.05rem] font-semibold text-slate-800">{row.category as ReactNode}{row.extraText}</span>
-                {byArea && (
-                  <span className={`block text-[0.7rem] font-semibold ${area ? "text-violet-600" : "text-amber-600"}`}>
-                    {area ? `${area.toLocaleString("en-IN")} ${unitText}${parseQuantity(row.qty) !== 1 ? ` × ${parseQuantity(row.qty).toLocaleString("en-IN")} = ${(area * parseQuantity(row.qty)).toLocaleString("en-IN")} ${unitText}` : ""}` : `Priced per ${unitText}: enter the size as width x height, e.g. 10 x 6`}
-                  </span>
-                )}
+                {byArea &&
+                  (area ? (
+                    <span className="block truncate text-[0.7rem] font-semibold text-violet-600">
+                      {`${area.toLocaleString("en-IN")} ${unitText}${parseQuantity(row.qty) !== 1 ? ` × ${parseQuantity(row.qty).toLocaleString("en-IN")} = ${(area * parseQuantity(row.qty)).toLocaleString("en-IN")} ${unitText}` : ""}`}
+                    </span>
+                  ) : (
+                    // No size yet: a small, calm note (not a sentence that pushes the rate onto its own line).
+                    <span
+                      className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[0.68rem] font-semibold text-amber-700 ring-1 ring-amber-200/70"
+                      title={`Priced per ${unitText}: enter the size as width x height, e.g. 10 x 6`}
+                    >
+                      <i className="ph-bold ph-ruler shrink-0 text-[0.75rem]" aria-hidden="true"></i>
+                      <span className="truncate">Add a size, e.g. 10 × 6</span>
+                    </span>
+                  ))}
               </div>
             </div>
-            <div className="flex items-center gap-4 sm:gap-6">
+            <div className="ml-auto flex shrink-0 items-end gap-4 sm:gap-6">
               <div className="flex flex-col items-end">
                 <span className="text-[0.65rem] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">{byArea ? `Rate / ${unitText}` : "Rate"}</span>
                 <div className="flex items-center relative w-[90px] sm:w-[110px]">
@@ -77,10 +88,10 @@ export default function LineItemRates() {
                   />
                 </div>
               </div>
-              <div className="w-[1px] h-[30px] bg-slate-200 mt-3"></div>
+              <div className="w-[1px] h-[30px] bg-slate-200 self-center mt-3"></div>
               <div className="flex flex-col items-end min-w-[70px] sm:min-w-[90px] pr-1">
-                <span className="text-[0.65rem] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1.5">Total</span>
-                <span data-testid="rate-line-total" className="text-[1.05rem] font-bold text-slate-800 leading-none">
+                <span className="text-[0.65rem] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Total</span>
+                <span data-testid="rate-line-total" className="flex h-[34px] items-center text-[1.05rem] font-bold text-slate-800 leading-none sm:h-[36px]">
                   ₹ {lineItemTotal(financialRates[row.rateKey], row.qty, unit, row.size).toLocaleString("en-IN")}
                 </span>
               </div>
